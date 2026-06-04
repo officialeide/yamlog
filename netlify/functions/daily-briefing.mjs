@@ -56,13 +56,9 @@ SOL 한국원자력SMR 10주 / TIGER 코리아원자력 40주
 
 export default async (req) => {
   try {
-    const today = new Date().toLocaleDateString("ko-KR", {
-      timeZone: "Asia/Seoul",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      weekday: "long",
-    });
+   const kstDate = new Date().toLocaleDateString("sv-SE", {
+  timeZone: "Asia/Seoul",
+});
 
     // ── 1. Claude API 호출 ──────────────────────────────
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
