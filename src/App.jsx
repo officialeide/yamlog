@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
@@ -384,7 +383,7 @@ function WeekView({ date, filterCat, onOpen }) {
   const earlyHours = [0,1,2,3,4,5,6,7];
   const mainHours  = HOURS.filter(h=>!earlyHours.includes(h));
   const COL = "44px repeat(7,1fr)";
-  const ROW_H = 48; // fixed row height px
+  const ROW_H = 56; // fixed row height px
 
   const earlyEvCount = earlyHours.reduce((acc,h)=>
     acc+days.reduce((a2,d)=>
@@ -417,7 +416,7 @@ function WeekView({ date, filterCat, onOpen }) {
               const cat=catOf(ev.cat);
               return (
                 <div key={ev.id} onClick={()=>onOpen(ev)} title={ev.title} style={{
-                  fontSize:9,padding:"2px 5px",borderRadius:5,marginBottom:2,
+                  fontSize:11,padding:"3px 7px",borderRadius:5,marginBottom:2,
                   background: ev.done ? `${cat.bg}` : cat.bg,
                   color: ev.done ? T.textMute : cat.text,
                   border:`1px solid ${ev.done ? T.border : cat.color+"55"}`,
