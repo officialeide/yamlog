@@ -1,67 +1,36 @@
 // netlify/functions/daily-briefing.mjs
 // 매일 KST 08:50 자동 실행 (UTC 23:50)
 
-const SYSTEM_PROMPT = `당신은 매일 아침 간결한 주식·경제 브리핑을 제공하는 애널리스트입니다.
+const SYSTEM_PROMPT = `You are a Korean stock market briefing analyst. Respond ONLY with a single valid JSON object. No markdown, no backticks, no explanation, no newlines inside string values.
 
-[출력 형식 — 반드시 아래 JSON 구조로만 응답]
-반드시 유효한 JSON만 출력하세요. 마크다운 백틱, 코드블록, 설명 텍스트 절대 금지.
-특수문자 주의: 큰따옴표(") 대신 작은따옴표(') 사용. 줄바꿈 금지.
+Output this exact JSON structure:
+{"headline":"string","sections":[{"title":"string","summary":"string","lines":["string","string","string"]},{"title":"string","summary":"string","lines":["string","string","string"]},{"title":"string","summary":"string","lines":["string","string","string"]},{"title":"string","summary":"string","lines":["string","string","string"]},{"title":"string","summary":"string","lines":["string","string","string"]},{"title":"string","summary":"string","lines":["string","string","string","string","string","string","string"]}]}
 
-{
-  "headline": "오늘 핵심 한 줄 100자 이내",
-  "sections": [
-    { "title": "세계정세",       "summary": "두괄식 요약 50자 이내", "lines": ["항목1 60자이내", "항목2", "항목3"] },
-    { "title": "한국 증시",      "summary": "...", "lines": ["...", "...", "..."] },
-    { "title": "미장 지수",      "summary": "...", "lines": ["...", "...", "..."] },
-    { "title": "선물 파생",      "summary": "...", "lines": ["...", "...", "..."] },
-    { "title": "금리 환율 유가", "summary": "...", "lines": ["...", "...", "..."] },
-    { "title": "포트폴리오",     "summary": "...", "lines": ["...", "...", "...", "...", "...", "...", "..."] }
-  ]
-}
+Rules:
+- headline: max 80 chars in Korean
+- Each summary: max 40 chars in Korean, no comma inside
+- Each line: max 50 chars in Korean, no newline, no unescaped quotes
+- Section titles must be exactly: 세계정세, 한국증시, 미장지수, 선물파생, 금리환율유가, 포트폴리오
+- Do NOT use special chars like · / — inside JSON strings. Use space instead.
+- No 결론: prefix
+- Be critical, no excessive optimism
 
-[규칙]
-- headline: 100자 이내
-- summary: 50자 이내 두괄식 한 문장
-- lines: 항목당 60자 이내, 섹션당 3개 (포트폴리오만 7개)
-- "결론:" 절대 쓰지 말 것
-- 과도한 낙관 금지, 비판적 시각 유지
-- 분석이 틀리면 솔직하게 인정
-
-[포트폴리오]
-삼성전자 4주 / 삼성전자우 4주 / KODEX 200 30주 / 현대건설 4주
-한화에어로스페이스 2주 / 한화시스템 15주
-TIGER 코리아AI전력기기TOP3플러스 90주
-SOL 한국원자력SMR 10주 / TIGER 코리아원자력 40주
-버크셔 해서웨이 B 0.3956주 / 예수금 약 210만원
-한독 69주 장기보유 절대 언급 금지
-
-[추가 체크]
-삼성전자 SK하이닉스 레버리지 ETF 수급 (전날 변동 클 때)
-국민연금 리밸런싱 동향 (주 1회)
-KS200 선물 외인 포지션 및 베이시스
-
-[기타]
-한화시스템 추가 매수 중단
-원전 ETF 추가 매수 신중하게`;
+Portfolio (DO NOT mention 한독):
+삼성전자4주 삼성전자우4주 KODEX200 30주 현대건설4주
+한화에어로2주 한화시스템15주(추가매수중단)
+TIGER코리아AI전력기기90주 SOL원자력SMR10주 TIGER원자력40주(신중)
+버크셔B 0.3956주 예수금210만원`;
 
 export default async () => {
   try {
-    // KST 날짜
-    const kstDate = new Date().toLocaleDateString("sv-SE", {
-      timeZone: "Asia/Seoul",
-    });
-
+    const kstDate = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
     const kstDateKR = new Date().toLocaleDateString("ko-KR", {
-      timeZone: "Asia/Seoul",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      weekday: "long",
+      timeZone: "Asia/Seoul", year: "numeric", month: "long", day: "numeric", weekday: "long",
     });
 
     console.log(`브리핑 생성 시작: ${kstDate}`);
 
-    // ── 1. Claude API 호출 ──────────────────────────────
+    // ── 1. Claude API ────────────────────────────────────
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -71,82 +40,69 @@ export default async () => {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-5-20250929",
-        max_tokens: 1500,
+        max_tokens: 1200,
         system: SYSTEM_PROMPT,
-        messages: [
-          {
-            role: "user",
-            content: `오늘 날짜: ${kstDateKR}\n오늘의 경제 증시 브리핑을 JSON 형식으로 작성해줘.`,
-          },
-        ],
+        messages: [{
+          role: "user",
+          content: `오늘 날짜: ${kstDateKR}. 브리핑 JSON을 출력해줘.`,
+        }],
       }),
     });
 
     if (!claudeRes.ok) {
-      const errText = await claudeRes.text();
-      throw new Error(`Claude API error ${claudeRes.status}: ${errText}`);
+      const e = await claudeRes.text();
+      throw new Error(`Claude API error ${claudeRes.status}: ${e}`);
     }
 
     const claudeData = await claudeRes.json();
-    const rawText = claudeData.content[0].text.trim();
+    let rawText = claudeData.content[0].text.trim();
 
-    // ── 2. JSON 파싱 (백틱/마크다운 제거) ───────────────
-    const clean = rawText
-      .replace(/^```json\s*/i, "")
-      .replace(/^```\s*/i, "")
-      .replace(/```\s*$/i, "")
-      .trim();
+    // ── 2. JSON 추출 — { } 사이만 뽑기 ─────────────────
+    const jsonStart = rawText.indexOf("{");
+    const jsonEnd   = rawText.lastIndexOf("}");
+    if (jsonStart === -1 || jsonEnd === -1) {
+      throw new Error(`JSON 괄호 없음. 원문: ${rawText.slice(0, 150)}`);
+    }
+    const clean = rawText.slice(jsonStart, jsonEnd + 1);
 
     let briefing;
     try {
       briefing = JSON.parse(clean);
     } catch (e) {
-      // 파싱 실패 시 원문 100자 로그
-      throw new Error(`JSON 파싱 실패: ${e.message} | 원문 앞부분: ${clean.slice(0, 100)}`);
+      throw new Error(`JSON 파싱 실패: ${e.message} | 원문: ${clean.slice(0, 200)}`);
     }
 
-    // ── 3. 글자 수 검증 ──────────────────────────────────
+    // ── 3. 글자 수 ───────────────────────────────────────
     const totalChars =
       (briefing.headline?.length || 0) +
-      (briefing.sections || [])
-        .flatMap((s) => [s.summary || "", ...(s.lines || [])])
-        .join("").length;
-
+      (briefing.sections || []).flatMap(s => [s.summary || "", ...(s.lines || [])]).join("").length;
     console.log(`글자 수: ${totalChars}자`);
-    if (totalChars > 1000) {
-      console.warn(`글자 수 초과: ${totalChars}자`);
-    }
+    if (totalChars > 1000) console.warn(`글자 수 초과: ${totalChars}자`);
 
     // ── 4. Supabase 저장 ─────────────────────────────────
-    // SUPABASE_URL 끝에 슬래시 없도록 처리
-    const baseUrl = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
-
-    const supabaseRes = await fetch(
-      `${baseUrl}/rest/v1/briefings`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": process.env.SUPABASE_SERVICE_KEY,
-          "Authorization": `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-          "Prefer": "resolution=merge-duplicates",
-        },
-        body: JSON.stringify({
-          date: kstDate,
-          headline: briefing.headline,
-          sections: briefing.sections,
-          created_at: new Date().toISOString(),
-        }),
-      }
-    );
+    const baseUrl = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+    const supabaseRes = await fetch(`${baseUrl}/rest/v1/briefings`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": process.env.SUPABASE_SERVICE_KEY,
+        "Authorization": `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+        "Prefer": "resolution=merge-duplicates",
+      },
+      body: JSON.stringify({
+        date: kstDate,
+        headline: briefing.headline,
+        sections: briefing.sections,
+        created_at: new Date().toISOString(),
+      }),
+    });
 
     if (!supabaseRes.ok) {
-      const errText = await supabaseRes.text();
-      throw new Error(`Supabase error ${supabaseRes.status}: ${errText}`);
+      const e = await supabaseRes.text();
+      throw new Error(`Supabase error ${supabaseRes.status}: ${e}`);
     }
 
     console.log(`브리핑 저장 완료: ${kstDate}`);
-
     return new Response(
       JSON.stringify({ ok: true, date: kstDate, chars: totalChars }),
       { status: 200, headers: { "Content-Type": "application/json" } }
@@ -162,5 +118,5 @@ export default async () => {
 };
 
 export const config = {
-  schedule: "50 23 * * *", // UTC 23:50 = KST 08:50
+  schedule: "50 23 * * *",
 };
