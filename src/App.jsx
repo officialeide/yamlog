@@ -1,4 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 /* ─────────────────────────────────────────────────────
@@ -1172,75 +1178,33 @@ function AddModal({ onClose }) {
 /* ─────────────────────────────────────────────────────
    BRIEFING VIEW — 경제 브리핑 (하드코딩 예시)
 ───────────────────────────────────────────────────── */
-const BRIEFING_DATE = "2025. 6. 4";
+/* ─────────────────────────────────────────────────────
+   BRIEFING — 폴백용 상수 (Supabase 데이터 없을 때만 사용)
+───────────────────────────────────────────────────── */
+const BRIEFING_FALLBACK = {
+  headline: "브리핑을 불러오는 중입니다. 잠시 후 다시 확인해주세요.",
+  sections: [
+    { title:"세계정세",       summary:"데이터 없음", lines:["브리핑 준비 중"] },
+    { title:"한국 증시",      summary:"데이터 없음", lines:["브리핑 준비 중"] },
+    { title:"미장 지수",      summary:"데이터 없음", lines:["브리핑 준비 중"] },
+    { title:"선물 파생",      summary:"데이터 없음", lines:["브리핑 준비 중"] },
+    { title:"금리 환율 유가", summary:"데이터 없음", lines:["브리핑 준비 중"] },
+    { title:"포트폴리오",     summary:"데이터 없음", lines:["브리핑 준비 중"] },
+  ],
+};
 
-const BRIEFING_HEADLINE = "삼성전자 HBM 모멘텀 단기 주목, 미확인 보도 추격은 자제 — 예수금은 급락 시 분할매수 대기.";
-
+// 지수 카드 — 실시간 연동 전 임시 하드코딩
 const INDICES = [
-  { name:"코스피",    value:"2,631.72",  change:+0.83,  unit:"" },
-  { name:"코스닥",    value:"731.45",    change:-0.41,  unit:"" },
-  { name:"S&P 500",   value:"5,308.13",  change:+0.24,  unit:"" },
-  { name:"나스닥",    value:"16,742.39", change:+0.59,  unit:"" },
-  { name:"필라반도체", value:"4,891.20", change:-1.12,  unit:"" },
-  { name:"WTI",       value:"77.43",     change:-0.88,  unit:"$" },
-  { name:"달러/원",   value:"1,368.50",  change:+2.30,  unit:"" },
-  { name:"미국 10Y",  value:"4.432",     change:+0.021, unit:"%" },
+  { name:"코스피",    value:"–",  change:0, unit:"" },
+  { name:"코스닥",    value:"–",  change:0, unit:"" },
+  { name:"S&P 500",   value:"–",  change:0, unit:"" },
+  { name:"나스닥",    value:"–",  change:0, unit:"" },
+  { name:"필라반도체", value:"–", change:0, unit:"" },
+  { name:"WTI",       value:"–",  change:0, unit:"$" },
+  { name:"달러/원",   value:"–",  change:0, unit:"" },
+  { name:"미국 10Y",  value:"–",  change:0, unit:"%" },
 ];
 
-const BRIEFING_SECTIONS = [
-  {
-    title:"세계정세", color:"#4A6FA5", bg:"#EEF2FA",
-    content:[
-      "중동 긴장 완화, 단기 리스크오프 후퇴.",
-      "이란-이스라엘 충돌 가능성 낮아지며 유가 하방 압력. 연준 위원 발언 혼재 — 9월 인하 기대 유지되나 확신 약화.",
-      "중국 5월 PMI 49.5→50.2 소폭 반등, 경기 바닥 확인 시도.",
-    ],
-  },
-  {
-    title:"한국 증시", color:"#C0574B", bg:"#FDF0EE",
-    content:[
-      "코스피 외인 순매수 전환, 반도체 중심 반등 시도.",
-      "삼성전자 HBM3E 엔비디아 공급 승인 임박 보도 +2.1% 급등. 코스피 2,630 저항 재도전. 코스닥은 바이오 차익실현으로 소폭 약세.",
-      "수급: 외인 +3,200억 / 기관 -1,800억 / 개인 -1,400억",
-    ],
-  },
-  {
-    title:"미장 지수", color:"#3D5A80", bg:"#EEF2FA",
-    content:[
-      "S&P 500 5,300선 유지, 빅테크 혼조.",
-      "엔비디아 +1.8% 신고가 근접. 애플 WWDC 앞두고 보합. 테슬라 -2.3% 중국 판매 부진.",
-      "러셀2000 상대적 약세 지속. VIX 13.2, 공포 낮음.",
-    ],
-  },
-  {
-    title:"선물·파생", color:"#7E5BA6", bg:"#F4F0FA",
-    content:[
-      "KS200 선물 외인 순매수 전환, 베이시스 소폭 개선.",
-      "외인 +1,240계약 (전일 -890). 베이시스 -0.12pt → +0.08pt.",
-      "콜옵션 OI 2,640 집중, 단기 저항. 미 S&P500 선물 야간 보합.",
-    ],
-  },
-  {
-    title:"금리·환율·유가", color:"#B07D2E", bg:"#FBF4E8",
-    content:[
-      "달러 강세 소폭 후퇴, 원화 숨고르기.",
-      "미 10Y 4.43%, 연내 인하 기대 1.4회로 축소. 원달러 1,368원 (-3원).",
-      "WTI 77달러 초반, OPEC+ 감산 연장에도 수요 우려 상존. 금 2,346달러 보합.",
-    ],
-  },
-  {
-    title:"포트폴리오 영향", color:"#6B7C3A", bg:"#F2F5EA",
-    content:[
-      "삼성전자 HBM 모멘텀 단기 긍정적, 원전 ETF 눌림목 유지.",
-      "삼성전자: HBM 승인 보도 미확인 — 추격 매수보다 보유 유지 권고.",
-      "한화에어로·한화시스템: 방산 테마 숨고르기, 추가 매수 중단 유지.",
-      "TIGER 코리아AI전력기기: 전력기기 수출 호조 +1.4%, 비중 유지 적절.",
-      "원전 ETF(SOL·TIGER): 정책 우호적이나 단기 과매수 — 추가 매수 신중.",
-      "버크셔B: 달러 약세 전환 시 환차익 기대, 보유 유지.",
-      "예수금 210만원: 급락 시 삼성전자 분할매수 1순위 대기.",
-    ],
-  },
-];
 
 function IndexCard({ item }) {
   const isUp = item.change > 0;
@@ -1290,21 +1254,27 @@ function BriefingSection({ section }) {
       </div>
       {open && (
         <div style={{padding:"0 14px 12px",borderTop:`1px solid ${section.color}18`}}>
-          {section.content.map((line,i)=>(
-            <div key={i} style={{
-              marginTop: i===0?10:7,
-              paddingLeft: i===0?0:10,
-              borderLeft: i===0?"none":`2px solid ${section.color}55`,
-            }}>
-              <span style={{
-                fontSize:12,
-                color: i===0?section.color:T.text,
-                lineHeight:1.7,
-                fontWeight: i===0?700:400,
-                fontFamily:"'Noto Sans KR',sans-serif",
-              }}>{line}</span>
-            </div>
-          ))}
+          {(() => {
+            // DB 형식: { summary, lines } / 폴백 형식: { content: [...] }
+            const items = section.content
+              ? section.content
+              : [section.summary, ...(section.lines||[])];
+            return items.filter(Boolean).map((line,i)=>(
+              <div key={i} style={{
+                marginTop: i===0?10:7,
+                paddingLeft: i===0?0:10,
+                borderLeft: i===0?"none":`2px solid ${section.color}55`,
+              }}>
+                <span style={{
+                  fontSize:12,
+                  color: i===0?section.color:T.text,
+                  lineHeight:1.7,
+                  fontWeight: i===0?700:400,
+                  fontFamily:"'Noto Sans KR',sans-serif",
+                }}>{line}</span>
+              </div>
+            ));
+          })()}
         </div>
       )}
     </div>
@@ -1312,25 +1282,106 @@ function BriefingSection({ section }) {
 }
 
 function BriefingView() {
+  const [briefing, setBriefing] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+
+  useEffect(()=>{
+    async function fetchBriefing() {
+      try {
+        // 오늘 KST 날짜
+        const todayKST = new Date().toLocaleDateString("sv-SE", {timeZone:"Asia/Seoul"});
+
+        // 1순위: 오늘 날짜 브리핑
+        const { data: todayData } = await supabase
+          .from("briefings")
+          .select("*")
+          .eq("date", todayKST)
+          .single();
+
+        if(todayData) {
+          setBriefing({ ...todayData, isToday: true });
+          return;
+        }
+
+        // 2순위: 가장 최근 브리핑 (휴일/주말 대비)
+        const { data: latestData, error } = await supabase
+          .from("briefings")
+          .select("*")
+          .order("date", { ascending: false })
+          .limit(1)
+          .single();
+
+        if(error) throw error;
+
+        // 며칠 전 데이터인지 계산
+        const latestDate = new Date(latestData.date);
+        const today = new Date(new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"}));
+        const diffDays = Math.round((today - latestDate) / (1000*60*60*24));
+
+        setBriefing({ ...latestData, isToday: false, diffDays });
+      } catch(e) {
+        console.error("브리핑 로드 실패:", e);
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchBriefing();
+  },[]);
+
+  // 로딩 중
+  if(loading) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:200}}>
+      <div style={{fontSize:13,color:T.textMute}}>브리핑 불러오는 중...</div>
+    </div>
+  );
+
+  // 오류 or 데이터 없음 → 하드코딩 폴백
+  const useFallback = error || !briefing;
+  const headline  = useFallback ? BRIEFING_FALLBACK.headline : briefing.headline;
+  const sections  = useFallback ? BRIEFING_FALLBACK.sections : briefing.sections;
+  const dateLabel = useFallback ? "브리핑 대기 중" :
+    new Date(briefing.date).toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",timeZone:"Asia/Seoul"});
+  const isStale   = !useFallback && !briefing.isToday;
+  const diffDays  = briefing?.diffDays || 0;
+
   return (
     <div style={{overflowY:"auto",maxHeight:"calc(100vh - 155px)",paddingRight:4}}>
       {/* 날짜 + 배지 */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
         <div style={{fontFamily:"'Libre Baskerville',serif",fontSize:17,color:T.text,fontWeight:700}}>
-          {BRIEFING_DATE}
+          {dateLabel}
         </div>
-        <div style={{
-          fontSize:10,padding:"3px 11px",borderRadius:20,
-          background:"#6B7C3A22",color:"#6B7C3A",border:"1px solid #6B7C3A44",fontWeight:600,
-        }}>AI 브리핑</div>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          {useFallback&&(
+            <span style={{fontSize:9,color:T.textMute}}>샘플 데이터</span>
+          )}
+          {isStale&&(
+            <span style={{
+              fontSize:9,padding:"2px 8px",borderRadius:10,
+              background:"#B07D2E22",color:"#B07D2E",border:"1px solid #B07D2E44",
+            }}>{diffDays}일 전</span>
+          )}
+          {!useFallback&&briefing.isToday&&(
+            <span style={{
+              fontSize:9,padding:"2px 8px",borderRadius:10,
+              background:"#6B7C3A22",color:"#6B7C3A",border:"1px solid #6B7C3A44",
+            }}>오늘</span>
+          )}
+          <div style={{
+            fontSize:10,padding:"3px 11px",borderRadius:20,
+            background:"#6B7C3A22",color:"#6B7C3A",border:"1px solid #6B7C3A44",fontWeight:600,
+          }}>AI 브리핑</div>
+        </div>
       </div>
 
-      {/* 지수 카드 */}
+      {/* 지수 카드 — 항상 하드코딩 (실시간 API 추후 연동) */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
         {INDICES.map((item,i)=><IndexCard key={i} item={item}/>)}
       </div>
 
-      {/* 핵심 한 줄 — 지수 아래 */}
+      {/* 핵심 한 줄 */}
       <div style={{
         background:"#3A3228",borderRadius:12,padding:"13px 16px",
         marginBottom:14,border:"1px solid #5a4e44",
@@ -1341,13 +1392,23 @@ function BriefingView() {
         }}>핵심 한 줄</div>
         <div style={{
           fontSize:13,color:"#EDE6DC",lineHeight:1.75,
-          fontFamily:"'Noto Sans KR',sans-serif",
-          fontStyle:"italic",
-        }}>{BRIEFING_HEADLINE}</div>
+          fontFamily:"'Noto Sans KR',sans-serif",fontStyle:"italic",
+        }}>{headline}</div>
       </div>
 
       {/* 섹션별 브리핑 */}
-      {BRIEFING_SECTIONS.map((s,i)=><BriefingSection key={i} section={s}/>)}
+      {sections.map((s,i)=>{
+        const COLORS = {
+          "세계정세":       {color:"#4A6FA5",bg:"#EEF2FA"},
+          "한국 증시":      {color:"#C0443A",bg:"#FDECEA"},
+          "미장 지수":      {color:"#3D5A80",bg:"#EEF2FA"},
+          "선물 파생":      {color:"#7E5BA6",bg:"#F4F0FA"},
+          "금리 환율 유가": {color:"#B07D2E",bg:"#FBF4E8"},
+          "포트폴리오":     {color:"#6B7C3A",bg:"#F2F5EA"},
+        };
+        const c = COLORS[s.title] || {color:"#6B7B8D",bg:"#EFF1F4"};
+        return <BriefingSection key={i} section={{...s, ...c}}/>;
+      })}
     </div>
   );
 }
