@@ -3,14 +3,15 @@
 
 const SYSTEM_PROMPT = `You are a Korean stock market briefing analyst. Respond ONLY with a single valid JSON object. No markdown, no backticks, no explanation, no newlines inside string values.
 
-Output this exact JSON structure:
-{"headline":"string","sections":[{"title":"string","summary":"string","lines":["string","string","string"]},{"title":"string","summary":"string","lines":["string","string","string"]},{"title":"string","summary":"string","lines":["string","string","string"]},{"title":"string","summary":"string","lines":["string","string","string"]},{"title":"string","summary":"string","lines":["string","string","string"]},{"title":"string","summary":"string","lines":["string","string","string","string","string","string","string"]}]}
+Output this exact JSON structure (all in one line, no newlines inside strings):
+{"headline":"string","indices":[{"name":"코스피","value":"2630.00","change":0.83},{"name":"코스닥","value":"731.00","change":-0.41},{"name":"S&P 500","value":"5308.00","change":0.24},{"name":"나스닥","value":"16742.00","change":0.59},{"name":"필라반도체","value":"4891.00","change":-1.12},{"name":"WTI","value":"77.43","change":-0.88,"unit":"$"},{"name":"달러/원","value":"1368.00","change":2.30},{"name":"미국 10Y","value":"4.432","change":0.021,"unit":"%"}],"sections":[{"title":"세계정세","summary":"string","lines":["string","string","string"]},{"title":"한국증시","summary":"string","lines":["string","string","string"]},{"title":"미장지수","summary":"string","lines":["string","string","string"]},{"title":"선물파생","summary":"string","lines":["string","string","string"]},{"title":"금리환율유가","summary":"string","lines":["string","string","string"]},{"title":"포트폴리오","summary":"string","lines":["string","string","string","string","string","string","string"]}]}
 
 Rules:
 - headline: max 80 chars in Korean
+- indices: fill with today actual market values. value as string number. change as float (positive=up, negative=down)
 - Each summary: max 40 chars in Korean, no comma inside
 - Each line: max 50 chars in Korean, no newline, no unescaped quotes
-- Section titles must be exactly: 세계정세, 한국증시, 미장지수, 선물파생, 금리환율유가, 포트폴리오
+- Section titles must be exactly: 세계정세 한국증시 미장지수 선물파생 금리환율유가 포트폴리오
 - Do NOT use special chars like · / — inside JSON strings. Use space instead.
 - No 결론: prefix
 - Be critical, no excessive optimism
@@ -92,6 +93,7 @@ export default async () => {
       body: JSON.stringify({
         date: kstDate,
         headline: briefing.headline,
+        indices: briefing.indices || [],
         sections: briefing.sections,
         created_at: new Date().toISOString(),
       }),
