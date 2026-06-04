@@ -196,7 +196,7 @@ function DetailModal({ ev, onClose }) {
         <div style={{flex:1,overflowY:"auto",padding:"18px 22px"}}>
           {ev.detail ? (
             <pre style={{
-              fontFamily:"'Gowun Dodum','Noto Sans KR',sans-serif",fontSize:13,
+              fontFamily:"'Noto Sans KR',sans-serif",fontSize:13,
               color:T.text,lineHeight:1.85,whiteSpace:"pre-wrap",
               margin:0,
             }}>{ev.detail}</pre>
@@ -740,7 +740,7 @@ function LiveClock() {
     return ()=>clearInterval(id);
   });
   return (
-    <span style={{fontSize:12,color:"#9E9E9E",fontFamily:"'Gowun Dodum','Noto Sans KR',sans-serif",fontWeight:300,letterSpacing:.5}}>
+    <span style={{fontSize:12,color:"#9E9E9E",fontFamily:"'Noto Sans KR',sans-serif",fontWeight:300,letterSpacing:.5}}>
       {time}
     </span>
   );
@@ -1004,7 +1004,7 @@ function AddModal({ onClose }) {
     border:`1px solid ${T.border}`, borderRadius:8,
     padding:"9px 12px", color:T.text, fontSize:12,
     outline:"none", boxSizing:"border-box",
-    fontFamily:"'Gowun Dodum','Noto Sans KR',sans-serif",
+    fontFamily:"'Noto Sans KR',sans-serif",
   };
 
   const currentTmpl = tmpl ? TEMPLATES[tmpl] : null;
@@ -1301,7 +1301,7 @@ function BriefingSection({ section }) {
                 color: i===0?section.color:T.text,
                 lineHeight:1.7,
                 fontWeight: i===0?700:400,
-                fontFamily:"'Gowun Dodum',sans-serif",
+                fontFamily:"'Noto Sans KR',sans-serif",
               }}>{line}</span>
             </div>
           ))}
@@ -1341,7 +1341,7 @@ function BriefingView() {
         }}>핵심 한 줄</div>
         <div style={{
           fontSize:13,color:"#EDE6DC",lineHeight:1.75,
-          fontFamily:"'Gowun Dodum','Noto Sans KR',sans-serif",
+          fontFamily:"'Noto Sans KR',sans-serif",
           fontStyle:"italic",
         }}>{BRIEFING_HEADLINE}</div>
       </div>
@@ -1394,14 +1394,14 @@ export default function Yamlog() {
   const doneCount = todayEvs.filter(e=>e.done).length;
 
   return (
-    <div style={{minHeight:"100vh",background:T.bg,display:"flex",fontFamily:"'Gowun Dodum','Noto Sans KR',sans-serif",color:T.text}}>
+    <div style={{minHeight:"100vh",background:T.bg,display:"flex",fontFamily:"'Noto Sans KR',sans-serif",color:T.text}}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Gowun+Dodum&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
         ::-webkit-scrollbar{width:4px;height:4px;}
         ::-webkit-scrollbar-track{background:${T.bgSub};}
         ::-webkit-scrollbar-thumb{background:${T.borderMid};border-radius:2px;}
-        input,textarea,button{font-family:'Gowun Dodum','Noto Sans KR',sans-serif;}
+        input,textarea,button{font-family:'Noto Sans KR',sans-serif;}
         input[type=date]::-webkit-calendar-picker-indicator,
         input[type=time]::-webkit-calendar-picker-indicator{opacity:.4;cursor:pointer;}
         button:focus{outline:none;}
@@ -1419,18 +1419,15 @@ export default function Yamlog() {
           {/* Logo C — frame corner, Y+L */}
           <div style={{padding:"18px 16px 16px",borderBottom:`1px solid ${T.border}`}}>
             <div style={{display:"flex",alignItems:"center",gap:11}}>
-              <svg width="40" height="40" viewBox="0 0 52 52" fill="none" style={{flexShrink:0}}>
-                <rect width="52" height="52" rx="12" fill={T.accent}/>
-                <path d="M8 8 L8 44 L44 44" stroke="white" strokeWidth="1.2" strokeOpacity=".3" fill="none"/>
-                <path d="M13 12 L26 24" stroke="white" strokeWidth="3" strokeLinecap="round"/>
-                <path d="M39 12 L26 24" stroke="white" strokeWidth="3" strokeLinecap="round"/>
-                <path d="M26 24 L26 40 L40 40" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-                <rect x="6" y="6" width="6" height="6" rx="1.5" fill="white" opacity=".25"/>
-                <rect x="40" y="40" width="6" height="6" rx="1.5" fill="white" opacity=".25"/>
-              </svg>
+              <div style={{
+                width:40,height:40,borderRadius:10,flexShrink:0,
+                background:T.bgCard,border:`1px solid ${T.border}`,
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontSize:22,lineHeight:1,
+              }}>🌼</div>
               <div>
                 <div style={{fontFamily:"'Libre Baskerville',Georgia,serif",fontSize:19,color:T.text,fontWeight:700,letterSpacing:1,lineHeight:1}}>Yamlog</div>
-                <div style={{fontFamily:"'Gowun Dodum',sans-serif",fontSize:10,color:T.accent,letterSpacing:3,marginTop:3,lineHeight:1}}>얌로그</div>
+                <div style={{fontFamily:"'Noto Sans KR',sans-serif",fontSize:10,color:T.accent,letterSpacing:3,marginTop:3,lineHeight:1}}>얌로그</div>
               </div>
             </div>
           </div>
