@@ -10,7 +10,7 @@ export default defineConfig({
       manifest: {
         name: 'Yamlog',
         short_name: 'Yamlog',
-        description: '얌로그 — 나만의 기록 공간',
+        description: 'Yamlog',
         theme_color: '#6B7C3A',
         background_color: '#F7F4EF',
         display: 'standalone',
