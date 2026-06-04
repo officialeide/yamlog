@@ -1209,13 +1209,15 @@ const INDICES = [
 function IndexCard({ item }) {
   const isUp = item.change > 0;
   const isFlat = item.change === 0;
-  const color = isFlat ? T.textMute : isUp ? "#C0574B" : "#4A6FA5";
+  const color = isFlat ? T.textMute : isUp ? "#C0443A" : "#2E6FA5";
   const triangle = isUp ? "▲" : isFlat ? "–" : "▼";
-  const isAbsolute = item.name.includes("달러")||item.name.includes("유가")||item.name.includes("10Y");
+  const isAbsolute = item.unit === "$" || item.unit === "%" ||
+    item.name.includes("달러") || item.name.includes("WTI") || item.name.includes("10Y");
   const sign = item.change > 0 ? "+" : "";
+  const changeVal = typeof item.change === "number" ? item.change : parseFloat(item.change) || 0;
   const changeLabel = isAbsolute
-    ? `${sign}${item.change.toFixed(2)}`
-    : `${sign}${item.change.toFixed(2)}%`;
+    ? `${sign}${changeVal.toFixed(2)}`
+    : `${sign}${changeVal.toFixed(2)}%`;
   return (
     <div style={{
       background:T.bgCard,borderRadius:10,padding:"10px 12px",
@@ -1376,10 +1378,17 @@ function BriefingView() {
         </div>
       </div>
 
-      {/* 지수 카드 — 항상 하드코딩 (실시간 API 추후 연동) */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
-        {INDICES.map((item,i)=><IndexCard key={i} item={item}/>)}
-      </div>
+      {/* 지수 카드 — DB에서 로드, 없으면 빈 카드 */}
+      {(()=>{
+        const idxData = (!useFallback && briefing.indices && briefing.indices.length > 0)
+          ? briefing.indices
+          : INDICES;
+        return (
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
+            {idxData.map((item,i)=><IndexCard key={i} item={item}/>)}
+          </div>
+        );
+      })()}
 
       {/* 핵심 한 줄 */}
       <div style={{
@@ -1399,12 +1408,18 @@ function BriefingView() {
       {/* 섹션별 브리핑 */}
       {sections.map((s,i)=>{
         const COLORS = {
-          "세계정세":       {color:"#4A6FA5",bg:"#EEF2FA"},
-          "한국 증시":      {color:"#C0443A",bg:"#FDECEA"},
-          "미장 지수":      {color:"#3D5A80",bg:"#EEF2FA"},
-          "선물 파생":      {color:"#7E5BA6",bg:"#F4F0FA"},
-          "금리 환율 유가": {color:"#B07D2E",bg:"#FBF4E8"},
-          "포트폴리오":     {color:"#6B7C3A",bg:"#F2F5EA"},
+          "세계정세":       {color:"#C0443A",bg:"#FDECEA"},  // 빨
+          "한국증시":       {color:"#C0443A",bg:"#FDECEA"},  // 빨
+          "한국 증시":      {color:"#C0443A",bg:"#FDECEA"},  // 빨
+          "미장지수":       {color:"#B09520",bg:"#FBF8E3"},  // 노
+          "미장 지수":      {color:"#B09520",bg:"#FBF8E3"},  // 노
+          "선물파생":       {color:"#4A8A5A",bg:"#EBF5EE"},  // 초
+          "선물 파생":      {color:"#4A8A5A",bg:"#EBF5EE"},  // 초
+          "금리환율유가":   {color:"#2E6FA5",bg:"#E8F2FA"},  // 파
+          "금리 환율 유가": {color:"#2E6FA5",bg:"#E8F2FA"},  // 파
+          "포트폴리오":     {color:"#3A52A0",bg:"#EAECF8"},  // 남
+          "포트폴리오 영향":{color:"#3A52A0",bg:"#EAECF8"},  // 남
+          "세계정세2":      {color:"#7E4FA0",bg:"#F3EBF8"},  // 보 (예비)
         };
         const c = COLORS[s.title] || {color:"#6B7B8D",bg:"#EFF1F4"};
         return <BriefingSection key={i} section={{...s, ...c}}/>;
