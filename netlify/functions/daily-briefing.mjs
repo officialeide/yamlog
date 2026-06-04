@@ -1,25 +1,26 @@
 // netlify/functions/daily-briefing.mjs
 // 매일 KST 08:50 자동 실행 (UTC 23:50)
 
-const SYSTEM_PROMPT = `You are a Korean stock market briefing analyst. Respond ONLY with a single valid JSON object. No markdown, no backticks, no explanation, no newlines inside string values.
+const SYSTEM_PROMPT = `You are a Korean stock market analyst. Output ONLY a valid JSON object. No markdown, no backticks, no explanation text.
 
-Output this exact JSON structure (all in one line, no newlines inside strings):
-{"headline":"string","indices":[{"name":"코스피","value":"2630.00","change":0.83},{"name":"코스닥","value":"731.00","change":-0.41},{"name":"S&P 500","value":"5308.00","change":0.24},{"name":"나스닥","value":"16742.00","change":0.59},{"name":"필라반도체","value":"4891.00","change":-1.12},{"name":"WTI","value":"77.43","change":-0.88,"unit":"$"},{"name":"달러/원","value":"1368.00","change":2.30},{"name":"미국 10Y","value":"4.432","change":0.021,"unit":"%"}],"sections":[{"title":"세계정세","summary":"string","lines":["string","string","string"]},{"title":"한국증시","summary":"string","lines":["string","string","string"]},{"title":"미장지수","summary":"string","lines":["string","string","string"]},{"title":"선물파생","summary":"string","lines":["string","string","string"]},{"title":"금리환율유가","summary":"string","lines":["string","string","string"]},{"title":"포트폴리오","summary":"string","lines":["string","string","string","string","string","string","string"]}]}
+EXACT JSON format (copy this structure):
+{"headline":"string","sections":[{"title":"세계정세","summary":"string","lines":["string","string","string"]},{"title":"한국증시","summary":"string","lines":["string","string","string"]},{"title":"미장지수","summary":"string","lines":["string","string","string"]},{"title":"선물파생","summary":"string","lines":["string","string","string"]},{"title":"금리환율유가","summary":"string","lines":["string","string","string"]},{"title":"포트폴리오","summary":"string","lines":["string","string","string","string","string","string","string"]}]}
 
-Rules:
-- headline: max 80 chars in Korean
-- indices: fill with today actual market values. value as string number. change as float (positive=up, negative=down)
-- Each summary: max 40 chars in Korean, no comma inside
-- Each line: max 50 chars in Korean, no newline, no unescaped quotes
-- Section titles must be exactly: 세계정세 한국증시 미장지수 선물파생 금리환율유가 포트폴리오
-- Do NOT use special chars like · / — inside JSON strings. Use space instead.
-- No 결론: prefix
-- Be critical, no excessive optimism
+STRICT RULES:
+1. Output ONLY the JSON. Nothing before or after.
+2. No newlines inside string values.
+3. No special characters inside strings: no · no — no / no quotes. Use space instead.
+4. headline: max 60 chars
+5. summary: max 40 chars, one sentence
+6. lines: max 45 chars each
+7. Do NOT write 결론:
+8. Be critical. No excessive optimism.
 
-Portfolio (DO NOT mention 한독):
+Portfolio (never mention 한독):
 삼성전자4주 삼성전자우4주 KODEX200 30주 현대건설4주
-한화에어로2주 한화시스템15주(추가매수중단)
-TIGER코리아AI전력기기90주 SOL원자력SMR10주 TIGER원자력40주(신중)
+한화에어로2주 한화시스템15주(매수중단)
+TIGER코리아AI전력기기90주
+SOL원자력SMR10주 TIGER원자력40주(신중)
 버크셔B 0.3956주 예수금210만원`;
 
 export default async () => {
@@ -41,11 +42,11 @@ export default async () => {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-5-20250929",
-        max_tokens: 1200,
+        max_tokens: 1000,
         system: SYSTEM_PROMPT,
         messages: [{
           role: "user",
-          content: `오늘 날짜: ${kstDateKR}. 브리핑 JSON을 출력해줘.`,
+          content: `Date: ${kstDateKR}. Output the briefing JSON now.`,
         }],
       }),
     });
@@ -58,11 +59,11 @@ export default async () => {
     const claudeData = await claudeRes.json();
     let rawText = claudeData.content[0].text.trim();
 
-    // ── 2. JSON 추출 — { } 사이만 뽑기 ─────────────────
+    // ── 2. { } 사이만 추출 ───────────────────────────────
     const jsonStart = rawText.indexOf("{");
     const jsonEnd   = rawText.lastIndexOf("}");
     if (jsonStart === -1 || jsonEnd === -1) {
-      throw new Error(`JSON 괄호 없음. 원문: ${rawText.slice(0, 150)}`);
+      throw new Error(`JSON 없음: ${rawText.slice(0, 100)}`);
     }
     const clean = rawText.slice(jsonStart, jsonEnd + 1);
 
@@ -70,15 +71,14 @@ export default async () => {
     try {
       briefing = JSON.parse(clean);
     } catch (e) {
-      throw new Error(`JSON 파싱 실패: ${e.message} | 원문: ${clean.slice(0, 200)}`);
+      throw new Error(`JSON 파싱 실패: ${e.message} | ${clean.slice(0, 150)}`);
     }
 
     // ── 3. 글자 수 ───────────────────────────────────────
     const totalChars =
       (briefing.headline?.length || 0) +
-      (briefing.sections || []).flatMap(s => [s.summary || "", ...(s.lines || [])]).join("").length;
+      (briefing.sections || []).flatMap(s => [s.summary||"", ...(s.lines||[])]).join("").length;
     console.log(`글자 수: ${totalChars}자`);
-    if (totalChars > 1000) console.warn(`글자 수 초과: ${totalChars}자`);
 
     // ── 4. Supabase 저장 ─────────────────────────────────
     const baseUrl = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
@@ -93,7 +93,6 @@ export default async () => {
       body: JSON.stringify({
         date: kstDate,
         headline: briefing.headline,
-        indices: briefing.indices || [],
         sections: briefing.sections,
         created_at: new Date().toISOString(),
       }),
