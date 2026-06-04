@@ -5,6 +5,19 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
+
+// Mobile detection hook
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  useEffect(()=>{
+    const fn = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  },[]);
+  return isMobile;
+}
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 /* ─────────────────────────────────────────────────────
@@ -1377,6 +1390,107 @@ function BriefingView() {
 }
 
 /* ─────────────────────────────────────────────────────
+   BOTTOM TAB BAR (모바일 전용)
+───────────────────────────────────────────────────── */
+const TAB_ITEMS = [
+  { id:"all",      label:"전체",   icon:"○" },
+  { id:"briefing", label:"브리핑", icon:"◈" },
+  { id:"health",   label:"건강",   icon:"○" },
+  { id:"personal", label:"개인",   icon:"○" },
+  { id:"work",     label:"업무",   icon:"○" },
+  { id:"more",     label:"더보기", icon:"≡" },
+];
+
+function BottomTabBar({ filterCat, showBriefing, setFilterCat, setShowBriefing, setShowMoreSheet }) {
+  const tabs = TAB_ITEMS;
+  return (
+    <div style={{
+      position:"fixed", bottom:0, left:0, right:0, zIndex:200,
+      background:T.bgCard,
+      borderTop:`1px solid ${T.border}`,
+      display:"flex",
+      paddingBottom:"env(safe-area-inset-bottom)",
+      boxShadow:"0 -2px 12px rgba(44,40,37,0.08)",
+    }}>
+      {tabs.map(tab=>{
+        const isActive = tab.id==="briefing"
+          ? showBriefing
+          : tab.id==="more"
+          ? false
+          : filterCat===tab.id&&!showBriefing;
+        const cat = CATS.find(c=>c.id===tab.id);
+        const activeColor = cat?.color || T.accent;
+        return (
+          <button key={tab.id} onClick={()=>{
+            if(tab.id==="more") { setShowMoreSheet(s=>!s); return; }
+            if(tab.id==="briefing") { setShowBriefing(true); setFilterCat("all"); return; }
+            setShowBriefing(false); setFilterCat(tab.id);
+          }} style={{
+            flex:1, padding:"10px 4px 8px", border:"none", cursor:"pointer",
+            background:"transparent",
+            display:"flex", flexDirection:"column", alignItems:"center", gap:3,
+          }}>
+            <div style={{
+              width:28, height:28, borderRadius:8,
+              background: isActive ? activeColor+"22" : "transparent",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:16, color: isActive ? activeColor : T.textMute,
+              transition:"all .12s",
+            }}>{tab.icon}</div>
+            <span style={{
+              fontSize:9, color: isActive ? activeColor : T.textMute,
+              fontWeight: isActive ? 600 : 400,
+              fontFamily:"'Noto Sans KR',sans-serif",
+            }}>{tab.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* 더보기 시트 (나머지 카테고리) */
+function MoreSheet({ filterCat, showBriefing, setFilterCat, setShowBriefing, onClose }) {
+  const moreCats = CATS.filter(c=>!["health","personal","work"].includes(c.id));
+  return (
+    <div onClick={onClose} style={{
+      position:"fixed", inset:0, background:"rgba(44,40,37,0.3)",
+      zIndex:300, display:"flex", alignItems:"flex-end",
+    }}>
+      <div onClick={e=>e.stopPropagation()} style={{
+        width:"100%", background:T.bgCard,
+        borderRadius:"16px 16px 0 0",
+        padding:"16px 20px 32px",
+        boxShadow:"0 -4px 24px rgba(44,40,37,0.12)",
+      }}>
+        <div style={{
+          width:36, height:4, borderRadius:2,
+          background:T.borderMid, margin:"0 auto 16px",
+        }}/>
+        <div style={{fontSize:12, color:T.textMute, marginBottom:12}}>카테고리</div>
+        <div style={{display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8}}>
+          {moreCats.map(cat=>{
+            const active=filterCat===cat.id&&!showBriefing;
+            return (
+              <button key={cat.id} onClick={()=>{
+                setFilterCat(cat.id); setShowBriefing(false); onClose();
+              }} style={{
+                padding:"12px 8px", borderRadius:12, cursor:"pointer",
+                background:active?cat.bg:T.bgSub,
+                border:`1px solid ${active?cat.color+"66":T.border}`,
+                color:active?cat.text:T.textSub,
+                fontSize:12, fontWeight:active?600:400,
+                fontFamily:"'Noto Sans KR',sans-serif",
+              }}>{cat.label}</button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────
    MAIN APP
 ───────────────────────────────────────────────────── */
 export default function Yamlog() {
@@ -1387,6 +1501,8 @@ export default function Yamlog() {
   const [showModal, setShowModal] = useState(false);
   const [showDetail, setShowDetail] = useState(null);
   const [sideOpen, setSideOpen] = useState(true);
+  const [showMoreSheet, setShowMoreSheet] = useState(false);
+  const isMobile = useIsMobile();
 
   const navigate = (dir) => {
     const d = new Date(curDate);
@@ -1546,7 +1662,7 @@ export default function Yamlog() {
       )}
 
       {/* MAIN */}
-      <main style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflow:"hidden"}}>
+      <main style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflow:"hidden",paddingBottom:isMobile?"68px":0}}>
 
         {/* Top bar */}
         <header style={{
@@ -1609,8 +1725,8 @@ export default function Yamlog() {
           }}>+ 추가</button>
         </header>
 
-        {/* Category filter chips — always active, closes briefing */}
-        <div style={{
+        {/* Category filter chips — 데스크탑만 */}
+        {!isMobile && <div style={{
           display:"flex",gap:5,padding:"9px 20px",flexShrink:0,
           overflowX:"auto",borderBottom:`1px solid ${T.border}`,
           background:T.bg,
@@ -1634,7 +1750,7 @@ export default function Yamlog() {
               }}>{c.label}</button>
             );
           })}
-        </div>
+        </div>}
 
         {/* View content */}
         <div style={{flex:1,padding:"16px 20px",overflow:"hidden"}}>
@@ -1652,6 +1768,24 @@ export default function Yamlog() {
 
       {showModal && <AddModal onClose={()=>setShowModal(false)}/>}
       {showDetail && <DetailModal ev={showDetail} onClose={()=>setShowDetail(null)}/>}
+      {isMobile && (
+        <BottomTabBar
+          filterCat={filterCat}
+          showBriefing={showBriefing}
+          setFilterCat={setFilterCat}
+          setShowBriefing={setShowBriefing}
+          setShowMoreSheet={setShowMoreSheet}
+        />
+      )}
+      {isMobile && showMoreSheet && (
+        <MoreSheet
+          filterCat={filterCat}
+          showBriefing={showBriefing}
+          setFilterCat={setFilterCat}
+          setShowBriefing={setShowBriefing}
+          onClose={()=>setShowMoreSheet(false)}
+        />
+      )}
     </div>
   );
 }
