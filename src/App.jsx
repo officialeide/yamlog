@@ -1193,48 +1193,7 @@ const BRIEFING_FALLBACK = {
   ],
 };
 
-// 지수 카드 — 실시간 연동 전 임시 하드코딩
-const INDICES = [
-  { name:"코스피",    value:"–",  change:0, unit:"" },
-  { name:"코스닥",    value:"–",  change:0, unit:"" },
-  { name:"S&P 500",   value:"–",  change:0, unit:"" },
-  { name:"나스닥",    value:"–",  change:0, unit:"" },
-  { name:"필라반도체", value:"–", change:0, unit:"" },
-  { name:"WTI",       value:"–",  change:0, unit:"$" },
-  { name:"달러/원",   value:"–",  change:0, unit:"" },
-  { name:"미국 10Y",  value:"–",  change:0, unit:"%" },
-];
 
-
-function IndexCard({ item }) {
-  const isUp = item.change > 0;
-  const isFlat = item.change === 0;
-  const color = isFlat ? T.textMute : isUp ? "#C0443A" : "#2E6FA5";
-  const triangle = isUp ? "▲" : isFlat ? "–" : "▼";
-  const isAbsolute = item.unit === "$" || item.unit === "%" ||
-    item.name.includes("달러") || item.name.includes("WTI") || item.name.includes("10Y");
-  const sign = item.change > 0 ? "+" : "";
-  const changeVal = typeof item.change === "number" ? item.change : parseFloat(item.change) || 0;
-  const changeLabel = isAbsolute
-    ? `${sign}${changeVal.toFixed(2)}`
-    : `${sign}${changeVal.toFixed(2)}%`;
-  return (
-    <div style={{
-      background:T.bgCard,borderRadius:10,padding:"10px 12px",
-      border:`1px solid ${T.border}`,
-      boxShadow:"0 1px 4px rgba(44,40,37,0.05)",
-    }}>
-      <div style={{fontSize:10,color:T.textSub,marginBottom:4,fontWeight:500}}>{item.name}</div>
-      <div style={{fontSize:15,color:T.text,fontWeight:700,letterSpacing:.3,fontFamily:"'Libre Baskerville',serif"}}>
-        {item.unit}{item.value}
-      </div>
-      <div style={{display:"flex",alignItems:"center",gap:3,marginTop:3}}>
-        <span style={{fontSize:10,color,fontWeight:700}}>{triangle}</span>
-        <span style={{fontSize:10,color,fontWeight:600}}>{changeLabel}</span>
-      </div>
-    </div>
-  );
-}
 
 function BriefingSection({ section }) {
   const [open, setOpen] = useState(true);
@@ -1378,17 +1337,7 @@ function BriefingView() {
         </div>
       </div>
 
-      {/* 지수 카드 — DB에서 로드, 없으면 빈 카드 */}
-      {(()=>{
-        const idxData = (!useFallback && briefing.indices && briefing.indices.length > 0)
-          ? briefing.indices
-          : INDICES;
-        return (
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
-            {idxData.map((item,i)=><IndexCard key={i} item={item}/>)}
-          </div>
-        );
-      })()}
+
 
       {/* 핵심 한 줄 */}
       <div style={{
@@ -1409,17 +1358,16 @@ function BriefingView() {
       {sections.map((s,i)=>{
         const COLORS = {
           "세계정세":       {color:"#C0443A",bg:"#FDECEA"},  // 빨
-          "한국증시":       {color:"#C0443A",bg:"#FDECEA"},  // 빨
-          "한국 증시":      {color:"#C0443A",bg:"#FDECEA"},  // 빨
-          "미장지수":       {color:"#B09520",bg:"#FBF8E3"},  // 노
-          "미장 지수":      {color:"#B09520",bg:"#FBF8E3"},  // 노
-          "선물파생":       {color:"#4A8A5A",bg:"#EBF5EE"},  // 초
-          "선물 파생":      {color:"#4A8A5A",bg:"#EBF5EE"},  // 초
-          "금리환율유가":   {color:"#2E6FA5",bg:"#E8F2FA"},  // 파
-          "금리 환율 유가": {color:"#2E6FA5",bg:"#E8F2FA"},  // 파
-          "포트폴리오":     {color:"#3A52A0",bg:"#EAECF8"},  // 남
-          "포트폴리오 영향":{color:"#3A52A0",bg:"#EAECF8"},  // 남
-          "세계정세2":      {color:"#7E4FA0",bg:"#F3EBF8"},  // 보 (예비)
+          "한국증시":       {color:"#C96A2A",bg:"#FDF1E8"},  // 주황
+          "한국 증시":      {color:"#C96A2A",bg:"#FDF1E8"},  // 주황
+          "미장지수":       {color:"#B09520",bg:"#FBF8E3"},  // 노랑
+          "미장 지수":      {color:"#B09520",bg:"#FBF8E3"},  // 노랑
+          "선물파생":       {color:"#4A8A5A",bg:"#EBF5EE"},  // 초록
+          "선물 파생":      {color:"#4A8A5A",bg:"#EBF5EE"},  // 초록
+          "금리환율유가":   {color:"#2E6FA5",bg:"#E8F2FA"},  // 파랑
+          "금리 환율 유가": {color:"#2E6FA5",bg:"#E8F2FA"},  // 파랑
+          "포트폴리오":     {color:"#3A52A0",bg:"#EAECF8"},  // 남색
+          "포트폴리오 영향":{color:"#3A52A0",bg:"#EAECF8"},  // 남색
         };
         const c = COLORS[s.title] || {color:"#6B7B8D",bg:"#EFF1F4"};
         return <BriefingSection key={i} section={{...s, ...c}}/>;
