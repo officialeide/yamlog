@@ -90,6 +90,11 @@ export async function updateEvent(id, data) {
   if (error) throw error;
 }
 
+export async function deleteEvent(id) {
+  const { error } = await supabase.from("events").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function upsertWeight(date, weight, memo = "") {
   const { error } = await supabase
     .from("weight_logs")
