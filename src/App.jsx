@@ -798,7 +798,7 @@ function LiveClock() {
    RANDOM REVIEW CARD  (sidebar bottom)
 ───────────────────────────────────────────────────── */
 function RandomReview({ events, onOpen }) {
-  const pool = events.filter(e=>e.category==="archive"||(e.category==="archive"&&e.sub_category==="review"&&e.sub==="북"));
+  const pool = events.filter(e=>e.category==="archive"&&e.sub_category==="review");
   const [idx, setIdx] = useState(()=>Math.floor(Math.random()*Math.max(pool.length,1)));
   if(!pool.length) return null;
   const ev = pool[idx % pool.length];
@@ -834,41 +834,55 @@ function RandomReview({ events, onOpen }) {
 }
 
 /* ─────────────────────────────────────────────────────
-   WEIGHT CHART
+   WEIGHT CHART — Supabase 연동
 ───────────────────────────────────────────────────── */
 function WeightSection() {
-  const catHealth = {...CATS[0], color:'#D4867E', bg:'#FEF5F4'};
+  const { logs } = useWeightLogs();
+  const catHealth = { color:"#D4867E", bg:"#FEF5F4", text:"#9B3D33" };
+
+  if(!logs.length) return (
+    <div style={{background:catHealth.bg,borderRadius:10,padding:"12px 10px",border:`1px solid ${catHealth.color}22`,marginBottom:8}}>
+      <div style={{fontSize:9,color:catHealth.text,fontWeight:600,letterSpacing:.5,textTransform:"uppercase",marginBottom:4}}>체중</div>
+      <div style={{fontSize:11,color:T.textMute}}>기록 없음</div>
+    </div>
+  );
+
+  const latest = logs[logs.length-1];
+  const chartData = logs.map(l=>({
+    label:`${new Date(l.date).getMonth()+1}/${new Date(l.date).getDate()}`,
+    weight:l.weight,
+    actual:true,
+  }));
+  const weights = logs.map(l=>l.weight);
+  const min = Math.min(...weights) - .8;
+  const max = Math.max(...weights) + .5;
+  const avg = +(weights.reduce((a,w)=>a+w,0)/weights.length).toFixed(1);
+
   const CustomDot=(props)=>{
-    const{cx,cy,payload}=props;
-    if(!payload.actual)return null;
+    const{cx,cy}=props;
     return <circle cx={cx} cy={cy} r={4} fill={catHealth.color} stroke={T.bgCard} strokeWidth={2}/>;
   };
   const CustomTip=({active,payload})=>{
     if(!active||!payload?.length)return null;
     const d=payload[0].payload;
     return(
-      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 10px",fontSize:11,boxShadow:"0 4px 12px rgba(44,40,37,0.1)"}}>
+      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 10px",fontSize:11}}>
         <div style={{color:T.textMute}}>{d.label}</div>
-        <div style={{color:d.actual?catHealth.color:T.textMute,fontWeight:d.actual?700:400}}>
-          {d.weight}kg{!d.actual&&<span style={{fontSize:9,marginLeft:4,color:T.textMute}}>(보간)</span>}
-        </div>
+        <div style={{color:catHealth.color,fontWeight:700}}>{d.weight}kg</div>
       </div>
     );
   };
-  const actuals=WEIGHT_DATA.filter(d=>d.actual&&d.weight);
-  const min=Math.min(...actuals.map(d=>d.weight))-.8;
-  const max=Math.max(...actuals.map(d=>d.weight))+.5;
-  const avg=+(actuals.reduce((a,d)=>a+d.weight,0)/actuals.length).toFixed(1);
+
   return(
-    <div style={{background:catHealth.bg,borderRadius:10,padding:"12px 10px",border:`1px solid ${catHealth.color}22`}}>
+    <div style={{background:catHealth.bg,borderRadius:10,padding:"12px 10px",border:`1px solid ${catHealth.color}22`,marginBottom:8}}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:7,alignItems:"center"}}>
         <span style={{fontSize:9,color:catHealth.text,fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>체중</span>
-        <span style={{fontSize:9,color:catHealth.text,fontWeight:400,opacity:.7}}>{WEIGHT_DATA[WEIGHT_DATA.length-1].weight}kg</span>
+        <span style={{fontSize:9,color:catHealth.text,fontWeight:400,opacity:.7}}>{latest.weight}kg</span>
       </div>
       <ResponsiveContainer width="100%" height={90}>
-        <LineChart data={WEIGHT_DATA} margin={{top:2,right:4,left:-28,bottom:0}}>
+        <LineChart data={chartData} margin={{top:2,right:4,left:-28,bottom:0}}>
           <CartesianGrid strokeDasharray="3 3" stroke={T.border}/>
-          <XAxis dataKey="label" tick={{fontSize:8,fill:T.textMute}} interval={9}/>
+          <XAxis dataKey="label" tick={{fontSize:8,fill:T.textMute}} interval={Math.max(0,Math.floor(logs.length/4))}/>
           <YAxis domain={[min,max]} tick={{fontSize:8,fill:T.textMute}}/>
           <Tooltip content={<CustomTip/>}/>
           <ReferenceLine y={avg} stroke={catHealth.color+"55"} strokeDasharray="3 3"/>
@@ -879,160 +893,6 @@ function WeightSection() {
   );
 }
 
-/* ─────────────────────────────────────────────────────
-   TEMPLATES
-───────────────────────────────────────────────────── */
-const TEMPLATES = {
-  wine: {
-    label: "와인",
-    catId: "review",
-    fields: [
-      { key:"wineName",    label:"와인명",      type:"text" },
-      { key:"vintage",     label:"빈티지",      type:"text", placeholder:"예) 2019" },
-      { key:"origin",      label:"생산지",      type:"text", placeholder:"예) 이탈리아 / 피에몬테" },
-      { key:"grape",       label:"포도 품종",   type:"text" },
-      { key:"alcohol",     label:"알코올 도수", type:"text", placeholder:"예) 13.5%" },
-      { key:"price",       label:"가격",        type:"text" },
-      { key:"tasteDate",   label:"시음 날짜",   type:"date" },
-      { key:"aroma",       label:"향",          type:"text" },
-      { key:"sweetness",   label:"당도",        type:"score" },
-      { key:"acidity",     label:"산도",        type:"score" },
-      { key:"tannin",      label:"타닌",        type:"score" },
-      { key:"body",        label:"바디감",      type:"score" },
-      { key:"score",       label:"총점",        type:"score" },
-      { key:"pairing",     label:"푸드 페어링", type:"text" },
-      { key:"rebuy",       label:"재구매 의향", type:"text", placeholder:"Y / N" },
-      { key:"memo",        label:"메모",        type:"textarea" },
-    ]
-  },
-  book: {
-    label: "책",
-    catId: "review",
-    fields: [
-      { key:"title",    label:"책 제목", type:"text" },
-      { key:"author",   label:"작가",    type:"text" },
-      { key:"genre",    label:"장르",    type:"text" },
-      { key:"period",   label:"날짜",    type:"text", placeholder:"예) 2025.05.01 – 2025.05.20" },
-      { key:"record",   label:"기록",    type:"textarea", placeholder:"인상 깊은 문장이나 내용" },
-      { key:"thought",  label:"생각",    type:"textarea" },
-    ]
-  },
-  weightTraining: {
-    label: "웨이트",
-    catId: "health",
-    fields: [
-      { key:"part",     label:"부위",      type:"text", placeholder:"예) 가슴 / 등 / 어깨 / 팔 / 하체" },
-      { key:"duration", label:"운동 시간", type:"text", placeholder:"예) 60분" },
-      { key:"condition",label:"컨디션",    type:"score" },
-      { key:"sets",     label:"운동명",    type:"textarea", placeholder:"예)\n스쿼트 (80kg, 8회, 4세트)\n레그프레스 (120kg, 10회, 3세트)" },
-      { key:"memo",     label:"메모",      type:"textarea" },
-    ]
-  },
-  cardio: {
-    label: "카디오",
-    catId: "health",
-    fields: [
-      { key:"exercise", label:"운동명",      type:"text", placeholder:"예) 러닝 / 자전거 / 수영" },
-      { key:"distance", label:"거리",        type:"text", placeholder:"예) 5km" },
-      { key:"avgSpeed", label:"평균 속도",   type:"text", placeholder:"예) 5'36\"/km" },
-      { key:"avgHr",    label:"평균 심박수", type:"text", placeholder:"예) 158bpm" },
-      { key:"calories", label:"칼로리",      type:"text", placeholder:"예) 320kcal" },
-      { key:"memo",     label:"메모",        type:"textarea" },
-    ]
-  },
-  diet: {
-    label: "식단",
-    catId: "health",
-    fields: [
-      { key:"breakfast", label:"아침",      type:"textarea", placeholder:"메뉴 입력" },
-      { key:"lunch",     label:"점심",      type:"textarea", placeholder:"메뉴 입력" },
-      { key:"dinner",    label:"저녁",      type:"textarea", placeholder:"메뉴 입력" },
-      { key:"snack",     label:"간식",      type:"text" },
-      { key:"calories",  label:"총 칼로리", type:"text", placeholder:"예) 2,100kcal" },
-      { key:"protein",   label:"총 단백질", type:"text", placeholder:"예) 170g" },
-      { key:"note",      label:"특이사항",  type:"text", placeholder:"예) 과식, 음주, 생리 등" },
-    ]
-  },
-  coffee: {
-    label: "커피",
-    catId: "review",
-    fields: [
-      { key:"cafe",   label:"카페명", type:"text" },
-      { key:"menu",   label:"메뉴",   type:"text" },
-      { key:"price",  label:"가격",   type:"text" },
-      { key:"memo",   label:"메모",   type:"textarea" },
-    ]
-  },
-  economy: {
-    label: "경제",
-    catId: "economy",
-    fields: [
-      { key:"date",     label:"날짜",         type:"date" },
-      { key:"index",    label:"주요 지수",    type:"text", placeholder:"예) 코스피 2,730 / S&P500 5,280" },
-      { key:"keyword",  label:"오늘의 키워드",type:"text", placeholder:"예) 금리 동결, 실적 시즌" },
-      { key:"summary",  label:"오늘 요약",    type:"textarea" },
-      { key:"watchlist",label:"내일 주목할 것",type:"textarea" },
-    ]
-  },
-};
-
-const TMPL_ORDER = ["diet","weightTraining","cardio","book","coffee","wine","economy"];
-// Sub-templates by category
-const CAT_TEMPLATES = {
-  health:  ["diet","weightTraining","cardio"],
-  review:  ["book","coffee","wine"],
-  economy: ["economy"],
-};
-
-/* ─────────────────────────────────────────────────────
-   IMAGE UPLOAD  (for event / review / archive)
-───────────────────────────────────────────────────── */
-const IMAGE_CATS = new Set(["event","review","archive"]);
-
-function ImageUpload({ images, onChange, catColor }) {
-  const handleFiles = (e) => {
-    const files = Array.from(e.target.files);
-    files.forEach(file=>{
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        onChange(prev=>[...prev, {src:ev.target.result, name:file.name}]);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-  const remove = (i) => onChange(prev=>prev.filter((_,idx)=>idx!==i));
-  return (
-    <div style={{marginBottom:10}}>
-      <div style={{fontSize:11,color:T.textSub,fontWeight:500,marginBottom:6}}>이미지 첨부</div>
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-        {images.map((img,i)=>(
-          <div key={i} style={{position:"relative",width:64,height:64,borderRadius:8,overflow:"hidden",border:`1px solid ${T.border}`}}>
-            <img src={img.src} alt={img.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-            <button onClick={()=>remove(i)} style={{
-              position:"absolute",top:2,right:2,
-              width:16,height:16,borderRadius:"50%",
-              background:"rgba(44,40,37,0.7)",border:"none",
-              color:"white",fontSize:9,cursor:"pointer",
-              display:"flex",alignItems:"center",justifyContent:"center",
-              lineHeight:1,
-            }}>x</button>
-          </div>
-        ))}
-        <label style={{
-          width:64,height:64,borderRadius:8,cursor:"pointer",
-          border:`1.5px dashed ${catColor||T.borderMid}`,
-          background:T.bgSub,
-          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-          gap:3, color:T.textMute, fontSize:10, flexShrink:0,
-        }}>
-          <span style={{fontSize:18,lineHeight:1,color:catColor||T.borderMid}}>+</span>
-          <span>사진</span>
-          <input type="file" accept="image/*" multiple onChange={handleFiles} style={{display:"none"}}/>
-        </label>
-      </div>
-    </div>
-  );
-}
 
 /* ─────────────────────────────────────────────────────
    ADD MODAL — 새 카테고리 구조
