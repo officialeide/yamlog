@@ -201,6 +201,86 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd, isMobile }) {
 // ─────────────────────────────────────────────────────
 // MONTH VIEW
 // ─────────────────────────────────────────────────────
+// 월보기 날짜 셀 — 미완료 4개 표시, 초과 시 +N 버튼으로 전체(완료 포함) 표시
+function MonthCell({ d, events, filterCat, isToday, isMobile, onOpen, onAdd }) {
+  const [expanded, setExpanded] = useState(false);
+  const ds = dateStr(d);
+  const isWknd = d.getDay()===0||d.getDay()===6;
+  const allEvs = events.filter(e=>e.date===ds&&(filterCat==="all"||e.category===filterCat));
+  const todoEvs = allEvs.filter(e=>!e.done);
+  const doneEvs = allEvs.filter(e=>e.done);
+  const SHOW_MAX = 4;
+  const visibleTodos = expanded ? todoEvs : todoEvs.slice(0, SHOW_MAX);
+  const overflow = todoEvs.length - SHOW_MAX;
+
+  return (
+    <div onClick={()=>onAdd(ds,9)} style={{
+      height:isMobile?80:122,overflow:"hidden",minWidth:0,borderRadius:8,padding:"4px 4px",cursor:"pointer",
+      background:isToday?T.accent+"18":T.bgCard,
+      border:`1px solid ${isToday?T.accent+"55":T.border}`,transition:"border-color .12s",
+      position:"relative",
+    }}
+    onMouseEnter={e=>{if(!isToday)e.currentTarget.style.borderColor=T.accent+"55";}}
+    onMouseLeave={e=>{if(!isToday)e.currentTarget.style.borderColor=T.border;}}>
+      {/* 날짜 숫자 + overflow 버튼 */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
+        <div style={{fontSize:isMobile?8:11,fontWeight:isToday?700:400,
+          color:isToday?T.accent:isWknd?d.getDay()===0?"#C0443A":"#2E6FA5":T.text}}>
+          {d.getDate()}
+        </div>
+        {overflow>0&&!expanded&&(
+          <div onClick={e=>{e.stopPropagation();setExpanded(true);}} style={{
+            fontSize:8,fontWeight:600,color:T.textMute,
+            background:T.bgSub,border:`1px solid ${T.border}`,
+            borderRadius:4,padding:"0px 4px",cursor:"pointer",lineHeight:"14px",
+          }}>+{overflow}</div>
+        )}
+        {expanded&&(
+          <div onClick={e=>{e.stopPropagation();setExpanded(false);}} style={{
+            fontSize:8,fontWeight:600,color:T.textMute,
+            background:T.bgSub,border:`1px solid ${T.border}`,
+            borderRadius:4,padding:"0px 4px",cursor:"pointer",lineHeight:"14px",
+          }}>✕</div>
+        )}
+      </div>
+      {/* 미완료 이벤트 */}
+      {visibleTodos.map(ev=>{
+        const cat=catOf(ev.category,ev.sub_category);
+        return (
+          <div key={ev.id} onClick={e=>{e.stopPropagation();onOpen(ev);}} style={{
+            fontSize:isMobile?8:11,marginBottom:2,padding:"1px 3px",borderRadius:4,cursor:"pointer",
+            background:cat.bg,color:cat.text,border:`1px solid ${cat.color}33`,
+            whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
+          }}>{ev.title}</div>
+        );
+      })}
+      {/* expanded 시 완료 이벤트도 표시 */}
+      {expanded&&doneEvs.map(ev=>{
+        const cat=catOf(ev.category,ev.sub_category);
+        return (
+          <div key={ev.id} onClick={e=>{e.stopPropagation();onOpen(ev);}} style={{
+            fontSize:isMobile?8:11,marginBottom:2,padding:"1px 3px",borderRadius:4,cursor:"pointer",
+            background:T.bgSub,color:T.textMute,border:`1px solid ${T.border}`,
+            whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
+            textDecoration:"line-through",opacity:0.7,
+          }}>{ev.title}</div>
+        );
+      })}
+      {/* 축소 상태에서 완료 이벤트 점 표시 */}
+      {!expanded&&doneEvs.length>0&&(
+        <div style={{display:"flex",flexWrap:"wrap",gap:2,marginTop:2}}>
+          {doneEvs.map(ev=>{
+            const cat=catOf(ev.category,ev.sub_category);
+            return <div key={ev.id} onClick={e=>{e.stopPropagation();onOpen(ev);}} style={{
+              width:7,height:7,borderRadius:"50%",background:cat.color+"88",cursor:"pointer",
+            }} title={ev.title}/>;
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MonthView({ curDate, events, filterCat, onOpen, onAdd, isMobile }) {
   const cells = useMemo(()=>getMonthCells(curDate),[curDate]);
   return (
@@ -215,42 +295,9 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd, isMobile }) {
         {cells.map((d,i)=>{
           if(!d) return <div key={i} style={{minWidth:0}}/>;
           const ds=dateStr(d), isToday=ds===todayStr;
-          const allEvs=events.filter(e=>e.date===ds&&(filterCat==="all"||e.category===filterCat));
-          const todoEvs=allEvs.filter(e=>!e.done), doneEvs=allEvs.filter(e=>e.done);
-          const isWknd=d.getDay()===0||d.getDay()===6;
           return (
-            <div key={i} onClick={()=>onAdd(ds,9)} style={{
-              height:isMobile?80:122,overflow:"hidden",minWidth:0,borderRadius:8,padding:"4px 4px",cursor:"pointer",
-              background:isToday?T.accent+"18":T.bgCard,
-              border:`1px solid ${isToday?T.accent+"55":T.border}`,transition:"border-color .12s",
-            }}
-            onMouseEnter={e=>{if(!isToday)e.currentTarget.style.borderColor=T.accent+"55";}}
-            onMouseLeave={e=>{if(!isToday)e.currentTarget.style.borderColor=T.border;}}>
-              <div style={{fontSize:isMobile?8:11,fontWeight:isToday?700:400,marginBottom:2,
-                color:isToday?T.accent:isWknd?d.getDay()===0?"#C0443A":"#2E6FA5":T.text}}>
-                {d.getDate()}
-              </div>
-              {todoEvs.map(ev=>{
-                const cat=catOf(ev.category,ev.sub_category);
-                return (
-                  <div key={ev.id} onClick={e=>{e.stopPropagation();onOpen(ev);}} style={{
-                    fontSize:isMobile?8:11,marginBottom:2,padding:"1px 3px",borderRadius:4,cursor:"pointer",
-                    background:cat.bg,color:cat.text,border:`1px solid ${cat.color}33`,
-                    whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
-                  }}>{ev.title}</div>
-                );
-              })}
-              {doneEvs.length>0&&(
-                <div style={{display:"flex",flexWrap:"wrap",gap:2,marginTop:2}}>
-                  {doneEvs.map(ev=>{
-                    const cat=catOf(ev.category,ev.sub_category);
-                    return <div key={ev.id} onClick={e=>{e.stopPropagation();onOpen(ev);}} style={{
-                      width:7,height:7,borderRadius:"50%",background:cat.color+"88",cursor:"pointer",
-                    }} title={ev.title}/>;
-                  })}
-                </div>
-              )}
-            </div>
+            <MonthCell key={i} d={d} events={events} filterCat={filterCat}
+              isToday={isToday} isMobile={isMobile} onOpen={onOpen} onAdd={onAdd}/>
           );
         })}
       </div>
@@ -311,8 +358,8 @@ function YearView({ curDate, events, onOpen, isMobile }) {
         {Array.from({length:12},(_,m)=>m).map(m=>{
           const cells=getMonthCells(new Date(year,m,1));
           return (
-            <div key={m} style={{background:T.bgCard,borderRadius:8,padding:"7px 6px",border:`1px solid ${T.border}`,display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden"}}>
-              <div style={{fontSize:10,fontWeight:600,color:T.textSub,marginBottom:3}}>{MONTHS_KR[m]}</div>
+            <div key={m} style={{background:T.bgCard,borderRadius:8,padding:isMobile?"5px 4px":"7px 6px",border:`1px solid ${T.border}`,display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden"}}>
+              <div style={{fontSize:isMobile?9:11,fontWeight:600,color:T.textSub,marginBottom:isMobile?2:3}}>{MONTHS_KR[m]}</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:0,flex:1,alignContent:"space-evenly"}}>
                 {cells.map((d,i)=>{
                   if(!d) return <div key={i} style={{minWidth:0}}/>;
@@ -324,13 +371,15 @@ function YearView({ curDate, events, onOpen, isMobile }) {
                   const ywknd=ydow===0?"#C0443A":ydow===6?"#2E6FA5":null;
                   const circleBg=isSelected?"#B09520DD":isTod?T.accent:hasEv?"#B0952070":"transparent";
                   const circleColor=isTod?"#fff":hasEv?"#4A3800":ywknd||T.textMute;
+                  const circleSize=isMobile?16:18;
+                  const fontSize=isMobile?8:9;
                   return (
                     <div key={i} style={{display:"flex",justifyContent:"center",alignItems:"center",padding:"0"}}
                       onClick={()=>hasEv&&setClickedDay(isSelected?null:ds)}>
                       <div style={{
-                        width:14,height:14,borderRadius:"50%",flexShrink:0,
+                        width:circleSize,height:circleSize,borderRadius:"50%",flexShrink:0,
                         display:"flex",alignItems:"center",justifyContent:"center",
-                        fontSize:7,fontWeight:isTod||hasEv?700:400,
+                        fontSize,fontWeight:isTod||hasEv?700:400,
                         color:circleColor,background:circleBg,
                         cursor:hasEv?"pointer":"default",
                       }}>{d.getDate()}</div>
@@ -427,9 +476,19 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
               {f.genre&&f.period&&<span style={{color:T.textMute}}> · </span>}
               {f.period&&<span><span style={{fontSize:11,color:T.textMute}}>기간 </span><span style={{fontSize:11,color:T.text}}>{f.period}</span></span>}
             </div>}
-            {f.score&&<div style={{fontSize:13,color:accentColor,marginBottom:4}}>{"★".repeat(f.score)}{"☆".repeat(5-f.score)}</div>}
-            {f.record&&<div style={{fontSize:12,color:T.textSub,fontStyle:"italic",padding:"7px 10px",background:T.bgSub,borderRadius:6,marginBottom:5,lineHeight:1.7,borderLeft:`2px solid ${accentColor}55`}}>{f.record}</div>}
-            {ev.detail&&<div style={{fontSize:12,color:T.textSub,lineHeight:1.7}}>{ev.detail}</div>}
+            {f.score&&<div style={{fontSize:13,color:accentColor,marginBottom:6}}>{"★".repeat(f.score)}{"☆".repeat(5-f.score)}</div>}
+            {f.record&&(
+              <div style={{marginBottom:6}}>
+                <div style={{fontSize:10,color:T.textMute,fontWeight:600,letterSpacing:.4,marginBottom:3}}>인상깊은 문장</div>
+                <div style={{fontSize:12,color:T.textSub,fontStyle:"italic",padding:"7px 10px",background:T.bgSub,borderRadius:6,lineHeight:1.7,borderLeft:`2px solid ${accentColor}55`}}>{f.record}</div>
+              </div>
+            )}
+            {ev.detail&&(
+              <div>
+                <div style={{fontSize:10,color:T.textMute,fontWeight:600,letterSpacing:.4,marginBottom:3}}>감상</div>
+                <div style={{fontSize:12,color:T.textSub,lineHeight:1.7,padding:"7px 10px",background:T.bgSub,borderRadius:6}}>{ev.detail}</div>
+              </div>
+            )}
           </div>
         );
       case "wine":
@@ -444,17 +503,14 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
               {f.origin&&f.grape&&<span style={{color:T.textMute}}> · </span>}
               {f.grape&&<span><span style={{fontSize:11,color:T.textMute}}>품종 </span><span style={{fontSize:11,color:T.text}}>{f.grape}</span></span>}
             </div>}
-            {/* 당도~총점 바 */}
+            {/* 당도~총점 1줄 */}
             {(f.sweetness||f.acidity||f.tannin||f.body||f.score)&&(
-              <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:6,marginTop:2}}>
+              <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:5,marginTop:2,alignItems:"center"}}>
                 {[["sweetness","당도"],["acidity","산도"],["tannin","타닌"],["body","바디"],["score","총점"]].filter(([k])=>f[k]).map(([k,label])=>(
-                  <div key={k} style={{display:"flex",alignItems:"center",gap:7}}>
-                    <span style={{fontSize:10,color:T.textMute,minWidth:26,flexShrink:0}}>{label}</span>
-                    <div style={{flex:1,height:5,borderRadius:3,background:T.bgSub,overflow:"hidden"}}>
-                      <div style={{width:`${(f[k]/5)*100}%`,height:"100%",borderRadius:3,background:k==="score"?accentColor:"#7E4FA066"}}/>
-                    </div>
-                    <span style={{fontSize:10,color:k==="score"?accentColor:T.textSub,fontWeight:k==="score"?700:400,minWidth:8}}>{f[k]}</span>
-                  </div>
+                  <span key={k} style={{fontSize:11,color:k==="score"?accentColor:T.textSub}}>
+                    <span style={{color:T.textMute,fontSize:10}}>{label} </span>
+                    <span style={{fontWeight:k==="score"?700:500,color:k==="score"?accentColor:T.text}}>{f[k]}</span>
+                  </span>
                 ))}
               </div>
             )}
