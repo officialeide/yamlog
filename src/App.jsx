@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -18,7 +19,6 @@ function useIsMobile() {
   },[]);
   return isMobile;
 }
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 /* ─────────────────────────────────────────────────────
    DESIGN TOKENS
@@ -161,6 +161,7 @@ async function upsertWeight(date, weight, memo="") {
   if(error) throw error;
 }
 
+/* ─────────────────────────────────────────────────────
    HELPERS
 ───────────────────────────────────────────────────── */
 const dateStr = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
