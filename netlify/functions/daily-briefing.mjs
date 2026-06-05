@@ -44,9 +44,15 @@ export default async () => {
         model: "claude-sonnet-4-5-20250929",
         max_tokens: 1000,
         system: SYSTEM_PROMPT,
+        tools: [
+          {
+            type: "web_search_20250305",
+            name: "web_search",
+          }
+        ],
         messages: [{
           role: "user",
-          content: `Date: ${kstDateKR}. Output the briefing JSON now.`,
+          content: `Date: ${kstDateKR}. Search for today's actual Korean and US stock market data, then output the briefing JSON.`,
         }],
       }),
     });
@@ -57,9 +63,16 @@ export default async () => {
     }
 
     const claudeData = await claudeRes.json();
-    let rawText = claudeData.content[0].text.trim();
 
-    // ── 2. { } 사이만 추출 ───────────────────────────────
+    // web_search 사용 시 content 배열에 tool_use/tool_result 블록도 포함됨
+    // text 블록만 합쳐서 JSON 추출
+    const rawText = claudeData.content
+      .filter(b => b.type === "text")
+      .map(b => b.text)
+      .join("")
+      .trim();
+
+    // { } 사이만 추출
     const jsonStart = rawText.indexOf("{");
     const jsonEnd   = rawText.lastIndexOf("}");
     if (jsonStart === -1 || jsonEnd === -1) {
