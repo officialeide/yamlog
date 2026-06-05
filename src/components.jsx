@@ -123,9 +123,16 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight }) {
     setDeleting(true);
     try {
       await deleteEvent(ev.id);
-      // 체중 이벤트면 weight_logs도 함께 삭제
+      // 체중 이벤트면: 같은 날 남은 weight 기록 수 확인 후 0이면 weight_logs도 삭제
       if (ev.sub_category === "weight" && ev.date) {
-        await deleteWeight(ev.date);
+        const { count } = await supabase
+          .from("events")
+          .select("id", { count: "exact", head: true })
+          .eq("sub_category", "weight")
+          .eq("date", ev.date);
+        if (count === 0) {
+          await deleteWeight(ev.date);
+        }
       }
       onRefetch?.();
       onRefetchWeight?.();
@@ -994,20 +1001,73 @@ export function WeightSection({ logs, onRefetch }) {
     </div>
   );
 
+  // ── 선형 보간: 측정값 사이 빈 날짜를 채움 ──────────
+  const buildChartData = (rawLogs) => {
+    if (rawLogs.length < 2) {
+      return rawLogs.map(l => ({
+        label: `${new Date(l.date).getMonth()+1}/${new Date(l.date).getDate()}`,
+        weight: l.weight,
+        interpolated: false,
+      }));
+    }
+    const result = [];
+    for (let i = 0; i < rawLogs.length; i++) {
+      const cur  = rawLogs[i];
+      const curD = new Date(cur.date + "T00:00:00");
+      result.push({
+        label: `${curD.getMonth()+1}/${curD.getDate()}`,
+        weight: cur.weight,
+        interpolated: false,
+      });
+      if (i < rawLogs.length - 1) {
+        const next  = rawLogs[i + 1];
+        const nextD = new Date(next.date + "T00:00:00");
+        const dayGap = Math.round((nextD - curD) / 86400000);
+        // 1일 초과 공백만 보간 (최대 14일까지)
+        if (dayGap > 1 && dayGap <= 14) {
+          for (let d = 1; d < dayGap; d++) {
+            const fillD = new Date(curD);
+            fillD.setDate(curD.getDate() + d);
+            const ratio  = d / dayGap;
+            const weight = +(cur.weight + (next.weight - cur.weight) * ratio).toFixed(1);
+            result.push({
+              label: `${fillD.getMonth()+1}/${fillD.getDate()}`,
+              weight,
+              interpolated: true,
+            });
+          }
+        }
+      }
+    }
+    return result;
+  };
+
   const latest    = logs[logs.length-1];
-  const chartData = logs.map(l=>({label:`${new Date(l.date).getMonth()+1}/${new Date(l.date).getDate()}`,weight:l.weight}));
+  const chartData = buildChartData(logs);
+  // 통계는 실측값만 사용
   const weights   = logs.map(l=>l.weight);
   const min = Math.min(...weights)-.8, max = Math.max(...weights)+.5;
   const avg = +(weights.reduce((a,w)=>a+w,0)/weights.length).toFixed(1);
 
-  const CustomDot=(props)=><circle cx={props.cx} cy={props.cy} r={4} fill={clr.color} stroke={T.bgCard} strokeWidth={2}/>;
+  // 실측 점: 진한 원 / 보간 점: 속 빈 작은 원
+  const CustomDot=(props)=>{
+    const { cx, cy, payload } = props;
+    if (payload.interpolated) {
+      return <circle cx={cx} cy={cy} r={2.5} fill={T.bgCard} stroke={clr.color} strokeWidth={1.5} strokeOpacity={0.5}/>;
+    }
+    return <circle cx={cx} cy={cy} r={4} fill={clr.color} stroke={T.bgCard} strokeWidth={2}/>;
+  };
   const CustomTip=({active,payload})=>{
     if(!active||!payload?.length) return null;
     const d=payload[0].payload;
     return <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 10px",fontSize:11}}>
-      <div style={{color:T.textMute}}>{d.label}</div><div style={{color:clr.color,fontWeight:700}}>{d.weight}kg</div>
+      <div style={{color:T.textMute}}>{d.label}{d.interpolated?" (예상)":""}</div>
+      <div style={{color:d.interpolated?T.textSub:clr.color,fontWeight:700}}>{d.weight}kg</div>
     </div>;
   };
+
+  // XAxis 표시 간격: 전체 포인트 수 기준
+  const totalPts = chartData.length;
 
   return (
     <div style={{background:clr.bg,borderRadius:10,padding:"12px 10px",border:"1px solid #C0443A22",marginBottom:8}}>
@@ -1018,7 +1078,7 @@ export function WeightSection({ logs, onRefetch }) {
       <ResponsiveContainer width="100%" height={90}>
         <LineChart data={chartData} margin={{top:2,right:4,left:-28,bottom:0}}>
           <CartesianGrid strokeDasharray="3 3" stroke={T.border}/>
-          <XAxis dataKey="label" tick={{fontSize:8,fill:T.textMute}} interval={Math.max(0,Math.floor(logs.length/4))}/>
+          <XAxis dataKey="label" tick={{fontSize:8,fill:T.textMute}} interval={Math.max(0,Math.floor(totalPts/4))}/>
           <YAxis domain={[min,max]} tick={{fontSize:8,fill:T.textMute}}/>
           <Tooltip content={<CustomTip/>}/>
           <ReferenceLine y={avg} stroke={clr.color+"55"} strokeDasharray="3 3"/>
