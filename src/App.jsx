@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
@@ -72,8 +72,8 @@ const REVIEW_SUBS = [
 
 // 전체 카테고리 조회용 헬퍼
 const allCatOf = (category, sub_category) => {
-  if(category === "archive") {
-    return ARCHIVE_SUBS.find(s=>s.id===sub_category) || ARCHIVE_SUBS[0];
+  if(category === "archive" && sub_category) {
+    return ARCHIVE_SUBS.find(s=>s.id===sub_category) || CATS.find(c=>c.id==="archive") || CATS[0];
   }
   return CATS.find(c=>c.id===category) || CATS[0];
 };
@@ -143,11 +143,6 @@ function useWeightLogs() {
   return { logs, loading, refetch: fetch };
 }
 
-// 이벤트 완료 토글
-async function toggleDone(ev) {
-  await supabase.from("events").update({done: !ev.done}).eq("id", ev.id);
-}
-
 // 이벤트 추가
 async function addEvent(data) {
   const { error } = await supabase.from("events").insert([data]);
@@ -185,9 +180,17 @@ function getMonthCells(date) {
 /* ─────────────────────────────────────────────────────
    DETAIL MODAL
 ───────────────────────────────────────────────────── */
-function DetailModal({ ev, onClose }) {
+function DetailModal({ ev, onClose, onRefetch }) {
   const cat = catOf(ev.category||ev.cat, ev.sub_category||ev.sub);
   const [done, setDone] = useState(ev.done);
+  const [ev2, setEv2] = useState(ev);
+
+  const handleToggleDone = async () => {
+    const newDone = !done;
+    setDone(newDone);  // optimistic update
+    await supabase.from("events").update({ done: newDone }).eq("id", ev.id);
+    onRefetch?.();
+  };
   return (
     <div onClick={onClose} style={{
       position:"fixed",inset:0,background:"rgba(44,40,37,0.45)",
@@ -236,7 +239,7 @@ function DetailModal({ ev, onClose }) {
               background:"transparent",border:"none",
               color:T.textMute,cursor:"pointer",fontSize:20,
               padding:"0 4px",lineHeight:1,flexShrink:0,
-            }}>x</button>
+            }}>✕</button>
           </div>
         </div>
 
@@ -272,7 +275,7 @@ function DetailModal({ ev, onClose }) {
           justifyContent:"space-between",alignItems:"center",
           background:T.bgSub,
         }}>
-          <button onClick={()=>setDone(d=>!d)} style={{
+          <button onClick={handleToggleDone} style={{
             display:"flex",alignItems:"center",gap:7,cursor:"pointer",
             background:"transparent",border:`1.5px solid ${done?cat.color:T.borderMid}`,
             borderRadius:9,padding:"7px 14px",
@@ -285,11 +288,11 @@ function DetailModal({ ev, onClose }) {
               border:`1.5px solid ${done?cat.color:T.borderMid}`,
               display:"flex",alignItems:"center",justifyContent:"center",
               fontSize:8,color:"white",
-            }}>{done&&"v"}</div>
+            }}>{done&&"✓"}</div>
             {done ? "완료됨" : "미완료"}
           </button>
           <div style={{display:"flex",gap:8}}>
-            <button style={{
+            <button onClick={()=>alert('수정 기능 준비 중')} style={{
               padding:"7px 16px",borderRadius:9,cursor:"pointer",fontSize:12,
               background:"transparent",border:`1px solid ${T.border}`,color:T.textSub,
             }}>수정</button>
@@ -424,7 +427,7 @@ function DayView({ date, filterCat, onOpen, events=[] }) {
 /* ─────────────────────────────────────────────────────
    WEEK VIEW — fixed equal grid, early collapse, done opacity
 ───────────────────────────────────────────────────── */
-function WeekView({ date, filterCat, onOpen, events=[] }) {
+function WeekView({ date, filterCat, onOpen, events=[], onCellClick }) {
   const days = getWeekDays(date);
   const todayStr = dateStr(today);
   const [showEarly, setShowEarly] = useState(false);
@@ -437,50 +440,60 @@ function WeekView({ date, filterCat, onOpen, events=[] }) {
     acc+days.reduce((a2,d)=>
       a2+events.filter(e=>e.date===dateStr(d)&&e.hour===h&&(filterCat==="all"||e.category===filterCat)).length,0),0);
 
-  const renderRow = (h) => (
-    <div key={h} style={{
-      display:"grid", gridTemplateColumns:COL,
-      height:ROW_H, flexShrink:0,
-      borderBottom:"0.5px solid rgba(228,221,211,0.22)",
-    }}>
-      {/* time label */}
-      <div style={{
-        fontSize:9,color:T.textMute,textAlign:"right",
-        paddingRight:6,paddingTop:5,letterSpacing:.2,
-        borderRight:"0.5px solid rgba(228,221,211,0.22)",
+  const nowH = today.getHours();
+
+  const renderRow = (h) => {
+    const isCurrentHour = h===nowH;
+    return (
+      <div key={h} style={{
+        display:"grid", gridTemplateColumns:COL,
+        height:ROW_H, flexShrink:0,
+        borderBottom:"0.5px solid rgba(228,221,211,0.22)",
       }}>
-        {String(h).padStart(2,"0")}
+        {/* time label */}
+        <div style={{
+          fontSize:9,
+          color:isCurrentHour?"#4a5828":T.textMute,
+          textAlign:"right",
+          paddingRight:6,paddingTop:5,letterSpacing:.2,
+          borderRight:"0.5px solid rgba(228,221,211,0.2)",
+          fontWeight:isCurrentHour?700:400,
+        }}>
+          {String(h).padStart(2,"0")}
+        </div>
+        {/* day columns */}
+        {days.map((d,i)=>{
+          const ds = dateStr(d);
+          const evs=events.filter(e=>e.date===ds&&e.hour===h&&(filterCat==="all"||e.category===filterCat));
+          const isCurrentCell = ds===todayStr&&isCurrentHour;
+          return (
+            <div key={i}
+              onClick={()=>onCellClick&&onCellClick(d,h)}
+              style={{
+                padding:"2px 3px",overflow:"hidden",cursor:"pointer",
+                background:isCurrentCell?"rgba(107,124,58,0.1)":"transparent",
+                borderRight:"none",
+              }}>
+              {isCurrentCell&&<div style={{height:1.5,background:"linear-gradient(90deg,#6B7C3A,transparent)",marginBottom:2,borderRadius:1}}/>}
+              {evs.map(ev=>{
+                const cat=catOf(ev.category||ev.cat, ev.sub_category||ev.sub);
+                return (
+                  <div key={ev.id} onClick={e=>{e.stopPropagation();onOpen(ev);}} title={ev.title} style={{
+                    fontSize:11,padding:"3px 7px",borderRadius:5,marginBottom:2,
+                    background:cat.bg, color:ev.done?T.textMute:cat.text,
+                    border:`1px solid ${ev.done?T.border:cat.color+"55"}`,
+                    borderLeft:`2px solid ${ev.done?T.borderMid:cat.color}`,
+                    whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
+                    cursor:"pointer", opacity:ev.done?0.4:1,
+                  }}>{ev.title}</div>
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
-      {/* day columns */}
-      {days.map((d,i)=>{
-        const evs=events.filter(e=>e.date===dateStr(d)&&e.hour===h&&(filterCat==="all"||e.category===filterCat));
-        const isLastCol = i===6;
-        return (
-          <div key={i} style={{
-            padding:"2px 3px",overflow:"hidden",
-            borderRight:"0.5px solid rgba(228,221,211,0.22)",
-          }}>
-            {evs.map(ev=>{
-              const cat=catOf(ev.category||ev.cat, ev.sub_category||ev.sub);
-              return (
-                <div key={ev.id} onClick={()=>onOpen(ev)} title={ev.title} style={{
-                  fontSize:11,padding:"3px 7px",borderRadius:5,marginBottom:2,
-                  background: ev.done ? `${cat.bg}` : cat.bg,
-                  color: ev.done ? T.textMute : cat.text,
-                  border:`1px solid ${ev.done ? T.border : cat.color+"55"}`,
-                  borderLeft:`2px solid ${ev.done ? T.borderMid : cat.color}`,
-                  whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
-                  cursor:"pointer",
-                  opacity: ev.done ? 0.4 : 1,
-                  textDecoration: "none",
-                }}>{ev.title}</div>
-              );
-            })}
-          </div>
-        );
-      })}
-    </div>
-  );
+    );
+  };
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 155px)"}}>
@@ -495,7 +508,6 @@ function WeekView({ date, filterCat, onOpen, events=[] }) {
         <div style={{borderRight:`1px solid ${T.border}`}}/>
         {days.map((d,i)=>{
           const isToday=dateStr(d)===todayStr;
-          const isLastCol=i===6;
           return (
             <div key={i} style={{
               textAlign:"center",padding:"8px 4px",
@@ -608,7 +620,7 @@ function MonthView({ date, filterCat, onDayClick, onOpen, events=[] }) {
                 }}>{d.getDate()}</div>
                 <div style={{display:"flex",gap:2}}>
                   {uniqueCats.slice(0,3).map(cid=>(
-                    <div key={cid} style={{width:5,height:5,borderRadius:"50%",background:catOf(cid).color}}/>
+                    <div key={cid} style={{width:5,height:5,borderRadius:"50%",background:catOf(cid, null).color}}/>
                   ))}
                 </div>
               </div>
@@ -663,7 +675,7 @@ function YearView({ date, filterCat, onOpen, events=[] }) {
     events.filter(e=>e.date.startsWith(`${year}`)&&e.category==="event")
       .forEach(e=>{ if(!map[e.date])map[e.date]=[]; map[e.date].push(e); });
     return map;
-  },[year,filterCat]);
+  },[year,events]);
 
   return (
     <div style={{overflowY:"auto",maxHeight:"calc(100vh - 155px)"}}>
@@ -696,8 +708,8 @@ function YearView({ date, filterCat, onOpen, events=[] }) {
 
                   let bg="transparent";
                   if(hasEvs){
-                    if(cats.length===1) bg=catOf(cats[0]).color;
-                    else bg=`conic-gradient(${cats.map((c,ci)=>`${catOf(c).color} ${ci/cats.length*360}deg ${(ci+1)/cats.length*360}deg`).join(",")})`;
+                    if(cats.length===1) bg=catOf(cats[0], null).color;
+                    else bg=`conic-gradient(${cats.map((c,ci)=>`${catOf(c, null).color} ${ci/cats.length*360}deg ${(ci+1)/cats.length*360}deg`).join(",")})`;
                   }
 
                   return (
@@ -717,7 +729,7 @@ function YearView({ date, filterCat, onOpen, events=[] }) {
                         display:"flex",alignItems:"center",justifyContent:"center",
                         background:bg,
                         border:isToday?`2px solid ${T.accent}`:"none",
-                        boxShadow:hasEvs?`0 0 4px ${catOf(cats[0]).color}55`:"none",
+                        boxShadow:hasEvs?`0 0 4px ${catOf(cats[0], null).color}55`:"none",
                       }}>
                         <span style={{
                           fontSize:7,fontWeight:600,pointerEvents:"none",
@@ -780,13 +792,13 @@ function LiveClock() {
     const n=new Date();
     return `${String(n.getHours()).padStart(2,"0")}:${String(n.getMinutes()).padStart(2,"0")}`;
   });
-  useState(()=>{
+  useEffect(()=>{
     const id=setInterval(()=>{
       const n=new Date();
       setTime(`${String(n.getHours()).padStart(2,"0")}:${String(n.getMinutes()).padStart(2,"0")}`);
     },30000);
     return ()=>clearInterval(id);
-  });
+  },[]);
   return (
     <span style={{fontSize:12,color:"#9E9E9E",fontFamily:"'Noto Sans KR',sans-serif",fontWeight:300,letterSpacing:.5}}>
       {time}
@@ -799,7 +811,16 @@ function LiveClock() {
 ───────────────────────────────────────────────────── */
 function RandomReview({ events, onOpen }) {
   const pool = events.filter(e=>e.category==="archive"&&e.sub_category==="review");
-  const [idx, setIdx] = useState(()=>Math.floor(Math.random()*Math.max(pool.length,1)));
+  const [idx, setIdx] = useState(0);
+  const initialized = useRef(false);
+
+  useEffect(() => {
+    if (pool.length > 0 && !initialized.current) {
+      initialized.current = true;
+      setIdx(Math.floor(Math.random() * pool.length));
+    }
+  }, [pool.length]);
+
   if(!pool.length) return null;
   const ev = pool[idx % pool.length];
   const cat = catOf(ev.category||ev.cat, ev.sub_category||ev.sub);
@@ -829,6 +850,156 @@ function RandomReview({ events, onOpen }) {
         }}>{snippet}</div>
       )}
       <div style={{fontSize:9,color:T.textMute,marginTop:5}}>{cat.label} · {ev.date}</div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────
+   TOEIC WORD BANK — 100개
+───────────────────────────────────────────────────── */
+const TOEIC_WORDS = [
+  {word:"abandon",meaning:"포기하다, 버리다"},
+  {word:"accelerate",meaning:"가속하다, 촉진하다"},
+  {word:"accommodate",meaning:"수용하다, 편의를 제공하다"},
+  {word:"accomplish",meaning:"성취하다, 완수하다"},
+  {word:"acquire",meaning:"획득하다, 습득하다"},
+  {word:"adjacent",meaning:"인접한, 근접한"},
+  {word:"allocate",meaning:"할당하다, 배분하다"},
+  {word:"anticipate",meaning:"예상하다, 기대하다"},
+  {word:"apparent",meaning:"명백한, 외견상의"},
+  {word:"appreciate",meaning:"감사하다, 가치를 인정하다"},
+  {word:"appropriate",meaning:"적절한, 알맞은"},
+  {word:"approximately",meaning:"대략, 약"},
+  {word:"authorize",meaning:"승인하다, 권한을 부여하다"},
+  {word:"available",meaning:"이용 가능한, 구할 수 있는"},
+  {word:"beneficial",meaning:"유익한, 이로운"},
+  {word:"brief",meaning:"간단한, 짧은; 요약하다"},
+  {word:"budget",meaning:"예산; 예산을 세우다"},
+  {word:"calculate",meaning:"계산하다, 추정하다"},
+  {word:"candidate",meaning:"후보자, 지원자"},
+  {word:"capacity",meaning:"수용력, 능력, 용량"},
+  {word:"category",meaning:"범주, 분류"},
+  {word:"circumstances",meaning:"상황, 환경"},
+  {word:"collaborate",meaning:"협력하다, 공동 작업하다"},
+  {word:"communicate",meaning:"의사소통하다, 전달하다"},
+  {word:"compensation",meaning:"보상, 급여, 보수"},
+  {word:"competitive",meaning:"경쟁적인, 경쟁력 있는"},
+  {word:"complete",meaning:"완료하다, 완성하다; 완전한"},
+  {word:"comply",meaning:"따르다, 준수하다"},
+  {word:"concentrate",meaning:"집중하다, 농축하다"},
+  {word:"confirm",meaning:"확인하다, 확정하다"},
+  {word:"considerable",meaning:"상당한, 중요한"},
+  {word:"consistently",meaning:"일관되게, 꾸준히"},
+  {word:"contract",meaning:"계약(서); 계약을 맺다"},
+  {word:"contribute",meaning:"기여하다, 공헌하다"},
+  {word:"convenient",meaning:"편리한, 간편한"},
+  {word:"coordinate",meaning:"조율하다, 조정하다"},
+  {word:"corporate",meaning:"기업의, 법인의"},
+  {word:"currently",meaning:"현재, 지금"},
+  {word:"deadline",meaning:"마감일, 기한"},
+  {word:"decrease",meaning:"감소하다, 줄다; 감소"},
+  {word:"delegate",meaning:"위임하다; 대표, 대리인"},
+  {word:"demonstrate",meaning:"증명하다, 시연하다"},
+  {word:"determine",meaning:"결정하다, 판단하다"},
+  {word:"develop",meaning:"개발하다, 발전시키다"},
+  {word:"diverse",meaning:"다양한, 여러 종류의"},
+  {word:"document",meaning:"문서; 기록하다"},
+  {word:"efficient",meaning:"효율적인, 능률적인"},
+  {word:"eligible",meaning:"자격이 있는, 적합한"},
+  {word:"emphasize",meaning:"강조하다, 역설하다"},
+  {word:"enable",meaning:"가능하게 하다, 허용하다"},
+  {word:"enhance",meaning:"향상시키다, 높이다"},
+  {word:"ensure",meaning:"보장하다, 확실히 하다"},
+  {word:"establish",meaning:"설립하다, 확립하다"},
+  {word:"evaluate",meaning:"평가하다, 검토하다"},
+  {word:"exceed",meaning:"초과하다, 능가하다"},
+  {word:"expand",meaning:"확장하다, 늘리다"},
+  {word:"expertise",meaning:"전문 지식, 전문성"},
+  {word:"facilitate",meaning:"용이하게 하다, 촉진하다"},
+  {word:"flexible",meaning:"유연한, 융통성 있는"},
+  {word:"forecast",meaning:"예측하다; 예보, 전망"},
+  {word:"generate",meaning:"생성하다, 일으키다"},
+  {word:"genuine",meaning:"진짜의, 진정한"},
+  {word:"guarantee",meaning:"보장하다; 보증"},
+  {word:"identify",meaning:"확인하다, 파악하다"},
+  {word:"implement",meaning:"실행하다, 이행하다"},
+  {word:"improve",meaning:"개선하다, 향상시키다"},
+  {word:"indicate",meaning:"나타내다, 표시하다"},
+  {word:"initiative",meaning:"주도권, 계획, 솔선수범"},
+  {word:"integrate",meaning:"통합하다, 합치다"},
+  {word:"inventory",meaning:"재고, 목록"},
+  {word:"investigate",meaning:"조사하다, 수사하다"},
+  {word:"maintain",meaning:"유지하다, 관리하다"},
+  {word:"mandatory",meaning:"의무적인, 필수의"},
+  {word:"manufacture",meaning:"제조하다; 제조업"},
+  {word:"maximize",meaning:"극대화하다, 최대화하다"},
+  {word:"negotiate",meaning:"협상하다, 교섭하다"},
+  {word:"objective",meaning:"목표, 목적; 객관적인"},
+  {word:"obtain",meaning:"얻다, 획득하다"},
+  {word:"operate",meaning:"운영하다, 작동하다"},
+  {word:"organize",meaning:"조직하다, 정리하다"},
+  {word:"participate",meaning:"참가하다, 참여하다"},
+  {word:"perform",meaning:"수행하다, 공연하다"},
+  {word:"potential",meaning:"잠재적인; 가능성, 잠재력"},
+  {word:"priority",meaning:"우선순위, 최우선 사항"},
+  {word:"procedure",meaning:"절차, 과정"},
+  {word:"productivity",meaning:"생산성, 생산력"},
+  {word:"promote",meaning:"촉진하다, 승진시키다"},
+  {word:"proposal",meaning:"제안, 제의"},
+  {word:"qualify",meaning:"자격을 갖추다, 적합하다"},
+  {word:"recommend",meaning:"추천하다, 권장하다"},
+  {word:"recruit",meaning:"채용하다; 신입, 신병"},
+  {word:"relevant",meaning:"관련된, 적절한"},
+  {word:"require",meaning:"필요로 하다, 요구하다"},
+  {word:"revenue",meaning:"수익, 수입"},
+  {word:"schedule",meaning:"일정; 계획하다, 예정하다"},
+  {word:"significant",meaning:"중요한, 상당한"},
+  {word:"strategy",meaning:"전략, 방략"},
+  {word:"sufficient",meaning:"충분한, 족한"},
+  {word:"sustainable",meaning:"지속 가능한"},
+  {word:"thoroughly",meaning:"철저히, 완전히"},
+  {word:"transfer",meaning:"이전하다, 옮기다; 이전"},
+];
+
+function WordSection() {
+  const [idx, setIdx] = useState(()=>Math.floor(Math.random()*TOEIC_WORDS.length));
+  const word = TOEIC_WORDS[idx];
+  const [show, setShow] = useState(false);
+
+  const next = () => {
+    setIdx(i=>(i+1)%TOEIC_WORDS.length);
+    setShow(false);
+  };
+  const prev = () => {
+    setIdx(i=>(i-1+TOEIC_WORDS.length)%TOEIC_WORDS.length);
+    setShow(false);
+  };
+
+  return (
+    <div style={{
+      background:T.bgCard, borderRadius:10, padding:"11px 12px",
+      border:`1px solid ${T.border}`, marginTop:8,
+    }}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+        <span style={{fontSize:9,color:T.textMute,fontWeight:500,letterSpacing:.5,textTransform:"uppercase"}}>토익 단어</span>
+        <div style={{display:"flex",gap:4}}>
+          <button onClick={prev} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:5,padding:"1px 7px",cursor:"pointer",fontSize:11,color:T.textMute}}>‹</button>
+          <button onClick={next} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:5,padding:"1px 7px",cursor:"pointer",fontSize:11,color:T.textMute}}>›</button>
+        </div>
+      </div>
+      <div style={{fontFamily:"'Libre Baskerville',Georgia,serif",fontSize:16,color:T.text,fontWeight:600,marginBottom:4}}>
+        {word.word}
+      </div>
+      {show ? (
+        <div style={{fontSize:12,color:T.textSub,lineHeight:1.5}}>{word.meaning}</div>
+      ) : (
+        <button onClick={()=>setShow(true)} style={{
+          fontSize:11,color:T.textMute,background:"transparent",
+          border:`1px dashed ${T.borderMid}`,borderRadius:6,
+          padding:"3px 10px",cursor:"pointer",width:"100%",
+        }}>뜻 보기</button>
+      )}
+      <div style={{fontSize:9,color:T.textMute,marginTop:6,textAlign:"right"}}>{idx+1}/100</div>
     </div>
   );
 }
@@ -924,7 +1095,7 @@ function ImageUpload({ images, onChange, catColor }) {
               background:"rgba(44,40,37,0.7)",border:"none",
               color:"white",fontSize:9,cursor:"pointer",
               display:"flex",alignItems:"center",justifyContent:"center",
-            }}>x</button>
+            }}>✕</button>
           </div>
         ))}
         <label style={{
@@ -946,7 +1117,7 @@ function ImageUpload({ images, onChange, catColor }) {
 /* ─────────────────────────────────────────────────────
    ADD MODAL — 새 카테고리 구조
 ───────────────────────────────────────────────────── */
-function AddModal({ onClose, onSaved }) {
+function AddModal({ onClose, onSaved, presetDate, presetHour }) {
   const [cat, setCat] = useState("schedule");
   const [archiveSub, setArchiveSub] = useState("health");
   const [healthSub, setHealthSub] = useState("weight");
@@ -955,8 +1126,8 @@ function AddModal({ onClose, onSaved }) {
   const [detail, setDetail] = useState("");
   const [fields, setFields] = useState({});
   const [images, setImages] = useState([]);
-  const [date, setDate] = useState(new Date().toISOString().slice(0,10));
-  const [hour, setHour] = useState("09");
+  const [date, setDate] = useState(presetDate||new Date().toISOString().slice(0,10));
+  const [hour, setHour] = useState(presetHour||"09");
   const [saving, setSaving] = useState(false);
 
   const setField = (k,v) => setFields(f=>({...f,[k]:v}));
@@ -970,7 +1141,26 @@ function AddModal({ onClose, onSaved }) {
 
   // 저장
   const handleSave = async () => {
-    if(!title.trim()) return;
+    // 제목 입력이 없는 섹션은 날짜 기반으로 자동 생성
+    let finalTitle = title.trim();
+    if (!finalTitle) {
+      if (cat === "archive") {
+        if (archiveSub === "health") {
+          if (healthSub === "weight")          finalTitle = `체중 ${date}`;
+          else if (healthSub === "diet")       finalTitle = `식단 ${date}`;
+          else if (healthSub === "weight_training") finalTitle = `웨이트 ${date}`;
+          else if (healthSub === "cardio")     finalTitle = `카디오 ${date}`;
+        } else if (archiveSub === "economy") {
+          finalTitle = `경제 ${date}`;
+        } else if (archiveSub === "review") {
+          if (reviewSub === "book")        finalTitle = fields.bookTitle || `책 리뷰 ${date}`;
+          else if (reviewSub === "wine")   finalTitle = fields.wineName  || `와인 리뷰 ${date}`;
+          else if (reviewSub === "coffee") finalTitle = fields.cafe      || `커피 ${date}`;
+        }
+      }
+    }
+    if (!finalTitle) return;
+
     setSaving(true);
     try {
       const sub = cat==="archive"
@@ -982,15 +1172,19 @@ function AddModal({ onClose, onSaved }) {
         await upsertWeight(date, parseFloat(fields.weight), detail);
       }
 
+      // parseInt("00")||9 = 9 이 되는 버그 방지 — NaN 체크로 교체
+      const parsedHour = parseInt(hour, 10);
+
       await addEvent({
         category: cat,
         sub_category: sub,
-        title: title.trim(),
+        title: finalTitle,
         date,
-        hour: parseInt(hour)||9,
+        hour: isNaN(parsedHour) ? 9 : parsedHour,
         done: false,
         detail: detail||null,
         fields,
+        images,
       });
 
       onSaved?.();
@@ -1058,9 +1252,9 @@ function AddModal({ onClose, onSaved }) {
               {HEALTH_SUBS.map(s=>(
                 <button key={s.id} onClick={()=>setHealthSub(s.id)} style={{
                   flex:1, padding:"4px 2px", borderRadius:6, cursor:"pointer", fontSize:10,
-                  background:healthSub===s.id?"#E8F2FA":T.bgSub,
-                  border:`1px solid ${healthSub===s.id?"#2E6FA588":T.border}`,
-                  color:healthSub===s.id?"#1A4E7A":T.textSub, fontWeight:healthSub===s.id?600:400,
+                  background:healthSub===s.id?(ARCHIVE_SUBS.find(s2=>s2.id==="health")?.bg||"#E8F2FA"):T.bgSub,
+                  border:`1px solid ${healthSub===s.id?(ARCHIVE_SUBS.find(s2=>s2.id==="health")?.color||"#2E6FA5")+"88":T.border}`,
+                  color:healthSub===s.id?(ARCHIVE_SUBS.find(s2=>s2.id==="health")?.text||"#1A4E7A"):T.textSub, fontWeight:healthSub===s.id?600:400,
                 }}>{s.label}</button>
               ))}
             </div>
@@ -1082,59 +1276,251 @@ function AddModal({ onClose, onSaved }) {
 
         {/* 폼 */}
         <div style={{flex:1, overflowY:"auto", padding:"14px 20px"}}>
-          {/* 체중 입력 */}
-          {cat==="archive" && archiveSub==="health" && healthSub==="weight" ? (
+
+          {/* ── 체중 ── */}
+          {cat==="archive" && archiveSub==="health" && healthSub==="weight" && (
             <>
-              <div style={{fontSize:11,color:T.textSub,marginBottom:6}}>체중 (kg)</div>
+              <div style={{fontSize:11,color:T.textSub,marginBottom:6,fontWeight:500}}>체중 (kg)</div>
               <input type="number" step="0.1" placeholder="예) 71.2"
-                style={{...inputStyle,marginBottom:10,fontSize:18,fontWeight:600,textAlign:"center"}}
+                style={{...inputStyle,marginBottom:10,fontSize:20,fontWeight:700,textAlign:"center"}}
                 value={fields.weight||""} onChange={e=>setField("weight",e.target.value)}/>
               <textarea placeholder="메모 (선택)" rows={2}
                 style={{...inputStyle,resize:"none",marginBottom:10}}
                 value={detail} onChange={e=>setDetail(e.target.value)}/>
             </>
-          ) : (
-            <>
-              <input placeholder="제목 입력..." style={{...inputStyle,marginBottom:8}}
-                value={title} onChange={e=>setTitle(e.target.value)}/>
+          )}
 
-              {/* 템플릿별 필드 */}
-              {cat==="archive" && archiveSub==="health" && healthSub==="weight_training" && (
-                <div style={{marginBottom:8}}>
-                  <div style={{fontSize:11,color:T.textSub,marginBottom:5}}>부위</div>
-                  <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
-                    {["가슴","등","어깨","팔","하체","전신"].map(p=>(
-                      <button key={p} onClick={()=>setField("part",p)} style={{
-                        padding:"4px 10px",borderRadius:16,fontSize:11,cursor:"pointer",
-                        background:fields.part===p?"#E8F2FA":T.bgSub,
-                        border:`1px solid ${fields.part===p?"#2E6FA588":T.border}`,
-                        color:fields.part===p?"#1A4E7A":T.textSub,
-                      }}>{p}</button>
+          {/* ── 식단 ── */}
+          {cat==="archive" && archiveSub==="health" && healthSub==="diet" && (
+            <>
+              {[["breakfast","아침"],["lunch","점심"],["dinner","저녁"],["snack","간식"]].map(([k,label])=>(
+                <div key={k} style={{marginBottom:8}}>
+                  <div style={{fontSize:11,color:T.textSub,marginBottom:4,fontWeight:500}}>{label}</div>
+                  <input placeholder="메뉴 입력" style={{...inputStyle}}
+                    value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
+                </div>
+              ))}
+              <div style={{display:"flex",gap:7,marginBottom:8}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>총 칼로리</div>
+                  <input placeholder="예) 2100kcal" style={{...inputStyle}} value={fields.calories||""} onChange={e=>setField("calories",e.target.value)}/>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>총 단백질</div>
+                  <input placeholder="예) 170g" style={{...inputStyle}} value={fields.protein||""} onChange={e=>setField("protein",e.target.value)}/>
+                </div>
+              </div>
+              <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>특이사항</div>
+              <input placeholder="과식, 음주, 생리 등" style={{...inputStyle,marginBottom:8}} value={fields.note||""} onChange={e=>setField("note",e.target.value)}/>
+            </>
+          )}
+
+          {/* ── 웨이트 ── */}
+          {cat==="archive" && archiveSub==="health" && healthSub==="weight_training" && (
+            <>
+              <div style={{marginBottom:8}}>
+                <div style={{fontSize:11,color:T.textSub,marginBottom:5,fontWeight:500}}>부위</div>
+                <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                  {["가슴","등","어깨","팔","하체","전신"].map(p=>(
+                    <button key={p} onClick={()=>setField("part",p)} style={{
+                      padding:"5px 12px",borderRadius:16,fontSize:11,cursor:"pointer",
+                      background:fields.part===p?"#E8F2FA":T.bgSub,
+                      border:`1px solid ${fields.part===p?"#2E6FA588":T.border}`,
+                      color:fields.part===p?"#1A4E7A":T.textSub,
+                    }}>{p}</button>
+                  ))}
+                </div>
+              </div>
+              <div style={{display:"flex",gap:7,marginBottom:8}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>운동 시간</div>
+                  <input placeholder="예) 60분" style={{...inputStyle}} value={fields.duration||""} onChange={e=>setField("duration",e.target.value)}/>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>컨디션</div>
+                  <div style={{display:"flex",gap:4}}>
+                    {[1,2,3,4,5].map(n=>(
+                      <button key={n} onClick={()=>setField("condition",n)} style={{
+                        flex:1,padding:"8px 0",borderRadius:7,cursor:"pointer",fontSize:12,
+                        background:fields.condition===n?"#E8F2FA":T.bgSub,
+                        border:`1px solid ${fields.condition===n?"#2E6FA588":T.border}`,
+                        color:fields.condition===n?"#1A4E7A":T.textSub,fontWeight:fields.condition===n?700:400,
+                      }}>{n}</button>
                     ))}
                   </div>
                 </div>
-              )}
+              </div>
+              <div style={{fontSize:11,color:T.textSub,marginBottom:4,fontWeight:500}}>운동 기록</div>
+              <textarea placeholder={"예)
+스쿼트 (80kg, 8회, 4세트)
+데드리프트 (100kg, 5회, 3세트)"} rows={4}
+                style={{...inputStyle,resize:"vertical",marginBottom:8}}
+                value={detail} onChange={e=>setDetail(e.target.value)}/>
+            </>
+          )}
 
+          {/* ── 카디오 ── */}
+          {cat==="archive" && archiveSub==="health" && healthSub==="cardio" && (
+            <>
+              <div style={{fontSize:11,color:T.textSub,marginBottom:4,fontWeight:500}}>운동 종류</div>
+              <div style={{display:"flex",gap:5,marginBottom:8}}>
+                {["러닝","자전거","수영","기타"].map(t=>(
+                  <button key={t} onClick={()=>setField("type",t)} style={{
+                    flex:1,padding:"6px 0",borderRadius:8,cursor:"pointer",fontSize:11,
+                    background:fields.type===t?"#E8F2FA":T.bgSub,
+                    border:`1px solid ${fields.type===t?"#2E6FA588":T.border}`,
+                    color:fields.type===t?"#1A4E7A":T.textSub,
+                  }}>{t}</button>
+                ))}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:8}}>
+                {[["distance","거리","예) 5km"],["avgSpeed","평균 속도","예) 5'36"/km"],["avgHr","평균 심박수","예) 158bpm"],["calories","칼로리","예) 320kcal"]].map(([k,label,ph])=>(
+                  <div key={k}>
+                    <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label}</div>
+                    <input placeholder={ph} style={{...inputStyle}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
+                  </div>
+                ))}
+              </div>
+              <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>메모</div>
+              <textarea placeholder="경로, 컨디션 등" rows={2} style={{...inputStyle,resize:"none",marginBottom:8}} value={detail} onChange={e=>setDetail(e.target.value)}/>
+            </>
+          )}
+
+          {/* ── 경제 리뷰 ── */}
+          {cat==="archive" && archiveSub==="economy" && (
+            <>
+              <div style={{fontSize:11,color:T.textSub,marginBottom:4,fontWeight:500}}>주요 지수</div>
+              <input placeholder="예) 코스피 2730 S&P 5300" style={{...inputStyle,marginBottom:8}} value={fields.index||""} onChange={e=>setField("index",e.target.value)}/>
+              <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>오늘의 키워드</div>
+              <input placeholder="예) 금리 동결 실적 시즌" style={{...inputStyle,marginBottom:8}} value={fields.keyword||""} onChange={e=>setField("keyword",e.target.value)}/>
+              <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>오늘 요약</div>
+              <textarea placeholder="오늘 시장 요약" rows={3} style={{...inputStyle,resize:"vertical",marginBottom:8}} value={detail} onChange={e=>setDetail(e.target.value)}/>
+              <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>내일 주목할 것</div>
+              <input placeholder="내일 주목 포인트" style={{...inputStyle,marginBottom:8}} value={fields.watchlist||""} onChange={e=>setField("watchlist",e.target.value)}/>
+            </>
+          )}
+
+          {/* ── 책 리뷰 ── */}
+          {cat==="archive" && archiveSub==="review" && reviewSub==="book" && (
+            <>
+              {[["bookTitle","책 제목",""],["author","작가",""],["genre","장르","예) 소설 경제 자기계발"]].map(([k,label,ph])=>(
+                <div key={k} style={{marginBottom:8}}>
+                  <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label}</div>
+                  <input placeholder={ph} style={{...inputStyle}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
+                </div>
+              ))}
+              <div style={{display:"flex",gap:7,marginBottom:8}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>날짜</div>
+                  <input placeholder="예) 5.1 ~ 5.20" style={{...inputStyle}} value={fields.period||""} onChange={e=>setField("period",e.target.value)}/>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>총점</div>
+                  <div style={{display:"flex",gap:3}}>
+                    {[1,2,3,4,5].map(n=>(
+                      <button key={n} onClick={()=>setField("score",n)} style={{
+                        flex:1,padding:"8px 0",borderRadius:7,cursor:"pointer",fontSize:12,
+                        background:fields.score===n?"#F3EBF8":T.bgSub,
+                        border:`1px solid ${fields.score===n?"#7E4FA088":T.border}`,
+                        color:fields.score===n?"#5A2E80":T.textSub,fontWeight:fields.score===n?700:400,
+                      }}>{n}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>기록 (인상깊은 문장 등)</div>
+              <textarea placeholder="인상 깊은 문장, 내용 메모" rows={3} style={{...inputStyle,resize:"vertical",marginBottom:8}} value={fields.record||""} onChange={e=>setField("record",e.target.value)}/>
+              <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>생각</div>
+              <textarea placeholder="감상, 적용하고 싶은 점" rows={3} style={{...inputStyle,resize:"vertical",marginBottom:8}} value={detail} onChange={e=>setDetail(e.target.value)}/>
+            </>
+          )}
+
+          {/* ── 와인 리뷰 ── */}
+          {cat==="archive" && archiveSub==="review" && reviewSub==="wine" && (
+            <>
+              {[["wineName","와인명"],["vintage","빈티지"],["origin","생산지"],["grape","포도 품종"],["alcohol","알코올 도수"],["price","가격"]].map(([k,label])=>(
+                <div key={k} style={{marginBottom:8}}>
+                  <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label}</div>
+                  <input style={{...inputStyle}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
+                </div>
+              ))}
+              <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>향</div>
+              <input style={{...inputStyle,marginBottom:8}} value={fields.aroma||""} onChange={e=>setField("aroma",e.target.value)}/>
+              {[["sweetness","당도"],["acidity","산도"],["tannin","타닌"],["body","바디감"],["score","총점"]].map(([k,label])=>(
+                <div key={k} style={{marginBottom:8}}>
+                  <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label} /5</div>
+                  <div style={{display:"flex",gap:4}}>
+                    {[1,2,3,4,5].map(n=>(
+                      <button key={n} onClick={()=>setField(k,n)} style={{
+                        flex:1,padding:"7px 0",borderRadius:7,cursor:"pointer",fontSize:12,
+                        background:fields[k]===n?"#F3EBF8":T.bgSub,
+                        border:`1px solid ${fields[k]===n?"#7E4FA088":T.border}`,
+                        color:fields[k]===n?"#5A2E80":T.textSub,fontWeight:fields[k]===n?700:400,
+                      }}>{n}</button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>푸드 페어링</div>
+              <input style={{...inputStyle,marginBottom:8}} value={fields.pairing||""} onChange={e=>setField("pairing",e.target.value)}/>
+              <div style={{display:"flex",gap:7,marginBottom:8}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>재구매 의향</div>
+                  <div style={{display:"flex",gap:5}}>
+                    {["Y","N"].map(v=>(
+                      <button key={v} onClick={()=>setField("rebuy",v)} style={{
+                        flex:1,padding:"8px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:700,
+                        background:fields.rebuy===v?"#F3EBF8":T.bgSub,
+                        border:`1px solid ${fields.rebuy===v?"#7E4FA088":T.border}`,
+                        color:fields.rebuy===v?"#5A2E80":T.textSub,
+                      }}>{v}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>메모</div>
+              <textarea rows={2} style={{...inputStyle,resize:"none",marginBottom:8}} value={detail} onChange={e=>setDetail(e.target.value)}/>
+              <ImageUpload images={images} onChange={setImages} catColor={c.color}/>
+            </>
+          )}
+
+          {/* ── 커피 리뷰 ── */}
+          {cat==="archive" && archiveSub==="review" && reviewSub==="coffee" && (
+            <>
+              {[["cafe","카페명"],["menu","메뉴"],["price","가격"]].map(([k,label])=>(
+                <div key={k} style={{marginBottom:8}}>
+                  <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label}</div>
+                  <input style={{...inputStyle}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
+                </div>
+              ))}
+              <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>메모</div>
+              <textarea rows={3} style={{...inputStyle,resize:"vertical",marginBottom:8}} value={detail} onChange={e=>setDetail(e.target.value)}/>
+            </>
+          )}
+
+          {/* ── 일정/이벤트/기본 ── */}
+          {(cat==="schedule" || cat==="event" || (cat==="archive" && archiveSub==="health" && !["weight","diet","weight_training","cardio"].includes(healthSub))) && (
+            <>
+              <input placeholder="제목 입력..." style={{...inputStyle,marginBottom:8}}
+                value={title} onChange={e=>setTitle(e.target.value)}/>
               <textarea placeholder="상세 내용" rows={4}
                 style={{...inputStyle,resize:"vertical",marginBottom:8}}
                 value={detail} onChange={e=>setDetail(e.target.value)}/>
-
-              {/* 이미지 첨부 (이벤트/아카이브) */}
               {(cat==="event"||cat==="archive") && (
                 <ImageUpload images={images} onChange={setImages} catColor={c.color}/>
               )}
             </>
           )}
 
-          {/* 날짜/시간 */}
-          <div style={{display:"flex",gap:7}}>
+          {/* 날짜/시간 — 항상 표시 */}
+          <div style={{display:"flex",gap:7,marginTop:8}}>
             <input type="date" style={{flex:2,...inputStyle}}
               value={date} onChange={e=>setDate(e.target.value)}/>
-            {cat!=="archive" || archiveSub!=="health" || healthSub!=="weight" ? (
+            {!(cat==="archive" && archiveSub==="health" && healthSub==="weight") && (
               <input type="time" style={{flex:1,...inputStyle}}
                 value={`${hour}:00`}
                 onChange={e=>setHour(e.target.value.split(":")[0])}/>
-            ) : null}
+            )}
           </div>
         </div>
 
@@ -1167,8 +1553,6 @@ function AddModal({ onClose, onSaved }) {
 /* ─────────────────────────────────────────────────────
    BRIEFING — 폴백용 상수 (Supabase 데이터 없을 때만 사용)
 ───────────────────────────────────────────────────── */
-const BRIEFING_HEADLINE = "오늘의 핵심 한 줄을 불러오는 중입니다.";
-
 const BRIEFING_FALLBACK = {
   headline: "브리핑을 불러오는 중입니다. 잠시 후 다시 확인해주세요.",
   sections: [
@@ -1263,8 +1647,8 @@ function BriefingView() {
 
         if(error) throw error;
 
-        // 며칠 전 데이터인지 계산
-        const latestDate = new Date(latestData.date);
+        // 며칠 전 데이터인지 계산 — KST 기준으로 통일
+        const latestDate = new Date(latestData.date + "T00:00:00+09:00");
         const today = new Date(new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"}));
         const diffDays = Math.round((today - latestDate) / (1000*60*60*24));
 
@@ -1293,7 +1677,7 @@ function BriefingView() {
   const dateLabel = useFallback ? "브리핑 대기 중" :
     new Date(briefing.date).toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",timeZone:"Asia/Seoul"});
   const isStale   = !useFallback && !briefing.isToday;
-  const diffDays  = briefing?.diffDays || 0;
+  const diffDays  = (!useFallback && briefing?.diffDays) || 0;
 
   return (
     <div style={{overflowY:"auto",maxHeight:"calc(100vh - 155px)",paddingRight:4}}>
@@ -1368,12 +1752,12 @@ function BriefingView() {
    BOTTOM TAB BAR (모바일 전용)
 ───────────────────────────────────────────────────── */
 const TAB_ITEMS = [
-  { id:"all",      label:"전체",    icon:"○" },
-  { id:"briefing", label:"브리핑",  icon:"◈" },
-  { id:"schedule", label:"일정",    icon:"○" },
-  { id:"event",    label:"이벤트",  icon:"○" },
-  { id:"archive",  label:"아카이브", icon:"○" },
-  { id:"more",     label:"더보기",  icon:"≡" },
+  { id:"all",      label:"전체",    icon:"○", color:T.textSub },
+  { id:"briefing", label:"브리핑",  icon:"◈", color:"#6B7C3A" },
+  { id:"schedule", label:"일정",    icon:"○", color:"#C0443A" },
+  { id:"event",    label:"이벤트",  icon:"○", color:"#B09520" },
+  { id:"archive",  label:"아카이브", icon:"○", color:"#4A8A5A" },
+  { id:"more",     label:"더보기",  icon:"≡", color:T.textSub },
 ];
 
 function BottomTabBar({ filterCat, showBriefing, setFilterCat, setShowBriefing, setShowMoreSheet }) {
@@ -1477,6 +1861,8 @@ export default function Yamlog() {
   const [showDetail, setShowDetail] = useState(null);
   const [sideOpen, setSideOpen] = useState(true);
   const [showMoreSheet, setShowMoreSheet] = useState(false);
+  const [presetDate, setPresetDate] = useState(null);
+  const [presetHour, setPresetHour] = useState(null);
   const [archiveSub, setArchiveSub] = useState(null);
 
   // Supabase 데이터
@@ -1552,6 +1938,16 @@ export default function Yamlog() {
                 <div style={{fontFamily:"'Noto Sans KR',sans-serif",fontSize:10,color:T.accent,letterSpacing:3,marginTop:3,lineHeight:1}}>얌로그</div>
               </div>
             </div>
+            {/* 좋아하는 문장 */}
+            <div style={{marginTop:12,paddingTop:10,borderTop:`1px solid ${T.border}`}}>
+              <div style={{fontSize:11,color:T.textSub,lineHeight:1.8,fontFamily:"'Noto Sans KR',sans-serif"}}>
+                탁월함은 일시적 행위가 아니라<br/>우리를 정의하는 습관이다.
+              </div>
+              <div style={{fontSize:9.5,color:T.textMute,lineHeight:1.75,fontFamily:"'Libre Baskerville',Georgia,serif",fontStyle:"italic",marginTop:5}}>
+                Arete is no fleeting act,<br/>but our defining habit.<br/>
+                <span style={{fontSize:8.5}}>It is the stance of Mesotes,<br/>and the state of Eudaimonia.</span>
+              </div>
+            </div>
           </div>
 
           {/* Today card */}
@@ -1576,6 +1972,37 @@ export default function Yamlog() {
                 }}>{doneCount}/{todayEvs.length}</span>
                 <span style={{color:T.textMute}}> 완료</span>
               </div>
+            </div>
+          </div>
+
+          {/* 빠른 링크 (데스크탑 전용) */}
+          <div style={{padding:"10px 14px",borderBottom:`1px solid ${T.border}`}}>
+            <div style={{fontSize:9,color:T.textMute,letterSpacing:.5,textTransform:"uppercase",marginBottom:7}}>Quick Links</div>
+            <div style={{display:"flex",flexDirection:"column",gap:3}}>
+              {[
+                {label:"TickTick",  url:"https://ticktick.com/webapp#q/all/tasks", icon:"✓"},
+                {label:"Naver Mail",url:"https://mail.naver.com",                  icon:"N"},
+                {label:"Gmail",     url:"https://mail.google.com/mail/u/0/",       icon:"G"},
+                {label:"Claude",    url:"https://claude.ai",                        icon:"◎"},
+                {label:"Gemini",    url:"https://gemini.google.com",               icon:"✦"},
+              ].map(link=>(
+                <a key={link.label} href={link.url} target="_blank" rel="noopener noreferrer"
+                  style={{
+                    display:"flex",alignItems:"center",gap:8,padding:"5px 8px",
+                    borderRadius:7,textDecoration:"none",
+                    color:T.textSub,fontSize:11,transition:"background .1s",
+                  }}
+                  onMouseEnter={e=>e.currentTarget.style.background=T.bgSub}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+                >
+                  <span style={{width:16,height:16,borderRadius:4,background:T.bgSub,
+                    display:"flex",alignItems:"center",justifyContent:"center",
+                    fontSize:9,color:T.accent,flexShrink:0,border:`1px solid ${T.border}`}}>
+                    {link.icon}
+                  </span>
+                  {link.label}
+                </a>
+              ))}
             </div>
           </div>
 
@@ -1631,9 +2058,10 @@ export default function Yamlog() {
             )}
           </nav>
 
-          {/* Weight chart + Random review */}
+          {/* Weight chart + Word + Random review */}
           <div style={{padding:"10px 12px",borderTop:`1px solid ${T.border}`}}>
             <WeightSection/>
+            <WordSection/>
             <RandomReview events={events} onOpen={setShowDetail}/>
           </div>
         </aside>
@@ -1754,7 +2182,9 @@ export default function Yamlog() {
             <BriefingView/>
           ) : (
             <>
-              {view==="주" && <WeekView date={curDate} filterCat={filterCat} onOpen={setShowDetail} events={events}/>}
+              {view==="주" && <WeekView date={curDate} filterCat={filterCat} onOpen={setShowDetail} events={events}
+              onCellClick={(d,h)=>{setPresetDate(dateStr(d));setPresetHour(String(h).padStart(2,"0"));setShowModal(true);}}
+            />}
               {view==="월" && <MonthView date={curDate} filterCat={filterCat} onDayClick={d=>{setCurDate(d);setView("주");}} onOpen={setShowDetail} events={events}/>}
               {view==="년" && <YearView date={curDate} filterCat={filterCat} onOpen={setShowDetail} events={events}/>}
             </>
@@ -1762,8 +2192,8 @@ export default function Yamlog() {
         </div>
       </main>
 
-      {showModal && <AddModal onClose={()=>setShowModal(false)} onSaved={refetchEvents}/>}
-      {showDetail && <DetailModal ev={showDetail} onClose={()=>setShowDetail(null)}/>}
+      {showModal && <AddModal onClose={()=>{setShowModal(false);setPresetDate(null);setPresetHour(null);}} onSaved={refetchEvents} presetDate={presetDate} presetHour={presetHour}/>}
+      {showDetail && <DetailModal ev={showDetail} onClose={()=>setShowDetail(null)} onRefetch={refetchEvents}/>}
       {isMobile && (
         <BottomTabBar
           filterCat={filterCat}
