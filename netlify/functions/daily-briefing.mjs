@@ -1,27 +1,29 @@
 // netlify/functions/daily-briefing.mjs
 // 매일 KST 08:50 자동 실행 (UTC 23:50)
 
-const SYSTEM_PROMPT = `You are a Korean stock market analyst. Output ONLY a valid JSON object. No markdown, no backticks, no explanation text.
+const SYSTEM_PROMPT = `You are a Korean financial analyst. Use web search to find today's market data, then output ONLY a JSON object.
 
-EXACT JSON format (copy this structure):
-{"headline":"string","sections":[{"title":"세계정세","summary":"string","lines":["string","string","string"]},{"title":"한국증시","summary":"string","lines":["string","string","string"]},{"title":"미장지수","summary":"string","lines":["string","string","string"]},{"title":"선물파생","summary":"string","lines":["string","string","string"]},{"title":"금리환율유가","summary":"string","lines":["string","string","string"]},{"title":"포트폴리오","summary":"string","lines":["string","string","string","string","string","string","string"]}]}
+CRITICAL: Your entire response must be parseable by JSON.parse(). 
 
-STRICT RULES:
-1. Output ONLY the JSON. Nothing before or after.
-2. No newlines inside string values.
-3. No special characters inside strings: no · no — no / no quotes. Use space instead.
-4. headline: max 60 chars
-5. summary: max 40 chars, one sentence
-6. lines: max 45 chars each
-7. Do NOT write 결론:
-8. Be critical. No excessive optimism.
+JSON structure:
+{"headline":"...","sections":[{"title":"세계정세","summary":"...","lines":["...","...","..."]},{"title":"한국증시","summary":"...","lines":["...","...","..."]},{"title":"미장지수","summary":"...","lines":["...","...","..."]},{"title":"선물파생","summary":"...","lines":["...","...","..."]},{"title":"금리환율유가","summary":"...","lines":["...","...","..."]},{"title":"포트폴리오","summary":"...","lines":["...","...","...","...","...","...","..."]}]}
 
-Portfolio (never mention 한독):
+RULES FOR JSON STRINGS (violations will break parsing):
+- Use ONLY plain Korean and numbers in string values
+- FORBIDDEN characters inside strings: " (quote) \ (backslash) newline tab
+- FORBIDDEN symbols: · — % $ + * [ ] { } | < > ^ ~
+- Use these SAFE alternatives: % -> 퍼센트, — -> 에서, · -> 와, / -> 대비
+- headline: max 50 chars
+- summary: max 35 chars  
+- each line: max 40 chars
+- No 결론: prefix
+
+Portfolio to analyze (do not mention 한독):
 삼성전자4주 삼성전자우4주 KODEX200 30주 현대건설4주
-한화에어로2주 한화시스템15주(매수중단)
-TIGER코리아AI전력기기90주
-SOL원자력SMR10주 TIGER원자력40주(신중)
-버크셔B 0.3956주 예수금210만원`;
+한화에어로2주 한화시스템15주(매수중단) TIGER코리아AI전력기기90주
+SOL원자력SMR10주 TIGER원자력40주(신중) 버크셔B 0.3956주 예수금210만원
+
+Search today's data then respond with ONLY the JSON object.`;
 
 export default async () => {
   try {
@@ -42,17 +44,15 @@ export default async () => {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-5-20250929",
-        max_tokens: 1000,
+        max_tokens: 1200,
         system: SYSTEM_PROMPT,
-        tools: [
-          {
-            type: "web_search_20250305",
-            name: "web_search",
-          }
-        ],
+        tools: [{
+          type: "web_search_20250305",
+          name: "web_search",
+        }],
         messages: [{
           role: "user",
-          content: `Date: ${kstDateKR}. Search for today's actual Korean and US stock market data, then output the briefing JSON.`,
+          content: `${kstDateKR} 오늘의 한국 미국 주식시장 데이터를 검색하고 JSON으로 응답해.`,
         }],
       }),
     });
@@ -64,30 +64,51 @@ export default async () => {
 
     const claudeData = await claudeRes.json();
 
-    // web_search 사용 시 content 배열에 tool_use/tool_result 블록도 포함됨
-    // text 블록만 합쳐서 JSON 추출
+    // web_search 사용 시 text 블록만 추출
     const rawText = claudeData.content
       .filter(b => b.type === "text")
       .map(b => b.text)
       .join("")
       .trim();
 
-    // { } 사이만 추출
+    // ── 2. JSON 추출 및 파싱 ─────────────────────────────
     const jsonStart = rawText.indexOf("{");
     const jsonEnd   = rawText.lastIndexOf("}");
     if (jsonStart === -1 || jsonEnd === -1) {
       throw new Error(`JSON 없음: ${rawText.slice(0, 100)}`);
     }
-    const clean = rawText.slice(jsonStart, jsonEnd + 1);
+
+    let clean = rawText.slice(jsonStart, jsonEnd + 1);
+
+    // 위험한 제어문자 제거
+    clean = clean
+      .replace(/[\u0000-\u001F\u007F]/g, ' ')  // 제어문자
+      .replace(/\n/g, ' ')
+      .replace(/\r/g, ' ')
+      .replace(/\t/g, ' ');
 
     let briefing;
     try {
       briefing = JSON.parse(clean);
-    } catch (e) {
-      throw new Error(`JSON 파싱 실패: ${e.message} | ${clean.slice(0, 150)}`);
+    } catch (e1) {
+      // 2차 시도: JSON 문자열 안의 따옴표 이스케이프
+      try {
+        const fixed = clean.replace(/"([^"]*)":/g, (match) => match)
+          .replace(/:\s*"([^"]*)"/g, (match, p1) => {
+            const escaped = p1.replace(/"/g, '\\"');
+            return `: "${escaped}"`;
+          });
+        briefing = JSON.parse(fixed);
+      } catch (e2) {
+        throw new Error(`JSON 파싱 실패: ${e1.message} | 원문: ${clean.slice(0, 200)}`);
+      }
     }
 
-    // ── 3. 글자 수 ───────────────────────────────────────
+    // ── 3. 검증 ──────────────────────────────────────────
+    if (!briefing.headline || !Array.isArray(briefing.sections)) {
+      throw new Error("JSON 구조 오류: headline 또는 sections 없음");
+    }
+
     const totalChars =
       (briefing.headline?.length || 0) +
       (briefing.sections || []).flatMap(s => [s.summary||"", ...(s.lines||[])]).join("").length;
