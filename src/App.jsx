@@ -1374,7 +1374,7 @@ function AddModal({ onClose, onSaved, presetDate, presetHour }) {
                 ))}
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:8}}>
-                {[["distance","거리","예) 5km"],["avgSpeed","평균 속도","예) 5'36"/km"],["avgHr","평균 심박수","예) 158bpm"],["calories","칼로리","예) 320kcal"]].map(([k,label,ph])=>(
+                {[["distance","거리","예) 5km"],["avgSpeed","평균 속도","예) 5'36\"/km"],["avgHr","평균 심박수","예) 158bpm"],["calories","칼로리","예) 320kcal"]].map(([k,label,ph])=>(
                   <div key={k}>
                     <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label}</div>
                     <input placeholder={ph} style={{...inputStyle}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
