@@ -95,3 +95,11 @@ export async function upsertWeight(date, weight, memo = "") {
     .upsert([{ date, weight, memo }], { onConflict: "date" });
   if (error) throw error;
 }
+
+export async function deleteWeight(date) {
+  const { error } = await supabase
+    .from("weight_logs")
+    .delete()
+    .eq("date", date);
+  if (error) throw error;
+}

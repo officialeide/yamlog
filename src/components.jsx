@@ -10,7 +10,7 @@ import {
   T, CATS, ARCHIVE_SUBS, HEALTH_SUBS, REVIEW_SUBS,
   TOEIC_WORDS, catOf, dateStr,
 } from "./constants.js";
-import { supabase, useWeightLogs, updateEvent, upsertWeight, deleteEvent } from "./api.js";
+import { supabase, useWeightLogs, updateEvent, upsertWeight, deleteEvent, deleteWeight } from "./api.js";
 
 // ─────────────────────────────────────────────────────
 // LIVE CLOCK
@@ -104,7 +104,7 @@ export function TaskChip({ ev, compact=false, onOpen }) {
 // ─────────────────────────────────────────────────────
 // DETAIL MODAL — 필드 내용 표시 + 삭제 버튼 + 수정 연동
 // ─────────────────────────────────────────────────────
-export function DetailModal({ ev, onClose, onRefetch }) {
+export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight }) {
   const cat = catOf(ev.category||ev.cat, ev.sub_category||ev.sub);
   const [done,     setDone]     = useState(ev.done);
   const [showEdit, setShowEdit] = useState(false);
@@ -123,7 +123,12 @@ export function DetailModal({ ev, onClose, onRefetch }) {
     setDeleting(true);
     try {
       await deleteEvent(ev.id);
+      // 체중 이벤트면 weight_logs도 함께 삭제
+      if (ev.sub_category === "weight" && ev.date) {
+        await deleteWeight(ev.date);
+      }
       onRefetch?.();
+      onRefetchWeight?.();
       onClose();
     } catch(e) {
       console.error("삭제 실패:", e);
@@ -162,7 +167,7 @@ export function DetailModal({ ev, onClose, onRefetch }) {
         rows.push(
           <div key="stats" style={{marginTop:6,display:"flex",gap:14,fontSize:11,color:T.textMute,paddingTop:6,borderTop:`1px dashed ${T.border}`}}>
             {f.calories&&<span>🔥 {f.calories}</span>}
-            {f.protein&&<span>💪 단백질 {f.protein}</span>}
+            {f.protein&&<span>🍖 단백질 {f.protein}</span>}
           </div>
         );
       }
@@ -206,7 +211,7 @@ export function DetailModal({ ev, onClose, onRefetch }) {
         </div>
       );
       if (f.watchlist) rows.push(
-        <div key="wl" style={{fontSize:11,color:T.textMute,marginTop:6,paddingTop:6,borderTop:`1px dashed ${T.border}`}}>내일 주목: {f.watchlist}</div>
+        <div key="wl" style={{fontSize:11,color:T.text,marginTop:6,paddingTop:6,borderTop:`1px dashed ${T.border}`}}>✔️ {f.watchlist}</div>
       );
     }
 
@@ -979,8 +984,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
 // ─────────────────────────────────────────────────────
 // WEIGHT SECTION
 // ─────────────────────────────────────────────────────
-export function WeightSection() {
-  const { logs } = useWeightLogs();
+export function WeightSection({ logs, onRefetch }) {
   const clr = { color:"#C0443A", bg:"#FDECEA", text:"#9B2E25" };
 
   if (!logs.length) return (

@@ -6,7 +6,7 @@ import {
   T, CATS, VIEWS, WEEKDAYS, MONTHS_KR, HOURS,
   catOf, dateStr, getWeekDays, getMonthCells,
 } from "./constants.js";
-import { useEvents, addEvent } from "./api.js";
+import { useEvents, addEvent, useWeightLogs } from "./api.js";
 import {
   LiveClock, TaskChip, DetailModal, AddModal,
   WeightSection, WordSection,
@@ -413,7 +413,7 @@ function YearView({ curDate, events, onOpen, isMobile, todayStr }) {
           const cells=getMonthCells(new Date(year,m,1));
           return (
             <div key={m} style={{background:T.bgCard,borderRadius:8,padding:isMobile?"5px 4px":"7px 6px",border:`1px solid ${T.border}`,display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden"}}>
-              <div style={{fontSize:isMobile?10:12,fontWeight:700,color:T.textSub,marginBottom:isMobile?2:3,textAlign:"center"}}>{MONTHS_KR[m]}</div>
+              <div style={{fontSize:isMobile?10:14,fontWeight:700,color:T.textSub,marginBottom:isMobile?2:3,textAlign:"center"}}>{MONTHS_KR[m]}</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:0,flex:1,alignContent:"space-evenly"}}>
                 {cells.map((d,i)=>{
                   if(!d) return <div key={i} style={{minWidth:0}}/>;
@@ -425,8 +425,8 @@ function YearView({ curDate, events, onOpen, isMobile, todayStr }) {
                   const ywknd=ydow===0?"#C0443A":ydow===6?"#2E6FA5":null;
                   const circleBg=isSelected?"#B09520DD":isTod?T.accent:hasEv?"#B0952070":"transparent";
                   const circleColor=isTod?"#fff":hasEv?"#4A3800":ywknd||T.textMute;
-                  const circleSize=isMobile?16:20;
-                  const fontSize=isMobile?8:10;
+                  const circleSize=isMobile?16:22;
+                  const fontSize=isMobile?8:12;
                   return (
                     <div key={i} style={{display:"flex",justifyContent:"center",alignItems:"center",padding:"0"}}
                       onClick={()=>hasEv&&setClickedDay(isSelected?null:ds)}>
@@ -474,8 +474,8 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
             ))}
             {(f.calories||f.protein||f.sugar)&&<div style={{fontSize:10,color:T.textMute,marginTop:5,display:"flex",gap:10,flexWrap:"wrap"}}>
               {f.calories&&<span>🔥 {f.calories}</span>}
-              {f.protein&&<span>💪 단백질 {f.protein}</span>}
-              {f.sugar&&<span>🍬 당류 {f.sugar}</span>}
+              {f.protein&&<span>🍖 단백질 {f.protein}</span>}
+              {f.sugar&&<span>🧁 당류 {f.sugar}</span>}
             </div>}
           </div>
         );
@@ -515,7 +515,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
               ))}
             </div>}
             {ev.detail&&<div style={{marginBottom:4}}><span style={{fontSize:10,color:T.textMute}}>요약 </span><span style={{fontSize:12,color:T.text,lineHeight:1.75}}>{ev.detail}</span></div>}
-            {f.watchlist&&<div style={{fontSize:11,color:T.textMute,marginTop:4}}>📌 {f.watchlist}</div>}
+            {f.watchlist&&<div style={{fontSize:11,color:T.text,marginTop:4}}>✔️ {f.watchlist}</div>}
           </div>
         );
       case "book":
@@ -684,7 +684,8 @@ function ArchiveView({ events, onOpen, onAddFromArchive }) {
 // ─────────────────────────────────────────────────────
 export default function Yamlog() {
   const isMobile = useIsMobile();
-  const today    = useToday();                  // 자정마다 갱신
+  const today    = useToday();
+  const { logs: weightLogs, refetch: refetchWeight } = useWeightLogs();                  // 자정마다 갱신
   const todayStr = dateStr(today);
 
   const [filterCat,    setFilterCat]    = useState("all");
@@ -833,7 +834,7 @@ export default function Yamlog() {
 
       {/* 위젯 */}
       <div style={{flex:1,overflowY:"auto",padding:"10px 12px 16px"}}>
-        <WeightSection/>
+        <WeightSection logs={weightLogs} onRefetch={refetchWeight}/>
         <WordSection/>
       </div>
     </div>
@@ -971,7 +972,7 @@ export default function Yamlog() {
       )}
 
       {showDetail&&(
-        <DetailModal ev={showDetail} onClose={()=>setShowDetail(null)} onRefetch={refetch}/>
+        <DetailModal ev={showDetail} onClose={()=>setShowDetail(null)} onRefetch={refetch} onRefetchWeight={refetchWeight}/>
       )}
       {showAdd&&(
         <AddModal
