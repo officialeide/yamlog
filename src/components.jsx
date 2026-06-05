@@ -16,16 +16,23 @@ import { supabase, useWeightLogs, updateEvent, upsertWeight, deleteEvent } from 
 // LIVE CLOCK
 // ─────────────────────────────────────────────────────
 export function LiveClock() {
-  const [time, setTime] = useState(() => {
+  const fmt = () => {
     const n = new Date();
     return `${String(n.getHours()).padStart(2,"0")}:${String(n.getMinutes()).padStart(2,"0")}`;
-  });
+  };
+  const [time, setTime] = useState(fmt);
   useEffect(() => {
-    const id = setInterval(() => {
-      const n = new Date();
-      setTime(`${String(n.getHours()).padStart(2,"0")}:${String(n.getMinutes()).padStart(2,"0")}`);
-    }, 30000);
-    return () => clearInterval(id);
+    const timerRef = { current: null };
+    const tick = () => {
+      setTime(fmt());
+      const now = new Date();
+      const msToNext = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+      timerRef.current = setTimeout(tick, msToNext);
+    };
+    const now = new Date();
+    const msToNext = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+    timerRef.current = setTimeout(tick, msToNext);
+    return () => clearTimeout(timerRef.current);
   }, []);
   return (
     <span style={{fontSize:10,color:T.textMute,fontFamily:"'KoPub Dotum',sans-serif",fontWeight:400,letterSpacing:.3}}>
@@ -93,47 +100,6 @@ export function TaskChip({ ev, compact=false, onOpen }) {
   );
 }
 
-// ─────────────────────────────────────────────────────
-// IMAGE UPLOAD
-// ─────────────────────────────────────────────────────
-export function ImageUpload({ images, onChange, catColor }) {
-  const handleFiles = (e) => {
-    Array.from(e.target.files).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (ev) => onChange(prev => [...prev, {src:ev.target.result, name:file.name}]);
-      reader.readAsDataURL(file);
-    });
-  };
-  const remove = (i) => onChange(prev => prev.filter((_,idx) => idx !== i));
-  return (
-    <div style={{marginBottom:10}}>
-      <div style={{fontSize:11,color:T.textSub,fontWeight:500,marginBottom:6}}>이미지 첨부</div>
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-        {images.map((img,i) => (
-          <div key={i} style={{position:"relative",width:64,height:64,borderRadius:8,overflow:"hidden",border:`1px solid ${T.border}`}}>
-            <img src={img.src} alt={img.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-            <button onClick={()=>remove(i)} style={{
-              position:"absolute",top:2,right:2,width:16,height:16,borderRadius:"50%",
-              background:"rgba(44,40,37,0.7)",border:"none",color:"white",
-              fontSize:9,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
-            }}>✕</button>
-          </div>
-        ))}
-        <label style={{
-          width:64,height:64,borderRadius:8,cursor:"pointer",
-          border:`1.5px dashed ${catColor||T.borderMid}`,
-          background:T.bgSub,
-          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-          gap:3,color:T.textMute,fontSize:10,flexShrink:0,
-        }}>
-          <span style={{fontSize:18,lineHeight:1,color:catColor||T.borderMid}}>+</span>
-          <span>사진</span>
-          <input type="file" accept="image/*" multiple onChange={handleFiles} style={{display:"none"}}/>
-        </label>
-      </div>
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────
 // DETAIL MODAL — 필드 내용 표시 + 삭제 버튼 + 수정 연동
@@ -341,16 +307,7 @@ export function DetailModal({ ev, onClose, onRefetch }) {
           ) : (!ev.fields || Object.keys(ev.fields||{}).length === 0) ? (
             <div style={{color:T.textMute,fontSize:13,fontStyle:"italic"}}>상세 내용이 없습니다.</div>
           ) : null}
-          {ev.images&&ev.images.length>0&&(
-            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:14}}>
-              {ev.images.map((img,i)=>(
-                <img key={i} src={img.src} alt={img.name}
-                  style={{width:120,height:90,objectFit:"cover",borderRadius:8,
-                    border:`1px solid ${T.border}`,cursor:"pointer"}}
-                  onClick={()=>window.open(img.src,"_blank")}/>
-              ))}
-            </div>
-          )}
+
         </div>
 
         {/* Footer */}
@@ -696,7 +653,6 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
   const [title,      setTitle]      = useState("");
   const [detail,     setDetail]     = useState("");
   const [fields,     setFields]     = useState({});
-  const [images,     setImages]     = useState([]);
   const [date,       setDate]       = useState(presetDate || dateStr(new Date()));
   const [startTime,  setStartTime]  = useState(`${String(presetHour||9).padStart(2,'0')}:00`);
   const [endTime,    setEndTime]    = useState('');
@@ -757,7 +713,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
       await addEventFn({
         category: cat, sub_category: sub, title: finalTitle,
         date, hour: sh,
-        done: false, detail: detail || null, fields: finalFields, images,
+        done: false, detail: detail || null, fields: finalFields,
       });
       onSaved?.();
       onClose();
@@ -988,7 +944,6 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
           {(cat==="schedule"||cat==="event")&&(<>
             <input placeholder="제목 입력..." style={{...inp,marginBottom:8}} value={title} onChange={e=>setTitle(e.target.value)}/>
             <textarea placeholder="상세 내용" rows={4} style={{...inp,resize:"vertical",marginBottom:8}} value={detail} onChange={e=>setDetail(e.target.value)}/>
-            {cat==="event"&&<ImageUpload images={images} onChange={setImages} catColor={c.color}/>}
           </>)}
 
           <input type="date" style={{...inp,marginTop:8}} value={date} onChange={e=>setDate(e.target.value)}/>

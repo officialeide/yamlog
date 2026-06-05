@@ -1,10 +1,10 @@
 /* ─────────────────────────────────────────────────────
    APP.JSX — 캘린더 뷰, 아카이브 뷰, 메인 Yamlog 컴포넌트
 ───────────────────────────────────────────────────── */
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   T, CATS, VIEWS, WEEKDAYS, MONTHS_KR, HOURS,
-  today, catOf, dateStr, getWeekDays, getMonthCells,
+  catOf, dateStr, getWeekDays, getMonthCells,
 } from "./constants.js";
 import { useEvents, addEvent } from "./api.js";
 import {
@@ -13,18 +13,40 @@ import {
   BriefingView, BottomTabBar,
 } from "./components.jsx";
 
-// useIsMobile - UI hook, belongs here not in api.js (SoC fix)
+// ── useIsMobile: 디바운스 적용으로 리사이즈 과부하 방지 ──
 function useIsMobile() {
   const [m, setM] = useState(typeof window !== "undefined" ? window.innerWidth < 768 : false);
   useEffect(() => {
-    const fn = () => setM(window.innerWidth < 768);
+    let timer;
+    const fn = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => setM(window.innerWidth < 768), 50);
+    };
     window.addEventListener("resize", fn);
-    return () => window.removeEventListener("resize", fn);
+    return () => { window.removeEventListener("resize", fn); clearTimeout(timer); };
   }, []);
   return m;
 }
 
-const todayStr = dateStr(today);
+// ── useToday: 자정마다 오늘 날짜 갱신 ──────────────────
+function useToday() {
+  const [today, setToday] = useState(() => new Date());
+  useEffect(() => {
+    const timerRef = { current: null };
+    const scheduleNextMidnight = () => {
+      const now  = new Date();
+      const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const ms   = next - now;
+      timerRef.current = setTimeout(() => {
+        setToday(new Date());
+        scheduleNextMidnight();
+      }, ms);
+    };
+    scheduleNextMidnight();
+    return () => clearTimeout(timerRef.current);
+  }, []);
+  return today;
+}
 
 // ─── ISO 주차 계산 ──────────────────────────────────
 function getISOWeek(date) {
@@ -78,7 +100,7 @@ function layoutDayEvents(evs, startH, ROW_H) {
 // ─────────────────────────────────────────────────────
 // WEEK VIEW — 분 단위 절대좌표 일기장 스타일
 // ─────────────────────────────────────────────────────
-function WeekView({ curDate, events, filterCat, onOpen, onAdd, isMobile }) {
+function WeekView({ curDate, events, filterCat, onOpen, onAdd, isMobile, todayStr }) {
   const days = useMemo(() => getWeekDays(curDate), [curDate]);
   const [showNight, setShowNight] = useState(false);
   const [nowHour,   setNowHour]   = useState(() => new Date().getHours());
@@ -202,15 +224,14 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd, isMobile }) {
 // MONTH VIEW
 // ─────────────────────────────────────────────────────
 // 월보기 날짜 셀 — 미완료 4개 표시, 초과 시 +N 버튼으로 전체(완료 포함) 표시
-function MonthCell({ d, events, filterCat, isToday, isMobile, onOpen, onAdd }) {
-  const [expanded, setExpanded] = useState(false);
+function MonthCell({ d, events, filterCat, isToday, isMobile, onOpen, onAdd, todayStr }) {
+  const [showPopup, setShowPopup] = useState(false);
   const ds = dateStr(d);
   const isWknd = d.getDay()===0||d.getDay()===6;
   const allEvs = events.filter(e=>e.date===ds&&(filterCat==="all"||e.category===filterCat));
   const todoEvs = allEvs.filter(e=>!e.done);
   const doneEvs = allEvs.filter(e=>e.done);
   const SHOW_MAX = 4;
-  const visibleTodos = expanded ? todoEvs : todoEvs.slice(0, SHOW_MAX);
   const overflow = todoEvs.length - SHOW_MAX;
 
   return (
@@ -222,29 +243,22 @@ function MonthCell({ d, events, filterCat, isToday, isMobile, onOpen, onAdd }) {
     }}
     onMouseEnter={e=>{if(!isToday)e.currentTarget.style.borderColor=T.accent+"55";}}
     onMouseLeave={e=>{if(!isToday)e.currentTarget.style.borderColor=T.border;}}>
-      {/* 날짜 숫자 + overflow 버튼 */}
+      {/* 날짜 숫자 + +N 버튼 */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
         <div style={{fontSize:isMobile?8:11,fontWeight:isToday?700:400,
           color:isToday?T.accent:isWknd?d.getDay()===0?"#C0443A":"#2E6FA5":T.text}}>
           {d.getDate()}
         </div>
-        {overflow>0&&!expanded&&(
-          <div onClick={e=>{e.stopPropagation();setExpanded(true);}} style={{
-            fontSize:8,fontWeight:600,color:T.textMute,
-            background:T.bgSub,border:`1px solid ${T.border}`,
-            borderRadius:4,padding:"0px 4px",cursor:"pointer",lineHeight:"14px",
+        {overflow>0&&(
+          <div onClick={e=>{e.stopPropagation();setShowPopup(true);}} style={{
+            fontSize:8,fontWeight:700,color:"white",
+            background:T.accent,borderRadius:4,
+            padding:"0px 4px",cursor:"pointer",lineHeight:"14px",flexShrink:0,
           }}>+{overflow}</div>
         )}
-        {expanded&&(
-          <div onClick={e=>{e.stopPropagation();setExpanded(false);}} style={{
-            fontSize:8,fontWeight:600,color:T.textMute,
-            background:T.bgSub,border:`1px solid ${T.border}`,
-            borderRadius:4,padding:"0px 4px",cursor:"pointer",lineHeight:"14px",
-          }}>✕</div>
-        )}
       </div>
-      {/* 미완료 이벤트 */}
-      {visibleTodos.map(ev=>{
+      {/* 미완료 이벤트 — 최대 4개 */}
+      {todoEvs.slice(0,SHOW_MAX).map(ev=>{
         const cat=catOf(ev.category,ev.sub_category);
         return (
           <div key={ev.id} onClick={e=>{e.stopPropagation();onOpen(ev);}} style={{
@@ -254,20 +268,8 @@ function MonthCell({ d, events, filterCat, isToday, isMobile, onOpen, onAdd }) {
           }}>{ev.title}</div>
         );
       })}
-      {/* expanded 시 완료 이벤트도 표시 */}
-      {expanded&&doneEvs.map(ev=>{
-        const cat=catOf(ev.category,ev.sub_category);
-        return (
-          <div key={ev.id} onClick={e=>{e.stopPropagation();onOpen(ev);}} style={{
-            fontSize:isMobile?8:11,marginBottom:2,padding:"1px 3px",borderRadius:4,cursor:"pointer",
-            background:T.bgSub,color:T.textMute,border:`1px solid ${T.border}`,
-            whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
-            textDecoration:"line-through",opacity:0.7,
-          }}>{ev.title}</div>
-        );
-      })}
-      {/* 축소 상태에서 완료 이벤트 점 표시 */}
-      {!expanded&&doneEvs.length>0&&(
+      {/* 완료 이벤트 점 */}
+      {doneEvs.length>0&&(
         <div style={{display:"flex",flexWrap:"wrap",gap:2,marginTop:2}}>
           {doneEvs.map(ev=>{
             const cat=catOf(ev.category,ev.sub_category);
@@ -277,11 +279,63 @@ function MonthCell({ d, events, filterCat, isToday, isMobile, onOpen, onAdd }) {
           })}
         </div>
       )}
+      {/* 전체 일정 팝업 */}
+      {showPopup&&(
+        <div onClick={e=>e.stopPropagation()} style={{
+          position:"fixed",inset:0,zIndex:500,
+          display:"flex",alignItems:"center",justifyContent:"center",
+          background:"rgba(44,40,37,0.45)",backdropFilter:"blur(3px)",
+        }} onClick={e=>{e.stopPropagation();setShowPopup(false);}}>
+          <div onClick={e=>e.stopPropagation()} style={{
+            background:T.bgCard,borderRadius:16,
+            width:320,maxWidth:"90vw",maxHeight:"70vh",
+            boxShadow:"0 16px 60px rgba(44,40,37,0.18)",
+            border:`1px solid ${T.border}`,display:"flex",flexDirection:"column",overflow:"hidden",
+          }}>
+            <div style={{padding:"14px 18px 10px",borderBottom:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+              <div style={{fontSize:13,fontWeight:700,color:T.text}}>{ds}</div>
+              <button onClick={()=>setShowPopup(false)} style={{background:"transparent",border:"none",color:T.textMute,cursor:"pointer",fontSize:18,lineHeight:1}}>✕</button>
+            </div>
+            <div style={{overflowY:"auto",padding:"10px 14px 14px"}}>
+              {todoEvs.length>0&&(
+                <>
+                  <div style={{fontSize:10,color:T.textMute,fontWeight:600,letterSpacing:.4,marginBottom:6}}>미완료</div>
+                  {todoEvs.map(ev=>{
+                    const cat=catOf(ev.category,ev.sub_category);
+                    return (
+                      <div key={ev.id} onClick={()=>{setShowPopup(false);onOpen(ev);}} style={{
+                        fontSize:13,marginBottom:6,padding:"7px 10px",borderRadius:8,cursor:"pointer",
+                        background:cat.bg,color:cat.text,border:`1px solid ${cat.color}33`,
+                        borderLeft:`3px solid ${cat.color}`,
+                      }}>{ev.title}</div>
+                    );
+                  })}
+                </>
+              )}
+              {doneEvs.length>0&&(
+                <>
+                  <div style={{fontSize:10,color:T.textMute,fontWeight:600,letterSpacing:.4,marginTop:10,marginBottom:6}}>완료</div>
+                  {doneEvs.map(ev=>{
+                    const cat=catOf(ev.category,ev.sub_category);
+                    return (
+                      <div key={ev.id} onClick={()=>{setShowPopup(false);onOpen(ev);}} style={{
+                        fontSize:13,marginBottom:6,padding:"7px 10px",borderRadius:8,cursor:"pointer",
+                        background:T.bgSub,color:T.textMute,border:`1px solid ${T.border}`,
+                        textDecoration:"line-through",opacity:0.75,
+                      }}>{ev.title}</div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function MonthView({ curDate, events, filterCat, onOpen, onAdd, isMobile }) {
+function MonthView({ curDate, events, filterCat, onOpen, onAdd, isMobile, todayStr }) {
   const cells = useMemo(()=>getMonthCells(curDate),[curDate]);
   return (
     <div>
@@ -297,7 +351,7 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd, isMobile }) {
           const ds=dateStr(d), isToday=ds===todayStr;
           return (
             <MonthCell key={i} d={d} events={events} filterCat={filterCat}
-              isToday={isToday} isMobile={isMobile} onOpen={onOpen} onAdd={onAdd}/>
+              isToday={isToday} isMobile={isMobile} onOpen={onOpen} onAdd={onAdd} todayStr={todayStr}/>
           );
         })}
       </div>
@@ -308,7 +362,7 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd, isMobile }) {
 // ─────────────────────────────────────────────────────
 // YEAR VIEW — 이벤트만 표시, 클릭 시 상세 표시
 // ─────────────────────────────────────────────────────
-function YearView({ curDate, events, onOpen, isMobile }) {
+function YearView({ curDate, events, onOpen, isMobile, todayStr }) {
   const year = curDate.getFullYear();
   const [clickedDay, setClickedDay] = useState(null);
 
@@ -359,7 +413,7 @@ function YearView({ curDate, events, onOpen, isMobile }) {
           const cells=getMonthCells(new Date(year,m,1));
           return (
             <div key={m} style={{background:T.bgCard,borderRadius:8,padding:isMobile?"5px 4px":"7px 6px",border:`1px solid ${T.border}`,display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden"}}>
-              <div style={{fontSize:isMobile?9:11,fontWeight:600,color:T.textSub,marginBottom:isMobile?2:3}}>{MONTHS_KR[m]}</div>
+              <div style={{fontSize:isMobile?10:12,fontWeight:700,color:T.textSub,marginBottom:isMobile?2:3,textAlign:"center"}}>{MONTHS_KR[m]}</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:0,flex:1,alignContent:"space-evenly"}}>
                 {cells.map((d,i)=>{
                   if(!d) return <div key={i} style={{minWidth:0}}/>;
@@ -371,8 +425,8 @@ function YearView({ curDate, events, onOpen, isMobile }) {
                   const ywknd=ydow===0?"#C0443A":ydow===6?"#2E6FA5":null;
                   const circleBg=isSelected?"#B09520DD":isTod?T.accent:hasEv?"#B0952070":"transparent";
                   const circleColor=isTod?"#fff":hasEv?"#4A3800":ywknd||T.textMute;
-                  const circleSize=isMobile?16:18;
-                  const fontSize=isMobile?8:9;
+                  const circleSize=isMobile?16:20;
+                  const fontSize=isMobile?8:10;
                   return (
                     <div key={i} style={{display:"flex",justifyContent:"center",alignItems:"center",padding:"0"}}
                       onClick={()=>hasEv&&setClickedDay(isSelected?null:ds)}>
@@ -486,7 +540,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
             {ev.detail&&(
               <div>
                 <div style={{fontSize:10,color:T.textMute,fontWeight:600,letterSpacing:.4,marginBottom:3}}>감상</div>
-                <div style={{fontSize:12,color:T.textSub,lineHeight:1.7,padding:"7px 10px",background:T.bgSub,borderRadius:6}}>{ev.detail}</div>
+                <div style={{fontSize:12,color:T.textSub,lineHeight:1.7}}>{ev.detail}</div>
               </div>
             )}
           </div>
@@ -630,10 +684,12 @@ function ArchiveView({ events, onOpen, onAddFromArchive }) {
 // ─────────────────────────────────────────────────────
 export default function Yamlog() {
   const isMobile = useIsMobile();
+  const today    = useToday();                  // 자정마다 갱신
+  const todayStr = dateStr(today);
 
   const [filterCat,    setFilterCat]    = useState("all");
   const [view,         setView]         = useState("주");
-  const [curDate,      setCurDate]      = useState(today);
+  const [curDate,      setCurDate]      = useState(() => new Date());
   const [showBriefing, setShowBriefing] = useState(false);
 
   const [showDetail,    setShowDetail]    = useState(null);
@@ -646,8 +702,28 @@ export default function Yamlog() {
   const isArchiveView = filterCat === "archive" && !showBriefing;
   const isSpecialView = showBriefing || isArchiveView;
 
+  // 뷰에 맞는 날짜 범위 계산 (아카이브/브리핑은 null → 전체 조회)
+  const dateRange = useMemo(() => {
+    if (isSpecialView) return null;
+    if (view === "주") {
+      const days = getWeekDays(curDate);
+      return { from: dateStr(days[0]), to: dateStr(days[6]) };
+    }
+    if (view === "월") {
+      const y = curDate.getFullYear(), mo = curDate.getMonth();
+      const from = `${y}-${String(mo+1).padStart(2,"0")}-01`;
+      const lastDay = new Date(y, mo+1, 0).getDate();
+      const to   = `${y}-${String(mo+1).padStart(2,"0")}-${String(lastDay).padStart(2,"0")}`;
+      return { from, to };
+    }
+    // 년 뷰
+    const y = curDate.getFullYear();
+    return { from: `${y}-01-01`, to: `${y}-12-31` };
+  }, [view, curDate, isSpecialView]);
+
   const { events, loading, refetch } = useEvents(
-    showBriefing ? null : filterCat === "all" ? null : filterCat
+    showBriefing ? null : filterCat === "all" ? null : filterCat,
+    dateRange
   );
 
   const nav = (dir) => {
@@ -810,14 +886,14 @@ export default function Yamlog() {
               <div style={{fontSize:13,color:T.textMute}}>불러오는 중...</div>
             </div>
           ):view==="주"?(
-            <WeekView curDate={curDate} events={events} filterCat={filterCat} onOpen={setShowDetail} onAdd={handleAdd} isMobile={isMobile}/>
+            <WeekView curDate={curDate} events={events} filterCat={filterCat} onOpen={setShowDetail} onAdd={handleAdd} isMobile={isMobile} todayStr={todayStr}/>
           ):view==="월"?(
             <div style={{flex:1,overflowY:"auto"}}>
-              <MonthView curDate={curDate} events={events} filterCat={filterCat} onOpen={setShowDetail} onAdd={handleAdd} isMobile={isMobile}/>
+              <MonthView curDate={curDate} events={events} filterCat={filterCat} onOpen={setShowDetail} onAdd={handleAdd} isMobile={isMobile} todayStr={todayStr}/>
             </div>
           ):(
             <div style={{flex:1,overflowY:isMobile?"hidden":"auto",display:"flex",flexDirection:"column"}}>
-              <YearView curDate={curDate} events={events} onOpen={setShowDetail} isMobile={isMobile}/>
+              <YearView curDate={curDate} events={events} onOpen={setShowDetail} isMobile={isMobile} todayStr={todayStr}/>
             </div>
           )}
         </>

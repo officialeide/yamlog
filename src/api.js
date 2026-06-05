@@ -11,10 +11,13 @@ export const supabase = createClient(
 );
 
 // ── 이벤트 목록 훅 ─────────────────────────────────
-// filterSub 제거: sub_category 필터는 뷰에서 클라이언트 사이드 처리
-export function useEvents(filterCat) {
-  const [events, setEvents]   = useState([]);
+// dateRange: { from: "YYYY-MM-DD", to: "YYYY-MM-DD" } | null
+// null이면 날짜 범위 제한 없이 전체 조회 (아카이브 뷰 등)
+export function useEvents(filterCat, dateRange) {
+  const [events,  setEvents]  = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const rangeKey = dateRange ? `${dateRange.from}|${dateRange.to}` : "all";
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -25,6 +28,9 @@ export function useEvents(filterCat) {
         .order("date", { ascending: false })
         .order("hour");
       if (filterCat && filterCat !== "all") q = q.eq("category", filterCat);
+      if (dateRange) {
+        q = q.gte("date", dateRange.from).lte("date", dateRange.to);
+      }
       const { data, error } = await q;
       if (error) throw error;
       setEvents(data || []);
@@ -33,7 +39,8 @@ export function useEvents(filterCat) {
     } finally {
       setLoading(false);
     }
-  }, [filterCat]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterCat, rangeKey]);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
   return { events, loading, refetch: fetchEvents };
@@ -41,7 +48,7 @@ export function useEvents(filterCat) {
 
 // ── 체중 기록 훅 (90일) ─────────────────────────────
 export function useWeightLogs() {
-  const [logs, setLogs]       = useState([]);
+  const [logs,    setLogs]    = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchLogs = useCallback(async () => {
