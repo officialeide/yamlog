@@ -10,20 +10,36 @@ JSON structure:
 
 RULES FOR JSON STRINGS (violations will break parsing):
 - Use ONLY plain Korean and numbers in string values
-- FORBIDDEN characters inside strings: " (quote) \ (backslash) newline tab
-- FORBIDDEN symbols: · — % $ + * [ ] { } | < > ^ ~
-- Use these SAFE alternatives: % -> 퍼센트, — -> 에서, · -> 와, / -> 대비
+- FORBIDDEN characters inside strings: " (quote) \\ (backslash) newline tab
+- FORBIDDEN symbols: % · — $ + * [ ] { } | < > ^ ~
+- Use these SAFE alternatives: % -> 퍼센트, — -> 에서, · -> 와, / -> 대비, + -> 플러스
 - headline: max 50 chars
 - summary: max 35 chars  
 - each line: max 40 chars
 - No 결론: prefix
+- Numbers only: use digits and Korean units (조 억 만 원)
 
 Portfolio to analyze (do not mention 한독):
 삼성전자4주 삼성전자우4주 KODEX200 30주 현대건설4주
 한화에어로2주 한화시스템15주(매수중단) TIGER코리아AI전력기기90주
 SOL원자력SMR10주 TIGER원자력40주(신중) 버크셔B 0.3956주 예수금210만원
 
-Search today's data then respond with ONLY the JSON object.`;
+Search today's data then respond with ONLY the JSON object. No markdown, no explanation.`;
+
+// JSON 문자열 값 내 위험 문자 제거
+function sanitizeJsonStrings(raw) {
+  // JSON string 값 내부만 정리 (키는 건드리지 않음)
+  return raw.replace(/:\s*"((?:[^"\\]|\\.)*)"/g, (match, val) => {
+    const safe = val
+      .replace(/\\/g, '')           // 백슬래시 제거
+      .replace(/[\n\r\t]/g, ' ')    // 개행/탭 → 공백
+      .replace(/[\u0000-\u001F\u007F]/g, '')  // 제어문자 제거
+      .replace(/"/g, '')            // 따옴표 제거
+      .replace(/\s+/g, ' ')         // 연속 공백 정리
+      .trim();
+    return `: "${safe}"`;
+  });
+}
 
 export default async () => {
   try {
@@ -43,8 +59,8 @@ export default async () => {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: 1200,
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 2500,        // 1200 → 2500: web_search 토큰 소비 후에도 충분한 여유
         system: SYSTEM_PROMPT,
         tools: [{
           type: "web_search_20250305",
@@ -64,6 +80,11 @@ export default async () => {
 
     const claudeData = await claudeRes.json();
 
+    // max_tokens 도달 시 JSON이 잘려서 파싱 불가 → 명확한 오류 처리
+    if (claudeData.stop_reason === "max_tokens") {
+      throw new Error("응답이 max_tokens에서 잘림. 토큰을 더 늘리거나 섹션을 줄여야 합니다.");
+    }
+
     // web_search 사용 시 text 블록만 추출
     const rawText = claudeData.content
       .filter(b => b.type === "text")
@@ -71,50 +92,61 @@ export default async () => {
       .join("")
       .trim();
 
-    // ── 2. JSON 추출 및 파싱 ─────────────────────────────
+    console.log(`원문 길이: ${rawText.length}자`);
+
+    // ── 2. JSON 추출 ─────────────────────────────────────
     const jsonStart = rawText.indexOf("{");
     const jsonEnd   = rawText.lastIndexOf("}");
     if (jsonStart === -1 || jsonEnd === -1) {
-      throw new Error(`JSON 없음: ${rawText.slice(0, 100)}`);
+      throw new Error(`JSON 없음. 원문 앞부분: ${rawText.slice(0, 150)}`);
     }
 
     let clean = rawText.slice(jsonStart, jsonEnd + 1);
 
-    // 위험한 제어문자 제거
-    clean = clean
-      .replace(/[\u0000-\u001F\u007F]/g, ' ')  // 제어문자
-      .replace(/\n/g, ' ')
-      .replace(/\r/g, ' ')
-      .replace(/\t/g, ' ');
-
+    // ── 3. JSON 파싱 (3단계 시도) ────────────────────────
     let briefing;
+
+    // 1차: 기본 정리 후 파싱
     try {
-      briefing = JSON.parse(clean);
-    } catch (e1) {
-      // 2차 시도: JSON 문자열 안의 따옴표 이스케이프
+      const pass1 = clean
+        .replace(/[\u0000-\u001F\u007F]/g, ' ')
+        .replace(/\n|\r|\t/g, ' ');
+      briefing = JSON.parse(pass1);
+    } catch (_) {
+      // 2차: 문자열 값 내부 sanitize 후 파싱
       try {
-        const fixed = clean.replace(/"([^"]*)":/g, (match) => match)
-          .replace(/:\s*"([^"]*)"/g, (match, p1) => {
-            const escaped = p1.replace(/"/g, '\\"');
-            return `: "${escaped}"`;
-          });
-        briefing = JSON.parse(fixed);
-      } catch (e2) {
-        throw new Error(`JSON 파싱 실패: ${e1.message} | 원문: ${clean.slice(0, 200)}`);
+        const pass2 = sanitizeJsonStrings(
+          clean.replace(/[\u0000-\u001F\u007F]/g, ' ')
+        );
+        briefing = JSON.parse(pass2);
+      } catch (_2) {
+        // 3차: 모든 비ASCII 아닌 특수문자 제거 후 파싱
+        try {
+          const pass3 = clean
+            .replace(/[\u0000-\u001F\u007F]/g, ' ')
+            .replace(/\\(?!["\\/bfnrtu])/g, '')   // 잘못된 이스케이프 제거
+            .replace(/([^\\])"/g, (m, p) => p === ':' || p === ',' || p === '[' || p === '{' ? m : p + '\\"');
+          briefing = JSON.parse(pass3);
+        } catch (e3) {
+          throw new Error(`JSON 파싱 3회 모두 실패: ${e3.message} | 원문(0~300): ${clean.slice(0, 300)}`);
+        }
       }
     }
 
-    // ── 3. 검증 ──────────────────────────────────────────
+    // ── 4. 검증 ──────────────────────────────────────────
     if (!briefing.headline || !Array.isArray(briefing.sections)) {
       throw new Error("JSON 구조 오류: headline 또는 sections 없음");
+    }
+    if (briefing.sections.length < 3) {
+      throw new Error(`섹션 수 부족: ${briefing.sections.length}개`);
     }
 
     const totalChars =
       (briefing.headline?.length || 0) +
       (briefing.sections || []).flatMap(s => [s.summary||"", ...(s.lines||[])]).join("").length;
-    console.log(`글자 수: ${totalChars}자`);
+    console.log(`글자 수: ${totalChars}자, 섹션: ${briefing.sections.length}개`);
 
-    // ── 4. Supabase 저장 ─────────────────────────────────
+    // ── 5. Supabase 저장 ─────────────────────────────────
     const baseUrl = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
     const supabaseRes = await fetch(`${baseUrl}/rest/v1/briefings`, {
       method: "POST",
