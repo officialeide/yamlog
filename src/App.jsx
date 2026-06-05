@@ -565,7 +565,7 @@ export default function Yamlog() {
           <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:showBriefing?"#6B7C3A":T.borderMid}}/>
           브리핑
         </button>
-        {/* 카테고리들 (라벨 없이, 간격 동일) */
+        {/* 카테고리들 (라벨 없이, 간격 동일) */}
         {CATS.map(cat=>(
           <button key={cat.id} onClick={()=>{setFilterCat(cat.id);setShowBriefing(false);}} style={{
             width:"100%",textAlign:"left",padding:"8px 10px",borderRadius:8,cursor:"pointer",marginBottom:2,
