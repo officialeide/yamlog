@@ -42,6 +42,13 @@ export const REVIEW_SUBS = [
   { id:"coffee", label:"커피" },
 ];
 
+// 아카이브 서브카테고리 ID 목록 — App.jsx, components.jsx 공통 참조용
+export const KNOWN_SUBS = [
+  "weight","diet","weight_training","cardio",
+  "economy",
+  "book","wine","coffee",
+];
+
 // ── View constants ──────────────────────────────────
 export const VIEWS     = ["주","월","년"];
 export const WEEKDAYS  = ["일","월","화","수","목","금","토"];

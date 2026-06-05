@@ -8,7 +8,7 @@ import {
 } from "recharts";
 import {
   T, CATS, ARCHIVE_SUBS, HEALTH_SUBS, REVIEW_SUBS,
-  TOEIC_WORDS, catOf, dateStr,
+  TOEIC_WORDS, catOf, dateStr, KNOWN_SUBS,
 } from "./constants.js";
 import { supabase, useWeightLogs, updateEvent, upsertWeight, deleteEvent, deleteWeight } from "./api.js";
 
@@ -163,11 +163,12 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight }) {
             </div>
           );
         });
-      if (f.calories||f.protein) {
+      if (f.calories||f.protein||f.sugar) {
         rows.push(
           <div key="stats" style={{marginTop:6,display:"flex",gap:14,fontSize:11,color:T.textMute,paddingTop:6,borderTop:`1px dashed ${T.border}`}}>
             {f.calories&&<span>🔥 {f.calories}</span>}
             {f.protein&&<span>🍖 단백질 {f.protein}</span>}
+            {f.sugar&&<span>🧁 당류 {f.sugar}</span>}
           </div>
         );
       }
@@ -235,7 +236,17 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight }) {
         </div>
       );
       if (f.origin||f.grape) rows.push(<div key="wmeta" style={{fontSize:10,color:T.textMute,marginBottom:5}}>{f.origin}{f.origin&&f.grape&&" · "}{f.grape}</div>);
-      if (f.score) rows.push(<div key="wscore" style={{fontSize:15,color:"#7E4FA0",marginBottom:6}}>{"★".repeat(f.score)}{"☆".repeat(5-f.score)}</div>);
+      if (f.alcohol) rows.push(<div key="walc" style={{fontSize:11,color:T.textMute,marginBottom:4}}>🍷 도수 {f.alcohol}</div>);
+      if (f.sweetness||f.acidity||f.tannin||f.body||f.score) rows.push(
+        <div key="wtaste" style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:5,marginTop:2,alignItems:"center"}}>
+          {[["sweetness","당도"],["acidity","산도"],["tannin","타닌"],["body","바디"],["score","총점"]].filter(([k])=>f[k]).map(([k,label])=>(
+            <span key={k} style={{fontSize:11}}>
+              <span style={{color:T.textMute,fontSize:10}}>{label} </span>
+              <span style={{fontWeight:k==="score"?700:500,color:k==="score"?"#7E4FA0":T.text}}>{f[k]}</span>
+            </span>
+          ))}
+        </div>
+      );
     }
 
     if (sub === "coffee") {
@@ -384,9 +395,8 @@ function EditModal({ ev, onClose, onSaved }) {
   const isBook           = sub === "book";
   const isWine           = sub === "wine";
   const isCoffee         = sub === "coffee";
-  const KNOWN_ARCHIVE_SUBS = ["weight","diet","weight_training","cardio","economy","book","wine","coffee"];
   const isBasic = ev.category === "schedule" || ev.category === "event"
-    || (ev.category === "archive" && !KNOWN_ARCHIVE_SUBS.includes(sub));
+    || (ev.category === "archive" && !KNOWN_SUBS.includes(sub));
 
   const [title,      setTitle]      = useState(ev.title  || "");
   const [detail,     setDetail]     = useState(ev.detail || "");
@@ -596,7 +606,7 @@ function EditModal({ ev, onClose, onSaved }) {
           </>)}
 
           {isWine&&(<>
-            {[["wineName","와인명"],["vintage","빈티지"],["origin","생산지"],["grape","품종"]].map(([k,label])=>(
+            {[["wineName","와인명"],["vintage","빈티지"],["origin","생산지"],["grape","품종"],["alcohol","알코올"]].map(([k,label])=>(
               <div key={k} style={{marginBottom:8}}>
                 <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label}</div>
                 <input style={{...inp}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
@@ -812,7 +822,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
                 </div>
               ))}
             </div>
-            <input placeholder="특이사항 (과식, 음주 등)" style={{...inp,marginBottom:8}} value={fields.note||""} onChange={e=>setField("note",e.target.value)}/>
+            <textarea placeholder="특이사항 (과식, 음주 등)" rows={2} style={{...inp,resize:"none",marginBottom:8}} value={detail} onChange={e=>setDetail(e.target.value)}/>
           </>)}
 
           {cat==="archive"&&archiveSub==="health"&&healthSub==="weight_training"&&(<>
@@ -1160,39 +1170,6 @@ export function WordSection() {
 // ─────────────────────────────────────────────────────
 // RANDOM REVIEW
 // ─────────────────────────────────────────────────────
-function RandomReview({ events, onOpen }) {
-  const pool = events.filter(e=>e.category==="archive"&&["book","wine","coffee"].includes(e.sub_category));
-  const [idx, setIdx] = useState(0);
-  const initialized = useRef(false);
-  useEffect(()=>{
-    if(pool.length>0&&!initialized.current){ initialized.current=true; setIdx(Math.floor(Math.random()*pool.length)); }
-  },[pool.length]);
-  if(!pool.length) return null;
-  const ev=pool[idx%pool.length], cat=catOf(ev.category,ev.sub_category);
-  const snippet=ev.detail?ev.detail.split("\n").slice(0,2).join(" · "):ev.title;
-  return (
-    <div style={{background:cat.bg,borderRadius:10,padding:"11px 12px",border:`1px solid ${cat.color}22`,marginTop:8}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-        <span style={{fontSize:9,color:cat.text,fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>리뷰</span>
-        <button onClick={()=>setIdx(i=>(i+1)%pool.length)} style={{
-          background:"transparent",border:`1px solid ${cat.color}44`,borderRadius:6,
-          padding:"2px 7px",cursor:"pointer",fontSize:9,color:T.textSub,
-        }}>다음</button>
-      </div>
-      <div onClick={()=>onOpen&&onOpen(ev)} style={{fontSize:12,color:T.text,fontWeight:500,marginBottom:4,lineHeight:1.4,
-        cursor:"pointer",textDecoration:"underline",textDecorationColor:cat.color+"66",textUnderlineOffset:2}}>
-        {ev.title}
-      </div>
-      {snippet&&snippet!==ev.title&&(
-        <div style={{fontSize:10,color:T.textSub,lineHeight:1.5,
-          display:"-webkit-box",WebkitLineClamp:3,WebkitBoxOrient:"vertical",overflow:"hidden"}}>
-          {snippet}
-        </div>
-      )}
-      <div style={{fontSize:9,color:T.textMute,marginTop:5}}>{cat.label} · {ev.date}</div>
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────
 // BRIEFING
@@ -1245,9 +1222,9 @@ export function BriefingView(){
     async function fetchBriefing(){
       try{
         const todayKST=new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});
-        const{data:todayData}=await supabase.from("briefings").select("*").eq("date",todayKST).single();
+        const{data:todayData}=await supabase.from("briefings").select("*").eq("date",todayKST).maybeSingle();
         if(todayData){setBriefing({...todayData,isToday:true});return;}
-        const{data:latestData,error}=await supabase.from("briefings").select("*").order("date",{ascending:false}).limit(1).single();
+        const{data:latestData,error}=await supabase.from("briefings").select("*").order("date",{ascending:false}).limit(1).maybeSingle();
         if(error) throw error;
         const latestDate=new Date(latestData.date+"T00:00:00+09:00");
         const todayDate=new Date(new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"}));

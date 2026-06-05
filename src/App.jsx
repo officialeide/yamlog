@@ -4,11 +4,11 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   T, CATS, VIEWS, WEEKDAYS, MONTHS_KR, HOURS,
-  catOf, dateStr, getWeekDays, getMonthCells,
+  catOf, dateStr, getWeekDays, getMonthCells, KNOWN_SUBS,
 } from "./constants.js";
 import { useEvents, addEvent, useWeightLogs } from "./api.js";
 import {
-  LiveClock, TaskChip, DetailModal, AddModal,
+  LiveClock, DetailModal, AddModal,
   WeightSection, WordSection,
   BriefingView, BottomTabBar,
 } from "./components.jsx";
@@ -100,7 +100,7 @@ function layoutDayEvents(evs, startH, ROW_H) {
 // ─────────────────────────────────────────────────────
 // WEEK VIEW — 분 단위 절대좌표 일기장 스타일
 // ─────────────────────────────────────────────────────
-function WeekView({ curDate, events, filterCat, onOpen, onAdd, isMobile, todayStr }) {
+function WeekView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
   const days = useMemo(() => getWeekDays(curDate), [curDate]);
   const [showNight, setShowNight] = useState(false);
   const [nowHour,   setNowHour]   = useState(() => new Date().getHours());
@@ -164,7 +164,7 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd, isMobile, todaySt
           {days.map((d,i)=>{
             const ds=dateStr(d), isToday=ds===todayStr;
             const colEvs = events.filter(e=>
-              e.date===ds && (filterCat==="all"||e.category===filterCat)
+              e.date===ds
             );
             const laid = layoutDayEvents(colEvs, startH, ROW_H);
 
@@ -224,11 +224,11 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd, isMobile, todaySt
 // MONTH VIEW
 // ─────────────────────────────────────────────────────
 // 월보기 날짜 셀 — 미완료 4개 표시, 초과 시 +N 버튼으로 전체(완료 포함) 표시
-function MonthCell({ d, events, filterCat, isToday, isMobile, onOpen, onAdd, todayStr }) {
+function MonthCell({ d, events, isToday, isMobile, onOpen, onAdd, todayStr }) {
   const [showPopup, setShowPopup] = useState(false);
   const ds = dateStr(d);
   const isWknd = d.getDay()===0||d.getDay()===6;
-  const allEvs = events.filter(e=>e.date===ds&&(filterCat==="all"||e.category===filterCat));
+  const allEvs = events.filter(e=>e.date===ds);
   const todoEvs = allEvs.filter(e=>!e.done);
   const doneEvs = allEvs.filter(e=>e.done);
   const SHOW_MAX = 4;
@@ -335,7 +335,7 @@ function MonthCell({ d, events, filterCat, isToday, isMobile, onOpen, onAdd, tod
   );
 }
 
-function MonthView({ curDate, events, filterCat, onOpen, onAdd, isMobile, todayStr }) {
+function MonthView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
   const cells = useMemo(()=>getMonthCells(curDate),[curDate]);
   return (
     <div>
@@ -350,7 +350,7 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd, isMobile, todayS
           if(!d) return <div key={i} style={{minWidth:0}}/>;
           const ds=dateStr(d), isToday=ds===todayStr;
           return (
-            <MonthCell key={i} d={d} events={events} filterCat={filterCat}
+            <MonthCell key={i} d={d} events={events}
               isToday={isToday} isMobile={isMobile} onOpen={onOpen} onAdd={onAdd} todayStr={todayStr}/>
           );
         })}
@@ -612,7 +612,6 @@ const ARCHIVE_SECTS = [
   { id:"review",  label:"리뷰", color:"#1A4080", bg:"#E5EAF5", text:"#0F2A60",  subs:["book","wine","coffee"] },
   { id:"etc",     label:"기타", color:"#7E4FA0", bg:"#F3EBF8", text:"#5A2E80",  subs:null },
 ];
-const KNOWN_SUBS = ["weight","diet","weight_training","cardio","economy","book","wine","coffee"];
 
 function ArchiveView({ events, onOpen, onAddFromArchive }) {
   const [activeSec, setActiveSec] = useState("health");
@@ -685,7 +684,9 @@ function ArchiveView({ events, onOpen, onAddFromArchive }) {
 export default function Yamlog() {
   const isMobile = useIsMobile();
   const today    = useToday();
-  const { logs: weightLogs, refetch: refetchWeight } = useWeightLogs();                  // 자정마다 갱신
+  const { logs: weightLogs, refetch: refetchWeight } = useWeightLogs();
+  // 자정에 today가 바뀌면 체중 그래프도 재조회
+  useEffect(() => { refetchWeight(); }, [today]); // eslint-disable-line react-hooks/exhaustive-deps
   const todayStr = dateStr(today);
 
   const [filterCat,    setFilterCat]    = useState("all");
@@ -722,10 +723,11 @@ export default function Yamlog() {
     return { from: `${y}-01-01`, to: `${y}-12-31` };
   }, [view, curDate, isSpecialView]);
 
-  const { events, loading, refetch } = useEvents(
-    showBriefing ? null : filterCat === "all" ? null : filterCat,
-    dateRange
-  );
+  // 년 뷰는 event 카테고리 전체가 필요하므로 filterCat 무시
+  const eventsFilterCat = (!showBriefing && view === "년")
+    ? null
+    : (showBriefing ? null : filterCat === "all" ? null : filterCat);
+  const { events, loading, refetch } = useEvents(eventsFilterCat, dateRange);
 
   const nav = (dir) => {
     const d = new Date(curDate);
@@ -887,10 +889,10 @@ export default function Yamlog() {
               <div style={{fontSize:13,color:T.textMute}}>불러오는 중...</div>
             </div>
           ):view==="주"?(
-            <WeekView curDate={curDate} events={events} filterCat={filterCat} onOpen={setShowDetail} onAdd={handleAdd} isMobile={isMobile} todayStr={todayStr}/>
+            <WeekView curDate={curDate} events={events} onOpen={setShowDetail} onAdd={handleAdd} isMobile={isMobile} todayStr={todayStr}/>
           ):view==="월"?(
             <div style={{flex:1,overflowY:"auto"}}>
-              <MonthView curDate={curDate} events={events} filterCat={filterCat} onOpen={setShowDetail} onAdd={handleAdd} isMobile={isMobile} todayStr={todayStr}/>
+              <MonthView curDate={curDate} events={events} onOpen={setShowDetail} onAdd={handleAdd} isMobile={isMobile} todayStr={todayStr}/>
             </div>
           ):(
             <div style={{flex:1,overflowY:isMobile?"hidden":"auto",display:"flex",flexDirection:"column"}}>
