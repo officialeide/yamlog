@@ -28,7 +28,7 @@ export function LiveClock() {
     return () => clearInterval(id);
   }, []);
   return (
-    <span style={{fontSize:10,color:T.textMute,fontFamily:"'Noto Sans KR',sans-serif",fontWeight:400,letterSpacing:.3}}>
+    <span style={{fontSize:10,color:T.textMute,fontFamily:"'Nanum Gothic',sans-serif",fontWeight:400,letterSpacing:.3}}>
       {time}
     </span>
   );
@@ -247,7 +247,7 @@ export function DetailModal({ ev, onClose, onRefetch }) {
     if (sub === "book") {
       if (f.bookTitle) rows.push(
         <div key="bt" style={{fontFamily:"'Libre Baskerville',serif",fontSize:15,fontWeight:700,color:T.text,marginBottom:3}}>
-          {f.bookTitle}{f.author&&<span style={{fontSize:12,fontWeight:400,color:T.textSub,fontFamily:"'Noto Sans KR',sans-serif"}}> · {f.author}</span>}
+          {f.bookTitle}{f.author&&<span style={{fontSize:12,fontWeight:400,color:T.textSub,fontFamily:"'Nanum Gothic',sans-serif"}}> · {f.author}</span>}
         </div>
       );
       if (f.genre||f.period) rows.push(<div key="bmeta" style={{fontSize:10,color:T.textMute,marginBottom:5}}>{f.genre}{f.genre&&f.period&&" · "}{f.period}</div>);
@@ -260,7 +260,7 @@ export function DetailModal({ ev, onClose, onRefetch }) {
     if (sub === "wine") {
       if (f.wineName) rows.push(
         <div key="wn" style={{fontFamily:"'Libre Baskerville',serif",fontSize:15,fontWeight:700,color:T.text,marginBottom:3}}>
-          {f.wineName}{f.vintage&&<span style={{fontSize:11,fontWeight:400,color:T.textSub,fontFamily:"'Noto Sans KR',sans-serif"}}> {f.vintage}</span>}
+          {f.wineName}{f.vintage&&<span style={{fontSize:11,fontWeight:400,color:T.textSub,fontFamily:"'Nanum Gothic',sans-serif"}}> {f.vintage}</span>}
         </div>
       );
       if (f.origin||f.grape) rows.push(<div key="wmeta" style={{fontSize:10,color:T.textMute,marginBottom:5}}>{f.origin}{f.origin&&f.grape&&" · "}{f.grape}</div>);
@@ -334,7 +334,7 @@ export function DetailModal({ ev, onClose, onRefetch }) {
           {renderFields()}
           {/* 텍스트 상세 */}
           {ev.detail ? (
-            <pre style={{fontFamily:"'Noto Sans KR',sans-serif",fontSize:13,
+            <pre style={{fontFamily:"'Nanum Gothic',sans-serif",fontSize:13,
               color:T.text,lineHeight:1.85,whiteSpace:"pre-wrap",margin:0}}>
               {ev.detail}
             </pre>
@@ -472,7 +472,7 @@ function EditModal({ ev, onClose, onSaved }) {
   const inp = {
     width:"100%",background:T.bgSub,border:`1px solid ${T.border}`,borderRadius:8,
     padding:"10px 12px",color:T.text,fontSize:13,outline:"none",
-    boxSizing:"border-box",fontFamily:"'Noto Sans KR',sans-serif",
+    boxSizing:"border-box",fontFamily:"'Nanum Gothic',sans-serif",
   };
 
   return (
@@ -742,7 +742,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
   const inp = {
     width:"100%",background:T.bgSub,border:`1px solid ${T.border}`,borderRadius:8,
     padding:"10px 12px",color:T.text,fontSize:13,outline:"none",
-    boxSizing:"border-box",fontFamily:"'Noto Sans KR',sans-serif",
+    boxSizing:"border-box",fontFamily:"'Nanum Gothic',sans-serif",
   };
 
   return (
@@ -967,6 +967,11 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
             {!(cat==="archive"&&archiveSub==="health"&&healthSub==="weight")&&(
               <input type="time" style={{flex:1,...inp}} value={`${hour}:00`} onChange={e=>setHour(e.target.value.split(":")[0])}/>
             )}
+            {(cat==="schedule"||cat==="event")&&(
+              <input type="time" placeholder="종료" style={{flex:1,...inp}}
+                value={fields.endHour!=null?`${String(fields.endHour).padStart(2,"0")}:00`:""}
+                onChange={e=>{const h=e.target.value.split(":")[0]; setField("endHour",h?parseInt(h,10):null);}}/>
+            )}
           </div>
         </div>
 
@@ -1063,25 +1068,25 @@ export function WordSection() {
   };
 
   if (pool.length === 0) return (
-    <div style={{background:"#FBF8E3",borderRadius:10,padding:"11px 12px",border:"1px solid #B0952044",marginTop:8}}>
-      <div style={{fontSize:9,color:"#7A6A10",fontWeight:600,letterSpacing:.5,textTransform:"uppercase",marginBottom:8}}>단어</div>
+    <div style={{background:"#E8F2FA",borderRadius:10,padding:"11px 12px",border:"1px solid #2E6FA544",marginTop:8}}>
+      <div style={{fontSize:9,color:"#1A4E7A",fontWeight:600,letterSpacing:.5,textTransform:"uppercase",marginBottom:8}}>단어</div>
       <div style={{fontSize:13,color:"#5C4200",marginBottom:8,fontWeight:500}}>모든 단어 완료 🎉</div>
       <div style={{fontSize:11,color:"#7A5800",marginBottom:10}}>{known.size}개 모두 알고 있어요</div>
-      <button onClick={reset} style={{width:"100%",padding:"7px",borderRadius:7,cursor:"pointer",background:"#B0952022",border:"1px solid #B0952044",color:"#7A6A10",fontSize:11}}>초기화</button>
+      <button onClick={reset} style={{width:"100%",padding:"7px",borderRadius:7,cursor:"pointer",background:"#2E6FA522",border:"1px solid #2E6FA544",color:"#1A4E7A",fontSize:11}}>초기화</button>
     </div>
   );
 
   return (
-    <div style={{background:"#FBF8E3",borderRadius:10,padding:"11px 12px",border:"1px solid #B0952044",marginTop:8}}>
+    <div style={{background:"#E8F2FA",borderRadius:10,padding:"11px 12px",border:"1px solid #2E6FA544",marginTop:8}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-        <span style={{fontSize:9,color:"#7A6A10",fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>단어</span>
+        <span style={{fontSize:9,color:"#1A4E7A",fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>단어</span>
         <div style={{display:"flex",gap:4}}>
           <button onClick={prevWord} style={{background:"transparent",border:"1px solid #D4A01744",borderRadius:5,padding:"1px 7px",cursor:"pointer",fontSize:11,color:"#8C6A10"}}>‹</button>
           <button onClick={nextWord} style={{background:"transparent",border:"1px solid #D4A01744",borderRadius:5,padding:"1px 7px",cursor:"pointer",fontSize:11,color:"#8C6A10"}}>›</button>
         </div>
       </div>
-      <div style={{fontFamily:"'Libre Baskerville',Georgia,serif",fontSize:16,color:"#4A3C00",fontWeight:600,marginBottom:5}}>{current.word}</div>
-      <div style={{fontSize:12,color:"#6A5200",lineHeight:1.5,marginBottom:10}}>{current.meaning}</div>
+      <div style={{fontFamily:"'Libre Baskerville',Georgia,serif",fontSize:16,color:"#1A3A6A",fontWeight:600,marginBottom:5}}>{current.word}</div>
+      <div style={{fontSize:12,color:"#2E5A8A",lineHeight:1.5,marginBottom:10}}>{current.meaning}</div>
       <div style={{display:"flex",gap:6,marginBottom:6}}>
         <button onClick={markKnown} style={{
           flex:1,padding:"8px",borderRadius:7,cursor:"pointer",fontSize:15,fontWeight:700,
@@ -1092,7 +1097,7 @@ export function WordSection() {
           background:"#C0443A22",border:"1px solid #C0443A55",color:"#9B2E25",
         }} title="모르겠어요">X</button>
       </div>
-      <div style={{fontSize:9,color:"#9A8030",textAlign:"right"}}>{known.size}개 완료 / {TOEIC_WORDS.length}개</div>
+      <div style={{fontSize:9,color:"#2E6FA5",textAlign:"right"}}>{known.size}개 완료 / {TOEIC_WORDS.length}개</div>
     </div>
   );
 }
@@ -1167,7 +1172,7 @@ function BriefingSection({section}){
               ?section.content:[section.summary,...(section.lines||[])].filter(Boolean);
             return items.filter(Boolean).map((line,i)=>(
               <div key={i} style={{marginTop:i===0?10:7,paddingLeft:i===0?0:10,borderLeft:i===0?"none":`2px solid ${section.color}55`}}>
-                <span style={{fontSize:12,color:i===0?section.color:T.text,lineHeight:1.7,fontWeight:i===0?700:400,fontFamily:"'Noto Sans KR',sans-serif"}}>{line}</span>
+                <span style={{fontSize:12,color:i===0?section.color:T.text,lineHeight:1.7,fontWeight:i===0?700:400,fontFamily:"'Nanum Gothic',sans-serif"}}>{line}</span>
               </div>
             ));
           })()}
@@ -1225,7 +1230,7 @@ export function BriefingView(){
       </div>
       <div style={{background:"#3A3228",borderRadius:12,padding:"13px 16px",marginBottom:14,border:"1px solid #5a4e44"}}>
         <div style={{fontSize:10,color:"#6B7C3A",fontWeight:700,letterSpacing:.8,textTransform:"uppercase",marginBottom:7}}>핵심 한 줄</div>
-        <div style={{fontSize:13,color:"#EDE6DC",lineHeight:1.75,fontFamily:"'Noto Sans KR',sans-serif",fontStyle:"italic"}}>{headline}</div>
+        <div style={{fontSize:13,color:"#EDE6DC",lineHeight:1.75,fontFamily:"'Nanum Gothic',sans-serif",fontStyle:"italic"}}>{headline}</div>
       </div>
       {sections.map((s,i)=>{
         const c=COLORS[s.title]||{color:"#6B7B8D",bg:"#EFF1F4"};
@@ -1272,7 +1277,7 @@ export function BottomTabBar({ filterCat, showBriefing, setFilterCat, setShowBri
             }}>{tab.icon}</div>
             <span style={{
               fontSize:9,color:isActive?tab.color:T.textMute,
-              fontWeight:isActive?600:400,fontFamily:"'Noto Sans KR',sans-serif",
+              fontWeight:isActive?600:400,fontFamily:"'Nanum Gothic',sans-serif",
             }}>{tab.label}</span>
           </button>
         );
