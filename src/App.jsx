@@ -36,7 +36,47 @@ function getISOWeek(date) {
 }
 
 // ─────────────────────────────────────────────────────
-// WEEK VIEW — 절대좌표 일기장 스타일
+// WEEK VIEW 헬퍼 — 분 단위 레이아웃 계산
+// ─────────────────────────────────────────────────────
+function layoutDayEvents(evs, startH, ROW_H) {
+  if (!evs.length) return [];
+  const items = evs.map(ev => {
+    const sm = ev.fields?.startMinute || 0;
+    const eh = ev.fields?.endHour != null ? ev.fields.endHour : ev.hour + 1;
+    const em = ev.fields?.endMinute || 0;
+    const s  = ev.hour * 60 + sm;
+    const e  = Math.max(eh * 60 + em, s + 15);
+    return { ev, s, e };
+  }).filter(it => it.e > startH * 60);
+
+  items.sort((a, b) => a.s - b.s);
+
+  // 그리디 트랙 배정
+  const trackEnds = [];
+  const trackIdx  = items.map(item => {
+    let t = trackEnds.findIndex(end => end <= item.s);
+    if (t < 0) { trackEnds.push(0); t = trackEnds.length - 1; }
+    trackEnds[t] = item.e;
+    return t;
+  });
+
+  return items.map((item, i) => {
+    const overlapping = items.filter(o => o.s < item.e && o.e > item.s);
+    const maxTrack    = Math.max(...overlapping.map(o => trackIdx[items.indexOf(o)]));
+    const numCols     = maxTrack + 1;
+    const col         = trackIdx[i];
+    return {
+      ev:     item.ev,
+      top:    Math.max(0, (item.s - startH * 60) / 60 * ROW_H) + 1,
+      height: Math.max(16, (item.e - item.s) / 60 * ROW_H - 2),
+      left:   col / numCols,
+      width:  1   / numCols,
+    };
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// WEEK VIEW — 분 단위 절대좌표 일기장 스타일
 // ─────────────────────────────────────────────────────
 function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
   const days = useMemo(() => getWeekDays(curDate), [curDate]);
@@ -47,11 +87,11 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
     return () => clearInterval(id);
   }, []);
 
-  const ROW_H   = 48;
-  const startH  = showNight ? 0 : 8;
-  const visHrs  = HOURS.filter(h => h >= startH);
-  const totalH  = visHrs.length * ROW_H;
-  const COL_W   = 36;
+  const ROW_H  = 52;
+  const startH = showNight ? 0 : 8;
+  const visHrs = HOURS.filter(h => h >= startH);
+  const totalH = visHrs.length * ROW_H;
+  const COL_W  = 34;
 
   return (
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
@@ -75,23 +115,24 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
         })}
       </div>
 
-      {/* 0-7시 접기 토글 */}
-      <div style={{display:"flex",padding:"2px 4px 2px",background:T.bg,flexShrink:0}}>
+      {/* 0-7시 토글 */}
+      <div style={{display:"flex",padding:"2px 4px",background:T.bg,flexShrink:0}}>
         <button onClick={()=>setShowNight(s=>!s)} style={{
           fontSize:9,color:T.textMute,background:"transparent",border:`1px solid ${T.border}`,
           borderRadius:4,padding:"2px 8px",cursor:"pointer",lineHeight:1.4,marginLeft:COL_W,
         }}>{showNight?"▲ 0-7시 접기":"▼ 0-7시 펼치기"}</button>
       </div>
 
-      {/* 그리드 스크롤 영역 */}
+      {/* 스크롤 그리드 */}
       <div style={{flex:1,overflowY:"auto"}}>
-        <div style={{display:"flex",height:totalH,position:"relative"}}>
+        <div style={{display:"flex",height:totalH}}>
 
           {/* 시간 레이블 열 */}
           <div style={{width:COL_W,flexShrink:0,position:"relative",height:totalH}}>
             {visHrs.map(h=>(
               <div key={h} style={{
-                position:"absolute",top:h===startH?0:(h-startH)*ROW_H-6,
+                position:"absolute",
+                top:(h-startH)*ROW_H - 7,
                 right:4,fontSize:8,color:T.textMute,lineHeight:1,
               }}>{String(h).padStart(2,"0")}</div>
             ))}
@@ -100,39 +141,39 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
           {/* 날짜별 열 */}
           {days.map((d,i)=>{
             const ds=dateStr(d), isToday=ds===todayStr;
-            const colEvs=events.filter(e=>
-              e.date===ds&&e.hour>=startH&&(filterCat==="all"||e.category===filterCat)
+            const colEvs = events.filter(e=>
+              e.date===ds && (filterCat==="all"||e.category===filterCat)
             );
+            const laid = layoutDayEvents(colEvs, startH, ROW_H);
+
             return (
               <div key={i} style={{flex:1,minWidth:0,borderLeft:`1px solid ${T.border}`,
                 position:"relative",height:totalH}}>
 
-                {/* 시간 배경 그리드 (클릭 가능) */}
+                {/* 시간 배경 격자 */}
                 {visHrs.map(h=>{
-                  const top=(h-startH)*ROW_H;
-                  const isCur=isToday&&h===nowHour;
+                  const isCur = isToday && h===nowHour;
                   return (
                     <div key={h} onClick={()=>onAdd(ds,h)} style={{
-                      position:"absolute",top,left:0,right:0,height:ROW_H,
+                      position:"absolute",top:(h-startH)*ROW_H,left:0,right:0,height:ROW_H,
                       borderBottom:`1px solid ${T.border}`,cursor:"pointer",
-                      background:isCur?"#6B7C3A20":isToday&&h%2===0?T.accent+"05":"transparent",
+                      background:isCur?"#6B7C3A1C":isToday&&h%2===0?T.accent+"05":"transparent",
                       borderTop:isCur?`2px solid ${T.accent}`:"none",
                     }}/>
                   );
                 })}
 
-                {/* 이벤트 블록 (절대 위치) */}
-                {colEvs.map((ev,idx)=>{
-                  const cat=catOf(ev.category,ev.sub_category);
-                  const eh=ev.fields?.endHour;
-                  const spanH=eh&&eh>ev.hour?(eh-ev.hour)*ROW_H-4:ROW_H-6;
-                  const top=(ev.hour-startH)*ROW_H+2;
-                  const isSchedOrEv=ev.category==="schedule"||ev.category==="event";
+                {/* 이벤트 블록 (분 단위 절대 위치) */}
+                {laid.map(({ev, top, height, left, width}, idx)=>{
+                  const cat = catOf(ev.category, ev.sub_category);
                   return (
-                    <div key={ev.id} onClick={e=>{e.stopPropagation();onOpen(ev);}}
+                    <div key={ev.id}
+                      onClick={e=>{e.stopPropagation();onOpen(ev);}}
                       style={{
-                        position:"absolute",top,left:2,right:2,
-                        height:Math.max(18,spanH),
+                        position:"absolute",
+                        top, height,
+                        left:`calc(${left*100}% + 2px)`,
+                        width:`calc(${width*100}% - 4px)`,
                         borderRadius:4,zIndex:1+idx,cursor:"pointer",
                         background:ev.done?T.bgSub:cat.bg,
                         borderLeft:`3px solid ${ev.done?T.borderMid:cat.color}`,
@@ -140,13 +181,9 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
                         opacity:ev.done?0.55:1,
                         boxShadow:"0 1px 3px rgba(44,40,37,0.08)",
                       }}>
-                      {isSchedOrEv&&(
-                        <div style={{fontSize:8,color:ev.done?T.textMute:cat.color,fontWeight:600,lineHeight:1.2}}>
-                          {String(ev.hour).padStart(2,"0")}{eh?`–${String(eh).padStart(2,"00")}`:""}
-                        </div>
-                      )}
-                      <div style={{fontSize:9,color:ev.done?T.textMute:cat.text,lineHeight:1.3,
-                        overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                      <div style={{fontSize:10,color:ev.done?T.textMute:cat.text,
+                        lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
+                        fontWeight:500}}>
                         {ev.title}
                       </div>
                     </div>
@@ -174,7 +211,7 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd }) {
             color:i===0?"#C0443A":i===6?"#2E6FA5":T.textSub}}>{d}</div>
         ))}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:0,flex:1,alignContent:"start"}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:0,flex:1,alignContent:"space-evenly"}}>
         {cells.map((d,i)=>{
           if(!d) return <div key={i} style={{minWidth:0}}/>;
           const ds=dateStr(d), isToday=ds===todayStr;
@@ -197,7 +234,7 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd }) {
                 const cat=catOf(ev.category,ev.sub_category);
                 return (
                   <div key={ev.id} onClick={e=>{e.stopPropagation();onOpen(ev);}} style={{
-                    fontSize:9,marginBottom:2,padding:"2px 5px",borderRadius:4,cursor:"pointer",
+                    fontSize:11,marginBottom:2,padding:"2px 5px",borderRadius:4,cursor:"pointer",
                     background:cat.bg,color:cat.text,border:`1px solid ${cat.color}33`,
                     whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
                   }}>{ev.title}</div>
@@ -234,7 +271,7 @@ function YearView({ curDate, events, onOpen }) {
   const eventCat  = CATS.find(c => c.id === "event") || CATS[0];
 
   return (
-    <div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
+    <div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0,overflow:"hidden"}}>
       {/* 클릭된 날짜의 이벤트 상세 */}
       {clickedDay && dayDetail.length > 0 && (
         <div style={{
@@ -270,13 +307,13 @@ function YearView({ curDate, events, onOpen }) {
       )}
 
       {/* 12개월 미니 달력 */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gridTemplateRows:"repeat(4,1fr)",gap:10,flex:1}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gridTemplateRows:"repeat(4,1fr)",gap:6,flex:1,minHeight:0}}>
         {Array.from({length:12},(_,m)=>m).map(m=>{
           const cells=getMonthCells(new Date(year,m,1));
           return (
-            <div key={m} style={{background:T.bgCard,borderRadius:10,padding:"14px 12px",border:`1px solid ${T.border}`,display:"flex",flexDirection:"column"}}>
-              <div style={{fontSize:11,fontWeight:600,color:T.textSub,marginBottom:6}}>{MONTHS_KR[m]}</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:0,flex:1,alignContent:"start"}}>
+            <div key={m} style={{background:T.bgCard,borderRadius:8,padding:"7px 6px",border:`1px solid ${T.border}`,display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden"}}>
+              <div style={{fontSize:10,fontWeight:600,color:T.textSub,marginBottom:3}}>{MONTHS_KR[m]}</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:0,flex:1,alignContent:"space-evenly"}}>
                 {cells.map((d,i)=>{
                   if(!d) return <div key={i} style={{minWidth:0}}/>;
                   const ds=dateStr(d);
@@ -288,12 +325,12 @@ function YearView({ curDate, events, onOpen }) {
                   const circleBg=isSelected?"#B09520DD":isTod?T.accent:hasEv?"#B0952070":"transparent";
                   const circleColor=isTod?"#fff":hasEv?"#4A3800":ywknd||T.textMute;
                   return (
-                    <div key={i} style={{display:"flex",justifyContent:"center",alignItems:"center",padding:"1px 0"}}
+                    <div key={i} style={{display:"flex",justifyContent:"center",alignItems:"center",padding:"0"}}
                       onClick={()=>hasEv&&setClickedDay(isSelected?null:ds)}>
                       <div style={{
-                        width:18,height:18,borderRadius:"50%",flexShrink:0,
+                        width:14,height:14,borderRadius:"50%",flexShrink:0,
                         display:"flex",alignItems:"center",justifyContent:"center",
-                        fontSize:9,fontWeight:isTod||hasEv?700:400,
+                        fontSize:7,fontWeight:isTod||hasEv?700:400,
                         color:circleColor,background:circleBg,
                         cursor:hasEv?"pointer":"default",
                       }}>{d.getDate()}</div>
@@ -348,7 +385,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
               {f.duration&&<span><span style={{color:T.textMute,fontSize:10}}>시간 </span>{f.duration}</span>}
               {f.condition&&<span><span style={{color:T.textMute,fontSize:10}}>컨디션 </span>{"★".repeat(f.condition)}{"☆".repeat(5-f.condition)}</span>}
             </div>
-            {ev.detail&&<pre style={{fontSize:11,color:T.textSub,whiteSpace:"pre-wrap",margin:0,lineHeight:1.7,fontFamily:"'Nanum Gothic',sans-serif"}}>{ev.detail}</pre>}
+            {ev.detail&&<pre style={{fontSize:11,color:T.textSub,whiteSpace:"pre-wrap",margin:0,lineHeight:1.7,fontFamily:"'KoPub Dotum',sans-serif"}}>{ev.detail}</pre>}
           </div>
         );
       case "cardio":
@@ -480,7 +517,7 @@ function ArchiveView({ events, onOpen, onAddFromArchive }) {
               background:active?sec.color:T.bgCard,
               border:`1px solid ${active?sec.color:T.border}`,
               color:active?"white":T.textSub,fontWeight:active?700:400,
-              fontSize:14,fontFamily:"'Nanum Gothic',sans-serif",
+              fontSize:14,fontFamily:"'KoPub Dotum',sans-serif",
               display:"flex",flexDirection:"column",alignItems:"center",gap:4,
               boxShadow:active?`0 4px 18px ${sec.color}44`:"none",transition:"all .15s",
             }}>
@@ -584,7 +621,7 @@ export default function Yamlog() {
       {/* 로고 */}
       <div style={{padding:"20px 18px 14px",borderBottom:`1px solid ${T.border}`}}>
         <div style={{fontFamily:"'Libre Baskerville',Georgia,serif",fontSize:22,fontWeight:700,color:T.text,letterSpacing:-.5,lineHeight:1,marginBottom:10}}>Yamlog</div>
-        <div style={{display:"flex",alignItems:"center",gap:6,fontFamily:"'Nanum Gothic',sans-serif",fontSize:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,fontFamily:"'KoPub Dotum',sans-serif",fontSize:10}}>
           <span style={{color:T.accent,fontWeight:600}}>
             {today.toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"short"})}
           </span>
@@ -595,7 +632,7 @@ export default function Yamlog() {
 
       {/* 인용문 — 각 문장 끝 줄바꿈, 문단 사이 빈줄 없음 */}
       <div style={{padding:"16px 18px 14px",borderBottom:`1px solid ${T.border}`}}>
-        <div style={{fontSize:12,color:T.textSub,lineHeight:1.5,fontFamily:"'Nanum Gothic',sans-serif",fontWeight:400}}>
+        <div style={{fontSize:12,color:T.textSub,lineHeight:1.5,fontFamily:"'KoPub Dotum',sans-serif",fontWeight:700}}>
           탁월함은 일시적 행위가 아니라<br/>
           우리를 정의하는 습관이다.<br/>
           이는 곧 중용의 태도이자<br/>
@@ -617,7 +654,7 @@ export default function Yamlog() {
           background:filterCat==="all"&&!showBriefing?T.bgSub:"transparent",border:"none",
           display:"flex",alignItems:"center",gap:8,
           color:filterCat==="all"&&!showBriefing?T.text:T.textSub,
-          fontFamily:"'Nanum Gothic',sans-serif",fontSize:13,fontWeight:filterCat==="all"&&!showBriefing?600:400,
+          fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:filterCat==="all"&&!showBriefing?600:400,
         }}>
           <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:filterCat==="all"&&!showBriefing?T.accent:T.borderMid}}/>
           홈
@@ -628,7 +665,7 @@ export default function Yamlog() {
           background:showBriefing?"#6B7C3A22":"transparent",border:"none",
           display:"flex",alignItems:"center",gap:8,
           color:showBriefing?"#6B7C3A":T.textSub,
-          fontFamily:"'Nanum Gothic',sans-serif",fontSize:13,fontWeight:showBriefing?600:400,
+          fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:showBriefing?600:400,
         }}>
           <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:showBriefing?"#6B7C3A":T.borderMid}}/>
           브리핑
@@ -640,7 +677,7 @@ export default function Yamlog() {
             background:filterCat===cat.id&&!showBriefing?cat.bg:"transparent",border:"none",
             display:"flex",alignItems:"center",gap:8,
             color:filterCat===cat.id&&!showBriefing?cat.text:T.textSub,
-            fontFamily:"'Nanum Gothic',sans-serif",fontSize:13,fontWeight:filterCat===cat.id&&!showBriefing?600:400,
+            fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:filterCat===cat.id&&!showBriefing?600:400,
           }}>
             <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:filterCat===cat.id&&!showBriefing?cat.color:T.borderMid}}/>
             {cat.label}
@@ -685,14 +722,14 @@ export default function Yamlog() {
                     background:view===v?T.bgCard:"transparent",border:view===v?`1px solid ${T.border}`:"none",
                     color:view===v?T.text:T.textSub,fontWeight:view===v?600:400,
                     boxShadow:view===v?"0 1px 3px rgba(44,40,37,0.08)":"none",
-                    fontFamily:"'Nanum Gothic',sans-serif",
+                    fontFamily:"'KoPub Dotum',sans-serif",
                   }}>{v}</button>
                 ))}
               </div>
               <button onClick={()=>handleAdd(null,null)} style={{
                 background:T.accent,border:"none",borderRadius:9,padding:"7px 14px",
                 cursor:"pointer",fontSize:12,color:"white",fontWeight:600,
-                boxShadow:`0 2px 10px ${T.accent}44`,fontFamily:"'Nanum Gothic',sans-serif",
+                boxShadow:`0 2px 10px ${T.accent}44`,fontFamily:"'KoPub Dotum',sans-serif",
               }}>+ 추가</button>
             </div>
           </div>}
@@ -722,16 +759,18 @@ export default function Yamlog() {
     <div style={{
       display:"flex",flexDirection:isMobile?"column":"row",
       minHeight:"100vh",background:T.bg,
-      fontFamily:"'Nanum Gothic',sans-serif",color:T.text,
+      fontFamily:"'KoPub Dotum',sans-serif",color:T.text,
     }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Nanum+Gothic:wght@400;700&display=swap');
+        @font-face{font-family:'KoPub Dotum';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2021@1.1/KoPubWorld-Dotum-Light.woff2') format('woff2');font-weight:300 400;}
+        @font-face{font-family:'KoPub Dotum';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2021@1.1/KoPubWorld-Dotum-Bold.woff2') format('woff2');font-weight:600 700 800;}
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
         body{background:#F7F4EF;}
         ::-webkit-scrollbar{width:4px;height:4px;}
         ::-webkit-scrollbar-track{background:#F0EDE7;}
         ::-webkit-scrollbar-thumb{background:#CEC5B8;border-radius:2px;}
-        input,textarea,button{font-family:'Nanum Gothic',sans-serif;}
+        input,textarea,button{font-family:'KoPub Dotum',sans-serif;}
         input[type=date]::-webkit-calendar-picker-indicator,
         input[type=time]::-webkit-calendar-picker-indicator{opacity:.4;cursor:pointer;}
         button:focus{outline:none;}
@@ -759,7 +798,7 @@ export default function Yamlog() {
                       <button key={v} onClick={()=>setView(v)} style={{
                         padding:"3px 8px",borderRadius:5,cursor:"pointer",fontSize:11,
                         background:view===v?T.bgCard:"transparent",border:view===v?`1px solid ${T.border}`:"none",
-                        color:view===v?T.text:T.textSub,fontFamily:"'Nanum Gothic',sans-serif",
+                        color:view===v?T.text:T.textSub,fontFamily:"'KoPub Dotum',sans-serif",
                       }}>{v}</button>
                     ))}
                   </div>

@@ -28,7 +28,7 @@ export function LiveClock() {
     return () => clearInterval(id);
   }, []);
   return (
-    <span style={{fontSize:10,color:T.textMute,fontFamily:"'Nanum Gothic',sans-serif",fontWeight:400,letterSpacing:.3}}>
+    <span style={{fontSize:10,color:T.textMute,fontFamily:"'KoPub Dotum',sans-serif",fontWeight:400,letterSpacing:.3}}>
       {time}
     </span>
   );
@@ -247,7 +247,7 @@ export function DetailModal({ ev, onClose, onRefetch }) {
     if (sub === "book") {
       if (f.bookTitle) rows.push(
         <div key="bt" style={{fontFamily:"'Libre Baskerville',serif",fontSize:15,fontWeight:700,color:T.text,marginBottom:3}}>
-          {f.bookTitle}{f.author&&<span style={{fontSize:12,fontWeight:400,color:T.textSub,fontFamily:"'Nanum Gothic',sans-serif"}}> · {f.author}</span>}
+          {f.bookTitle}{f.author&&<span style={{fontSize:12,fontWeight:400,color:T.textSub,fontFamily:"'KoPub Dotum',sans-serif"}}> · {f.author}</span>}
         </div>
       );
       if (f.genre||f.period) rows.push(<div key="bmeta" style={{fontSize:10,color:T.textMute,marginBottom:5}}>{f.genre}{f.genre&&f.period&&" · "}{f.period}</div>);
@@ -260,7 +260,7 @@ export function DetailModal({ ev, onClose, onRefetch }) {
     if (sub === "wine") {
       if (f.wineName) rows.push(
         <div key="wn" style={{fontFamily:"'Libre Baskerville',serif",fontSize:15,fontWeight:700,color:T.text,marginBottom:3}}>
-          {f.wineName}{f.vintage&&<span style={{fontSize:11,fontWeight:400,color:T.textSub,fontFamily:"'Nanum Gothic',sans-serif"}}> {f.vintage}</span>}
+          {f.wineName}{f.vintage&&<span style={{fontSize:11,fontWeight:400,color:T.textSub,fontFamily:"'KoPub Dotum',sans-serif"}}> {f.vintage}</span>}
         </div>
       );
       if (f.origin||f.grape) rows.push(<div key="wmeta" style={{fontSize:10,color:T.textMute,marginBottom:5}}>{f.origin}{f.origin&&f.grape&&" · "}{f.grape}</div>);
@@ -334,7 +334,7 @@ export function DetailModal({ ev, onClose, onRefetch }) {
           {renderFields()}
           {/* 텍스트 상세 */}
           {ev.detail ? (
-            <pre style={{fontFamily:"'Nanum Gothic',sans-serif",fontSize:13,
+            <pre style={{fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,
               color:T.text,lineHeight:1.85,whiteSpace:"pre-wrap",margin:0}}>
               {ev.detail}
             </pre>
@@ -453,13 +453,18 @@ function EditModal({ ev, onClose, onSaved }) {
         await upsertWeight(date, parseFloat(fields.weight), detail);
       }
 
-      const parsedHour = parseInt(hour, 10);
+      const [sh, sm] = (startTime||"09:00").split(':').map(s=>parseInt(s,10)||0);
+      const ep = endTime ? endTime.split(':').map(s=>parseInt(s,10)||0) : null;
       await updateEvent(ev.id, {
         title: finalTitle,
         detail: detail || null,
         date,
-        hour: isNaN(parsedHour) ? 9 : parsedHour,
-        fields,
+        hour: sh,
+        fields: {
+          ...fields,
+          startMinute: sm||0,
+          ...(ep && ep[0]!=null && { endHour: ep[0], endMinute: ep[1]||0 }),
+        },
       });
       onSaved?.();
     } catch(e) {
@@ -472,7 +477,7 @@ function EditModal({ ev, onClose, onSaved }) {
   const inp = {
     width:"100%",background:T.bgSub,border:`1px solid ${T.border}`,borderRadius:8,
     padding:"10px 12px",color:T.text,fontSize:13,outline:"none",
-    boxSizing:"border-box",fontFamily:"'Nanum Gothic',sans-serif",
+    boxSizing:"border-box",fontFamily:"'KoPub Dotum',sans-serif",
   };
 
   return (
@@ -494,10 +499,21 @@ function EditModal({ ev, onClose, onSaved }) {
         </div>
 
         <div style={{flex:1,overflowY:"auto",padding:"14px 20px"}}>
-          <div style={{display:"flex",gap:7,marginBottom:12}}>
-            <input type="date" style={{flex:2,...inp}} value={date} onChange={e=>setDate(e.target.value)}/>
-            {!isWeight&&<input type="time" style={{flex:1,...inp}} value={`${hour}:00`} onChange={e=>setHour(e.target.value.split(":")[0])}/>}
-          </div>
+          <input type="date" style={{...inp,marginBottom:8}} value={date} onChange={e=>setDate(e.target.value)}/>
+          {!isWeight&&(
+            <div style={{display:"flex",gap:7,marginBottom:8}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:10,color:T.textSub,marginBottom:3}}>시작</div>
+                <input type="time" style={{...inp}} value={startTime} onChange={e=>setStartTime(e.target.value)}/>
+              </div>
+              {isBasic&&(
+                <div style={{flex:1}}>
+                  <div style={{fontSize:10,color:T.textSub,marginBottom:3}}>종료</div>
+                  <input type="time" style={{...inp}} value={endTime} onChange={e=>setEndTime(e.target.value)}/>
+                </div>
+              )}
+            </div>
+          )}
 
           {isWeight&&(<>
             <div style={{fontSize:11,color:T.textSub,marginBottom:6}}>체중 (kg)</div>
@@ -650,7 +666,7 @@ function EditModal({ ev, onClose, onSaved }) {
 
           {isBasic&&(<>
             <input placeholder="제목" style={{...inp,marginBottom:8}} value={title} onChange={e=>setTitle(e.target.value)}/>
-            <textarea placeholder="상세 내용" rows={4} style={{...inp,resize:"vertical"}} value={detail} onChange={e=>setDetail(e.target.value)}/>
+            <textarea placeholder="상세 내용" rows={4} style={{...inp,resize:"vertical",marginBottom:8}} value={detail} onChange={e=>setDetail(e.target.value)}/>
           </>)}
         </div>
 
@@ -679,7 +695,8 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
   const [fields,     setFields]     = useState({});
   const [images,     setImages]     = useState([]);
   const [date,       setDate]       = useState(presetDate || dateStr(new Date()));
-  const [hour,       setHour]       = useState(presetHour || "09");
+  const [startTime,  setStartTime]  = useState(`${String(presetHour||9).padStart(2,'0')}:00`);
+  const [endTime,    setEndTime]    = useState('');
   const [saving,     setSaving]     = useState(false);
 
   const setField = (k, v) => setFields(f => ({...f, [k]: v}));
@@ -724,11 +741,20 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
         await upsertWeight(date, parseFloat(fields.weight), detail);
       }
 
-      const parsedHour = parseInt(hour, 10);
+      const [sh, sm] = (startTime||"09:00").split(':').map(s=>parseInt(s,10)||0);
+      const endParts = endTime ? endTime.split(':').map(s=>parseInt(s,10)||0) : null;
+      const finalFields = {
+        ...fields,
+        ...(sm && { startMinute: sm }),
+        ...(endParts && endParts[0]!=null && {
+          endHour: endParts[0],
+          endMinute: endParts[1]||0,
+        }),
+      };
       await addEventFn({
         category: cat, sub_category: sub, title: finalTitle,
-        date, hour: isNaN(parsedHour) ? 9 : parsedHour,
-        done: false, detail: detail || null, fields, images,
+        date, hour: sh,
+        done: false, detail: detail || null, fields: finalFields, images,
       });
       onSaved?.();
       onClose();
@@ -742,7 +768,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
   const inp = {
     width:"100%",background:T.bgSub,border:`1px solid ${T.border}`,borderRadius:8,
     padding:"10px 12px",color:T.text,fontSize:13,outline:"none",
-    boxSizing:"border-box",fontFamily:"'Nanum Gothic',sans-serif",
+    boxSizing:"border-box",fontFamily:"'KoPub Dotum',sans-serif",
   };
 
   return (
@@ -962,17 +988,21 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
             {cat==="event"&&<ImageUpload images={images} onChange={setImages} catColor={c.color}/>}
           </>)}
 
-          <div style={{display:"flex",gap:7,marginTop:8}}>
-            <input type="date" style={{flex:2,...inp}} value={date} onChange={e=>setDate(e.target.value)}/>
-            {!(cat==="archive"&&archiveSub==="health"&&healthSub==="weight")&&(
-              <input type="time" style={{flex:1,...inp}} value={`${hour}:00`} onChange={e=>setHour(e.target.value.split(":")[0])}/>
-            )}
-            {(cat==="schedule"||cat==="event")&&(
-              <input type="time" placeholder="종료" style={{flex:1,...inp}}
-                value={fields.endHour!=null?`${String(fields.endHour).padStart(2,"0")}:00`:""}
-                onChange={e=>{const h=e.target.value.split(":")[0]; setField("endHour",h?parseInt(h,10):null);}}/>
-            )}
-          </div>
+          <input type="date" style={{...inp,marginTop:8}} value={date} onChange={e=>setDate(e.target.value)}/>
+          {!(cat==="archive"&&archiveSub==="health"&&healthSub==="weight")&&(
+            <div style={{display:"flex",gap:7,marginTop:7}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:10,color:T.textSub,marginBottom:3}}>시작</div>
+                <input type="time" style={{...inp}} value={startTime} onChange={e=>setStartTime(e.target.value)}/>
+              </div>
+              {(cat==="schedule"||cat==="event")&&(
+                <div style={{flex:1}}>
+                  <div style={{fontSize:10,color:T.textSub,marginBottom:3}}>종료</div>
+                  <input type="time" style={{...inp}} value={endTime} onChange={e=>setEndTime(e.target.value)}/>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div style={{padding:"12px 20px",borderTop:`1px solid ${T.border}`,display:"flex",gap:8,flexShrink:0,background:T.bgSub}}>
@@ -1081,20 +1111,20 @@ export function WordSection() {
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
         <span style={{fontSize:9,color:"#1A4E7A",fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>단어</span>
         <div style={{display:"flex",gap:4}}>
-          <button onClick={prevWord} style={{background:"transparent",border:"1px solid #D4A01744",borderRadius:5,padding:"1px 7px",cursor:"pointer",fontSize:11,color:"#8C6A10"}}>‹</button>
-          <button onClick={nextWord} style={{background:"transparent",border:"1px solid #D4A01744",borderRadius:5,padding:"1px 7px",cursor:"pointer",fontSize:11,color:"#8C6A10"}}>›</button>
+          <button onClick={prevWord} style={{width:24,height:24,background:"#1A4E7A22",border:"1px solid #2E6FA544",borderRadius:5,cursor:"pointer",fontSize:12,color:"#1A4E7A",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+          <button onClick={nextWord} style={{width:24,height:24,background:"#1A4E7A22",border:"1px solid #2E6FA544",borderRadius:5,cursor:"pointer",fontSize:12,color:"#1A4E7A",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
         </div>
       </div>
       <div style={{fontFamily:"'Libre Baskerville',Georgia,serif",fontSize:16,color:"#1A3A6A",fontWeight:600,marginBottom:5}}>{current.word}</div>
       <div style={{fontSize:12,color:"#2E5A8A",lineHeight:1.5,marginBottom:10}}>{current.meaning}</div>
       <div style={{display:"flex",gap:6,marginBottom:6}}>
         <button onClick={markKnown} style={{
-          flex:1,padding:"8px",borderRadius:7,cursor:"pointer",fontSize:15,fontWeight:700,
-          background:"#4A8A5A22",border:"1px solid #4A8A5A55",color:"#2E6640",
+          flex:1,aspectRatio:"1",padding:"0",borderRadius:7,cursor:"pointer",fontSize:14,fontWeight:700,
+          background:"#1A4E7A",border:"none",color:"white",height:38,
         }} title="알아요">O</button>
         <button onClick={nextWord} style={{
-          flex:1,padding:"8px",borderRadius:7,cursor:"pointer",fontSize:15,fontWeight:700,
-          background:"#C0443A22",border:"1px solid #C0443A55",color:"#9B2E25",
+          flex:1,aspectRatio:"1",padding:"0",borderRadius:7,cursor:"pointer",fontSize:14,fontWeight:700,
+          background:"#E8F2FA",border:"1px solid #2E6FA555",color:"#1A4E7A",height:38,
         }} title="모르겠어요">X</button>
       </div>
       <div style={{fontSize:9,color:"#2E6FA5",textAlign:"right"}}>{known.size}개 완료 / {TOEIC_WORDS.length}개</div>
@@ -1172,7 +1202,7 @@ function BriefingSection({section}){
               ?section.content:[section.summary,...(section.lines||[])].filter(Boolean);
             return items.filter(Boolean).map((line,i)=>(
               <div key={i} style={{marginTop:i===0?10:7,paddingLeft:i===0?0:10,borderLeft:i===0?"none":`2px solid ${section.color}55`}}>
-                <span style={{fontSize:12,color:i===0?section.color:T.text,lineHeight:1.7,fontWeight:i===0?700:400,fontFamily:"'Nanum Gothic',sans-serif"}}>{line}</span>
+                <span style={{fontSize:12,color:i===0?section.color:T.text,lineHeight:1.7,fontWeight:i===0?700:400,fontFamily:"'KoPub Dotum',sans-serif"}}>{line}</span>
               </div>
             ));
           })()}
@@ -1230,7 +1260,7 @@ export function BriefingView(){
       </div>
       <div style={{background:"#3A3228",borderRadius:12,padding:"13px 16px",marginBottom:14,border:"1px solid #5a4e44"}}>
         <div style={{fontSize:10,color:"#6B7C3A",fontWeight:700,letterSpacing:.8,textTransform:"uppercase",marginBottom:7}}>핵심 한 줄</div>
-        <div style={{fontSize:13,color:"#EDE6DC",lineHeight:1.75,fontFamily:"'Nanum Gothic',sans-serif",fontStyle:"italic"}}>{headline}</div>
+        <div style={{fontSize:13,color:"#EDE6DC",lineHeight:1.75,fontFamily:"'KoPub Dotum',sans-serif",fontStyle:"italic"}}>{headline}</div>
       </div>
       {sections.map((s,i)=>{
         const c=COLORS[s.title]||{color:"#6B7B8D",bg:"#EFF1F4"};
@@ -1277,7 +1307,7 @@ export function BottomTabBar({ filterCat, showBriefing, setFilterCat, setShowBri
             }}>{tab.icon}</div>
             <span style={{
               fontSize:9,color:isActive?tab.color:T.textMute,
-              fontWeight:isActive?600:400,fontFamily:"'Nanum Gothic',sans-serif",
+              fontWeight:isActive?600:400,fontFamily:"'KoPub Dotum',sans-serif",
             }}>{tab.label}</span>
           </button>
         );
