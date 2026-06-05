@@ -181,7 +181,7 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
                         opacity:ev.done?0.55:1,
                         boxShadow:"0 1px 3px rgba(44,40,37,0.08)",
                       }}>
-                      <div style={{fontSize:10,color:ev.done?T.textMute:cat.text,
+                      <div style={{fontSize:11,color:ev.done?T.textMute:cat.text,
                         lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
                         fontWeight:500}}>
                         {ev.title}
@@ -201,7 +201,7 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
 // ─────────────────────────────────────────────────────
 // MONTH VIEW
 // ─────────────────────────────────────────────────────
-function MonthView({ curDate, events, filterCat, onOpen, onAdd }) {
+function MonthView({ curDate, events, filterCat, onOpen, onAdd, isMobile }) {
   const cells = useMemo(()=>getMonthCells(curDate),[curDate]);
   return (
     <div>
@@ -220,13 +220,13 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd }) {
           const isWknd=d.getDay()===0||d.getDay()===6;
           return (
             <div key={i} onClick={()=>onAdd(ds,9)} style={{
-              height:95,overflow:"hidden",minWidth:0,borderRadius:8,padding:"4px 4px",cursor:"pointer",
+              height:isMobile?90:110,overflow:"hidden",minWidth:0,borderRadius:8,padding:"4px 4px",cursor:"pointer",
               background:isToday?T.accent+"18":T.bgCard,
               border:`1px solid ${isToday?T.accent+"55":T.border}`,transition:"border-color .12s",
             }}
             onMouseEnter={e=>{if(!isToday)e.currentTarget.style.borderColor=T.accent+"55";}}
             onMouseLeave={e=>{if(!isToday)e.currentTarget.style.borderColor=T.border;}}>
-              <div style={{fontSize:11,fontWeight:isToday?700:400,marginBottom:3,
+              <div style={{fontSize:isMobile?9:11,fontWeight:isToday?700:400,marginBottom:2,
                 color:isToday?T.accent:isWknd?d.getDay()===0?"#C0443A":"#2E6FA5":T.text}}>
                 {d.getDate()}
               </div>
@@ -234,7 +234,7 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd }) {
                 const cat=catOf(ev.category,ev.sub_category);
                 return (
                   <div key={ev.id} onClick={e=>{e.stopPropagation();onOpen(ev);}} style={{
-                    fontSize:11,marginBottom:2,padding:"2px 5px",borderRadius:4,cursor:"pointer",
+                    fontSize:isMobile?9:11,marginBottom:2,padding:"2px 5px",borderRadius:4,cursor:"pointer",
                     background:cat.bg,color:cat.text,border:`1px solid ${cat.color}33`,
                     whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
                   }}>{ev.title}</div>
@@ -620,7 +620,7 @@ export default function Yamlog() {
     }}>
       {/* 로고 */}
       <div style={{padding:"20px 18px 14px",borderBottom:`1px solid ${T.border}`}}>
-        <div style={{fontFamily:"'Libre Baskerville',Georgia,serif",fontSize:22,fontWeight:700,color:T.text,letterSpacing:-.5,lineHeight:1,marginBottom:10}}>Yamlog</div>
+        <div style={{fontFamily:"'KoPub Batang',Georgia,serif",fontSize:22,fontWeight:700,color:T.text,letterSpacing:-.5,lineHeight:1,marginBottom:10}}>Yamlog</div>
         <div style={{display:"flex",alignItems:"center",gap:6,fontFamily:"'KoPub Dotum',sans-serif",fontSize:10}}>
           <span style={{color:T.accent,fontWeight:600}}>
             {today.toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"short"})}
@@ -638,7 +638,7 @@ export default function Yamlog() {
           이는 곧 중용의 태도이자<br/>
           행복이다.
         </div>
-        <div style={{fontSize:9.5,color:T.textMute,lineHeight:1.85,fontFamily:"'Libre Baskerville',Georgia,serif",fontStyle:"italic",marginTop:10,opacity:.8}}>
+        <div style={{fontSize:9.5,color:T.textMute,lineHeight:1.85,fontFamily:"'KoPub Batang',Georgia,serif",fontStyle:"italic",marginTop:10,opacity:.8}}>
           Arete is no fleeting act,<br/>
           but our defining habit.<br/>
           It is the stance of Mesotes,<br/>
@@ -743,7 +743,7 @@ export default function Yamlog() {
             <WeekView curDate={curDate} events={events} filterCat={filterCat} onOpen={setShowDetail} onAdd={handleAdd}/>
           ):view==="월"?(
             <div style={{flex:1,overflowY:"auto"}}>
-              <MonthView curDate={curDate} events={events} filterCat={filterCat} onOpen={setShowDetail} onAdd={handleAdd}/>
+              <MonthView curDate={curDate} events={events} filterCat={filterCat} onOpen={setShowDetail} onAdd={handleAdd} isMobile={isMobile}/>
             </div>
           ):(
             <div style={{flex:1,overflowY:"auto"}}>
@@ -764,7 +764,8 @@ export default function Yamlog() {
       <style>{`
         @font-face{font-family:'KoPub Dotum';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2021@1.1/KoPubWorld-Dotum-Light.woff2') format('woff2');font-weight:300 400;}
         @font-face{font-family:'KoPub Dotum';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2021@1.1/KoPubWorld-Dotum-Bold.woff2') format('woff2');font-weight:600 700 800;}
-        @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap');
+        @font-face{font-family:'KoPub Batang';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2021@1.1/KoPubWorld-Batang-Light.woff2') format('woff2');font-weight:300 400;}
+        @font-face{font-family:'KoPub Batang';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2021@1.1/KoPubWorld-Batang-Bold.woff2') format('woff2');font-weight:600 700 800;}
         *{box-sizing:border-box;margin:0;padding:0;}
         body{background:#F7F4EF;}
         ::-webkit-scrollbar{width:4px;height:4px;}
