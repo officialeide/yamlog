@@ -123,16 +123,9 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight }) {
     setDeleting(true);
     try {
       await deleteEvent(ev.id);
-      // 체중 이벤트면: 같은 날 남은 weight 기록 수 확인 후 0이면 weight_logs도 삭제
+      // 체중 이벤트면 weight_logs도 무조건 삭제 (날짜당 1개만 기록)
       if (ev.sub_category === "weight" && ev.date) {
-        const { count } = await supabase
-          .from("events")
-          .select("id", { count: "exact", head: true })
-          .eq("sub_category", "weight")
-          .eq("date", ev.date);
-        if (count === 0) {
-          await deleteWeight(ev.date);
-        }
+        await deleteWeight(ev.date);
       }
       onRefetch?.();
       onRefetchWeight?.();
