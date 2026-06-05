@@ -55,7 +55,7 @@ const WEEKDAYS = ["일","월","화","수","목","금","토"];
 const MONTHS_KR = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
 const HOURS = Array.from({length:24},(_,i)=>i);
 
-const today = new Date(2025, 5, 3);
+const today = new Date();
 
 /* ─────────────────────────────────────────────────────
    SAMPLE DATA
@@ -1670,10 +1670,9 @@ export default function Yamlog() {
           borderBottom:`1px solid ${T.border}`,
           background:T.bg, zIndex:10,
         }}>
-          {/* Row 1: 날짜 네비 */}
           <div style={{
             display:"flex", alignItems:"center", gap:6,
-            padding:isMobile?"10px 12px 6px":"12px 20px 6px",
+            padding:isMobile?"10px 12px":"12px 20px",
           }}>
             {!isMobile && (
               <button onClick={()=>setSideOpen(s=>!s)} style={{
@@ -1687,6 +1686,19 @@ export default function Yamlog() {
                 </svg>
               </button>
             )}
+            {/* 뷰 탭 */}
+            <div style={{display:"flex",background:T.bgCard,borderRadius:8,padding:2,gap:1,border:`1px solid ${T.border}`,flexShrink:0}}>
+              {VIEWS.map(v=>(
+                <button key={v} onClick={()=>setView(v)} style={{
+                  padding:isMobile?"6px 12px":"5px 12px",
+                  borderRadius:6,fontSize:isMobile?13:12,cursor:"pointer",
+                  background:view===v?T.accent:"transparent",
+                  border:"none",color:view===v?"white":T.textSub,
+                  fontWeight:view===v?600:400,
+                }}>{v}</button>
+              ))}
+            </div>
+            {/* 날짜 네비 */}
             <button onClick={()=>navigate(-1)} style={{
               background:T.bgCard,border:`1px solid ${T.border}`,
               color:T.textSub,cursor:"pointer",borderRadius:7,
@@ -1694,7 +1706,7 @@ export default function Yamlog() {
             }}>&#8249;</button>
             <div style={{
               fontFamily:"'Libre Baskerville',Georgia,serif",
-              fontSize:isMobile?14:15,color:T.text,
+              fontSize:isMobile?13:15,color:T.text,
               flex:1,textAlign:"center",fontWeight:600,letterSpacing:.2,
             }}>{headerLabel()}</div>
             <button onClick={()=>navigate(1)} style={{
@@ -1707,26 +1719,9 @@ export default function Yamlog() {
               color:"#4a5828",cursor:"pointer",borderRadius:7,
               padding:"5px 10px",fontSize:11,fontWeight:600,flexShrink:0,
             }}>오늘</button>
-          </div>
-          {/* Row 2: 뷰 선택 + 추가 */}
-          <div style={{
-            display:"flex", alignItems:"center", gap:6,
-            padding:isMobile?"0 12px 10px":"0 20px 12px",
-            justifyContent:"space-between",
-          }}>
-            <div style={{display:"flex",background:T.bgCard,borderRadius:8,padding:2,gap:1,border:`1px solid ${T.border}`}}>
-              {VIEWS.map(v=>(
-                <button key={v} onClick={()=>setView(v)} style={{
-                  padding:isMobile?"6px 16px":"5px 14px",
-                  borderRadius:6,fontSize:isMobile?13:12,cursor:"pointer",
-                  background:view===v?T.accent:"transparent",
-                  border:"none",color:view===v?"white":T.textSub,
-                  fontWeight:view===v?600:400,
-                }}>{v}</button>
-              ))}
-            </div>
+            {/* 추가 버튼 */}
             <button onClick={()=>setShowModal(true)} style={{
-              padding:isMobile?"8px 20px":"8px 18px",
+              padding:isMobile?"7px 14px":"8px 16px",
               borderRadius:9,cursor:"pointer",flexShrink:0,
               background:T.accent,border:"none",color:"white",
               fontSize:isMobile?13:13,fontWeight:600,
