@@ -1086,11 +1086,11 @@ export function WordSection() {
         <button onClick={markKnown} style={{
           flex:1,padding:"8px",borderRadius:7,cursor:"pointer",fontSize:15,fontWeight:700,
           background:"#4A8A5A22",border:"1px solid #4A8A5A55",color:"#2E6640",
-        }} title="알아요">○</button>
+        }} title="알아요">O</button>
         <button onClick={nextWord} style={{
           flex:1,padding:"8px",borderRadius:7,cursor:"pointer",fontSize:15,fontWeight:700,
           background:"#C0443A22",border:"1px solid #C0443A55",color:"#9B2E25",
-        }} title="모르겠어요">✕</button>
+        }} title="모르겠어요">X</button>
       </div>
       <div style={{fontSize:9,color:"#B09040",textAlign:"right"}}>{known.size}개 완료 / {TOEIC_WORDS.length}개</div>
     </div>
