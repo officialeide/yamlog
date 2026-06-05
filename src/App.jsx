@@ -36,7 +36,7 @@ function getISOWeek(date) {
 }
 
 // ─────────────────────────────────────────────────────
-// WEEK VIEW — 단일 스크롤 시간 그리드
+// WEEK VIEW — 절대좌표 일기장 스타일
 // ─────────────────────────────────────────────────────
 function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
   const days = useMemo(() => getWeekDays(curDate), [curDate]);
@@ -46,102 +46,116 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
     const id = setInterval(() => setNowHour(new Date().getHours()), 60000);
     return () => clearInterval(id);
   }, []);
-  const visibleHours = showNight ? HOURS : HOURS.filter(h => h >= 8);
+
+  const ROW_H   = 48;
+  const startH  = showNight ? 0 : 8;
+  const visHrs  = HOURS.filter(h => h >= startH);
+  const totalH  = visHrs.length * ROW_H;
+  const COL_W   = 36;
 
   return (
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+
       {/* 요일/날짜 헤더 */}
-      <div style={{
-        display:"flex",flexShrink:0,
-        borderBottom:`1px solid ${T.borderMid}`,
-        paddingBottom:6,marginBottom:0,background:T.bg,
-      }}>
-        <div style={{width:28,flexShrink:0}}/>
+      <div style={{display:"flex",flexShrink:0,borderBottom:`1px solid ${T.borderMid}`,background:T.bg,paddingBottom:4}}>
+        <div style={{width:COL_W,flexShrink:0}}/>
         {days.map((d,i)=>{
           const ds=dateStr(d), isToday=ds===todayStr;
           const dow=d.getDay();
-          const wkndColor=dow===0?"#C0443A":dow===6?"#2E6FA5":null;
+          const wknd=dow===0?"#C0443A":dow===6?"#2E6FA5":null;
           return (
-            <div key={i} style={{flex:1,textAlign:"center",padding:"4px 2px"}}>
-              <div style={{
-                display:"inline-flex",flexDirection:"column",alignItems:"center",
-                background:isToday?T.accent:"transparent",
-                borderRadius:8,padding:"4px 5px",minWidth:30,
-              }}>
-                <div style={{fontSize:9,color:isToday?"#fff":wkndColor||T.textMute}}>
-                  {WEEKDAYS[dow]}
-                </div>
-                <div style={{fontSize:13,fontWeight:isToday?700:400,color:isToday?"#fff":wkndColor||T.text}}>
-                  {d.getDate()}
-                </div>
+            <div key={i} style={{flex:1,textAlign:"center",padding:"3px 2px"}}>
+              <div style={{display:"inline-flex",flexDirection:"column",alignItems:"center",
+                background:isToday?T.accent:"transparent",borderRadius:8,padding:"3px 5px",minWidth:28}}>
+                <div style={{fontSize:9,color:isToday?"#fff":wknd||T.textMute}}>{WEEKDAYS[dow]}</div>
+                <div style={{fontSize:13,fontWeight:isToday?700:400,color:isToday?"#fff":wknd||T.text}}>{d.getDate()}</div>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* 0-6시 접기/펼치기 토글 */}
-      <div style={{display:"flex",justifyContent:"flex-start",padding:"2px 4px 2px 28px",background:T.bg,flexShrink:0}}>
+      {/* 0-7시 접기 토글 */}
+      <div style={{display:"flex",padding:"2px 4px 2px",background:T.bg,flexShrink:0}}>
         <button onClick={()=>setShowNight(s=>!s)} style={{
           fontSize:9,color:T.textMute,background:"transparent",border:`1px solid ${T.border}`,
-          borderRadius:4,padding:"2px 8px",cursor:"pointer",lineHeight:1.4,
-        }}>
-          {showNight?"▲ 0-7시 접기":"▼ 0-7시 펼치기"}
-        </button>
+          borderRadius:4,padding:"2px 8px",cursor:"pointer",lineHeight:1.4,marginLeft:COL_W,
+        }}>{showNight?"▲ 0-7시 접기":"▼ 0-7시 펼치기"}</button>
       </div>
 
-      {/* 시간 그리드 — 전체가 하나로 스크롤 */}
+      {/* 그리드 스크롤 영역 */}
       <div style={{flex:1,overflowY:"auto"}}>
-        {visibleHours.map(h=>(
-          <div key={h} style={{display:"flex",minHeight:44,borderBottom:`1px solid ${T.border}`}}>
-            {/* 시간 레이블 */}
-            <div style={{
-              width:28,flexShrink:0,paddingTop:3,paddingRight:4,
-              textAlign:"right",fontSize:8,color:T.textMute,
-            }}>
-              {h%3===0?String(h).padStart(2,"0"):""}
-            </div>
-            {/* 날짜별 셀 */}
-            {days.map((d,i)=>{
-              const ds=dateStr(d), isToday=ds===todayStr;
-              const isCurrentSlot=isToday&&h===nowHour;
-              const evs=events.filter(e=>
-                e.date===ds&&e.hour===h&&(filterCat==="all"||e.category===filterCat)
-              );
-              return (
-                <div key={i}
-                  onClick={()=>onAdd(ds,h)}
-                  style={{
-                    flex:1,minWidth:0,borderLeft:`1px solid ${T.border}`,
-                    padding:"2px 2px",cursor:"pointer",
-                    background:isCurrentSlot?"#6B7C3A28":isToday?T.accent+"08":"transparent",
-                    borderTop:isCurrentSlot?`2px solid ${T.accent}`:"none",
-                  }}
-                  onMouseEnter={e=>e.currentTarget.style.background=isCurrentSlot?"#6B7C3A38":isToday?T.accent+"14":T.bgSub}
-                  onMouseLeave={e=>e.currentTarget.style.background=isCurrentSlot?"#6B7C3A28":isToday?T.accent+"08":"transparent"}
-                >
-                  {evs.map(ev=>{
-                    const cat=catOf(ev.category,ev.sub_category);
-                    return (
-                      <div key={ev.id}
-                        onClick={e=>{e.stopPropagation();onOpen(ev);}}
-                        style={{
-                          fontSize:9,padding:"1px 4px",borderRadius:3,marginBottom:1,
-                          background:ev.done?T.bgSub:cat.bg,
-                          color:ev.done?T.textMute:cat.text,
-                          borderLeft:`2px solid ${ev.done?T.borderMid:cat.color}`,
-                          whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
-                          opacity:ev.done?0.55:1,cursor:"pointer",
-                        }}
-                        title={ev.title}
-                      >{ev.title}</div>
-                    );
-                  })}
-                </div>
-              );
-            })}
+        <div style={{display:"flex",height:totalH,position:"relative"}}>
+
+          {/* 시간 레이블 열 */}
+          <div style={{width:COL_W,flexShrink:0,position:"relative",height:totalH}}>
+            {visHrs.map(h=>(
+              <div key={h} style={{
+                position:"absolute",top:h===startH?0:(h-startH)*ROW_H-6,
+                right:4,fontSize:8,color:T.textMute,lineHeight:1,
+              }}>{String(h).padStart(2,"0")}</div>
+            ))}
           </div>
-        ))}
+
+          {/* 날짜별 열 */}
+          {days.map((d,i)=>{
+            const ds=dateStr(d), isToday=ds===todayStr;
+            const colEvs=events.filter(e=>
+              e.date===ds&&e.hour>=startH&&(filterCat==="all"||e.category===filterCat)
+            );
+            return (
+              <div key={i} style={{flex:1,minWidth:0,borderLeft:`1px solid ${T.border}`,
+                position:"relative",height:totalH}}>
+
+                {/* 시간 배경 그리드 (클릭 가능) */}
+                {visHrs.map(h=>{
+                  const top=(h-startH)*ROW_H;
+                  const isCur=isToday&&h===nowHour;
+                  return (
+                    <div key={h} onClick={()=>onAdd(ds,h)} style={{
+                      position:"absolute",top,left:0,right:0,height:ROW_H,
+                      borderBottom:`1px solid ${T.border}`,cursor:"pointer",
+                      background:isCur?"#6B7C3A20":isToday&&h%2===0?T.accent+"05":"transparent",
+                      borderTop:isCur?`2px solid ${T.accent}`:"none",
+                    }}/>
+                  );
+                })}
+
+                {/* 이벤트 블록 (절대 위치) */}
+                {colEvs.map((ev,idx)=>{
+                  const cat=catOf(ev.category,ev.sub_category);
+                  const eh=ev.fields?.endHour;
+                  const spanH=eh&&eh>ev.hour?(eh-ev.hour)*ROW_H-4:ROW_H-6;
+                  const top=(ev.hour-startH)*ROW_H+2;
+                  const isSchedOrEv=ev.category==="schedule"||ev.category==="event";
+                  return (
+                    <div key={ev.id} onClick={e=>{e.stopPropagation();onOpen(ev);}}
+                      style={{
+                        position:"absolute",top,left:2,right:2,
+                        height:Math.max(18,spanH),
+                        borderRadius:4,zIndex:1+idx,cursor:"pointer",
+                        background:ev.done?T.bgSub:cat.bg,
+                        borderLeft:`3px solid ${ev.done?T.borderMid:cat.color}`,
+                        padding:"2px 4px",overflow:"hidden",
+                        opacity:ev.done?0.55:1,
+                        boxShadow:"0 1px 3px rgba(44,40,37,0.08)",
+                      }}>
+                      {isSchedOrEv&&(
+                        <div style={{fontSize:8,color:ev.done?T.textMute:cat.color,fontWeight:600,lineHeight:1.2}}>
+                          {String(ev.hour).padStart(2,"0")}{eh?`–${String(eh).padStart(2,"00")}`:""}
+                        </div>
+                      )}
+                      <div style={{fontSize:9,color:ev.done?T.textMute:cat.text,lineHeight:1.3,
+                        overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                        {ev.title}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -169,7 +183,7 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd }) {
           const isWknd=d.getDay()===0||d.getDay()===6;
           return (
             <div key={i} onClick={()=>onAdd(ds,9)} style={{
-              height:110,overflow:"hidden",minWidth:0,borderRadius:8,padding:"5px 5px",cursor:"pointer",
+              height:95,overflow:"hidden",minWidth:0,borderRadius:8,padding:"4px 4px",cursor:"pointer",
               background:isToday?T.accent+"18":T.bgCard,
               border:`1px solid ${isToday?T.accent+"55":T.border}`,transition:"border-color .12s",
             }}
@@ -271,18 +285,19 @@ function YearView({ curDate, events, onOpen }) {
                   const isTod=ds===todayStr;
                   const ydow=d.getDay();
                   const ywknd=ydow===0?"#C0443A":ydow===6?"#2E6FA5":null;
+                  const circleBg=isSelected?"#B09520DD":isTod?T.accent:hasEv?"#B0952070":"transparent";
+                  const circleColor=isTod?"#fff":hasEv?"#4A3800":ywknd||T.textMute;
                   return (
-                    <div key={i}
-                      onClick={()=>hasEv&&setClickedDay(isSelected?null:ds)}
-                      style={{
-                        fontSize:10,textAlign:"center",borderRadius:"50%",padding:"4px 1px",lineHeight:1.5,
-                        color:isTod?T.bgCard:hasEv?"#6A4E00":ywknd||T.textMute,
-                        fontWeight:isTod||hasEv?700:400,
-                        background:isSelected?"#B09520CC":isTod?T.accent:hasEv?"#B0952066":"transparent",
+                    <div key={i} style={{display:"flex",justifyContent:"center",alignItems:"center",padding:"1px 0"}}
+                      onClick={()=>hasEv&&setClickedDay(isSelected?null:ds)}>
+                      <div style={{
+                        width:18,height:18,borderRadius:"50%",flexShrink:0,
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        fontSize:9,fontWeight:isTod||hasEv?700:400,
+                        color:circleColor,background:circleBg,
                         cursor:hasEv?"pointer":"default",
-                        border:"none",
-                      }}
-                    >{d.getDate()}</div>
+                      }}>{d.getDate()}</div>
+                    </div>
                   );
                 })}
               </div>
@@ -333,7 +348,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
               {f.duration&&<span><span style={{color:T.textMute,fontSize:10}}>시간 </span>{f.duration}</span>}
               {f.condition&&<span><span style={{color:T.textMute,fontSize:10}}>컨디션 </span>{"★".repeat(f.condition)}{"☆".repeat(5-f.condition)}</span>}
             </div>
-            {ev.detail&&<pre style={{fontSize:11,color:T.textSub,whiteSpace:"pre-wrap",margin:0,lineHeight:1.7,fontFamily:"'Noto Sans KR',sans-serif"}}>{ev.detail}</pre>}
+            {ev.detail&&<pre style={{fontSize:11,color:T.textSub,whiteSpace:"pre-wrap",margin:0,lineHeight:1.7,fontFamily:"'Nanum Gothic',sans-serif"}}>{ev.detail}</pre>}
           </div>
         );
       case "cardio":
@@ -465,7 +480,7 @@ function ArchiveView({ events, onOpen, onAddFromArchive }) {
               background:active?sec.color:T.bgCard,
               border:`1px solid ${active?sec.color:T.border}`,
               color:active?"white":T.textSub,fontWeight:active?700:400,
-              fontSize:14,fontFamily:"'Noto Sans KR',sans-serif",
+              fontSize:14,fontFamily:"'Nanum Gothic',sans-serif",
               display:"flex",flexDirection:"column",alignItems:"center",gap:4,
               boxShadow:active?`0 4px 18px ${sec.color}44`:"none",transition:"all .15s",
             }}>
@@ -569,7 +584,7 @@ export default function Yamlog() {
       {/* 로고 */}
       <div style={{padding:"20px 18px 14px",borderBottom:`1px solid ${T.border}`}}>
         <div style={{fontFamily:"'Libre Baskerville',Georgia,serif",fontSize:22,fontWeight:700,color:T.text,letterSpacing:-.5,lineHeight:1,marginBottom:10}}>Yamlog</div>
-        <div style={{display:"flex",alignItems:"center",gap:6,fontFamily:"'Noto Sans KR',sans-serif",fontSize:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,fontFamily:"'Nanum Gothic',sans-serif",fontSize:10}}>
           <span style={{color:T.accent,fontWeight:600}}>
             {today.toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"short"})}
           </span>
@@ -580,7 +595,7 @@ export default function Yamlog() {
 
       {/* 인용문 — 각 문장 끝 줄바꿈, 문단 사이 빈줄 없음 */}
       <div style={{padding:"16px 18px 14px",borderBottom:`1px solid ${T.border}`}}>
-        <div style={{fontSize:11,color:T.textSub,lineHeight:1.5,fontFamily:"'Noto Sans KR',sans-serif",fontWeight:400}}>
+        <div style={{fontSize:12,color:T.textSub,lineHeight:1.5,fontFamily:"'Nanum Gothic',sans-serif",fontWeight:400}}>
           탁월함은 일시적 행위가 아니라<br/>
           우리를 정의하는 습관이다.<br/>
           이는 곧 중용의 태도이자<br/>
@@ -602,7 +617,7 @@ export default function Yamlog() {
           background:filterCat==="all"&&!showBriefing?T.bgSub:"transparent",border:"none",
           display:"flex",alignItems:"center",gap:8,
           color:filterCat==="all"&&!showBriefing?T.text:T.textSub,
-          fontFamily:"'Noto Sans KR',sans-serif",fontSize:13,fontWeight:filterCat==="all"&&!showBriefing?600:400,
+          fontFamily:"'Nanum Gothic',sans-serif",fontSize:13,fontWeight:filterCat==="all"&&!showBriefing?600:400,
         }}>
           <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:filterCat==="all"&&!showBriefing?T.accent:T.borderMid}}/>
           홈
@@ -613,7 +628,7 @@ export default function Yamlog() {
           background:showBriefing?"#6B7C3A22":"transparent",border:"none",
           display:"flex",alignItems:"center",gap:8,
           color:showBriefing?"#6B7C3A":T.textSub,
-          fontFamily:"'Noto Sans KR',sans-serif",fontSize:13,fontWeight:showBriefing?600:400,
+          fontFamily:"'Nanum Gothic',sans-serif",fontSize:13,fontWeight:showBriefing?600:400,
         }}>
           <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:showBriefing?"#6B7C3A":T.borderMid}}/>
           브리핑
@@ -625,7 +640,7 @@ export default function Yamlog() {
             background:filterCat===cat.id&&!showBriefing?cat.bg:"transparent",border:"none",
             display:"flex",alignItems:"center",gap:8,
             color:filterCat===cat.id&&!showBriefing?cat.text:T.textSub,
-            fontFamily:"'Noto Sans KR',sans-serif",fontSize:13,fontWeight:filterCat===cat.id&&!showBriefing?600:400,
+            fontFamily:"'Nanum Gothic',sans-serif",fontSize:13,fontWeight:filterCat===cat.id&&!showBriefing?600:400,
           }}>
             <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:filterCat===cat.id&&!showBriefing?cat.color:T.borderMid}}/>
             {cat.label}
@@ -670,14 +685,14 @@ export default function Yamlog() {
                     background:view===v?T.bgCard:"transparent",border:view===v?`1px solid ${T.border}`:"none",
                     color:view===v?T.text:T.textSub,fontWeight:view===v?600:400,
                     boxShadow:view===v?"0 1px 3px rgba(44,40,37,0.08)":"none",
-                    fontFamily:"'Noto Sans KR',sans-serif",
+                    fontFamily:"'Nanum Gothic',sans-serif",
                   }}>{v}</button>
                 ))}
               </div>
               <button onClick={()=>handleAdd(null,null)} style={{
                 background:T.accent,border:"none",borderRadius:9,padding:"7px 14px",
                 cursor:"pointer",fontSize:12,color:"white",fontWeight:600,
-                boxShadow:`0 2px 10px ${T.accent}44`,fontFamily:"'Noto Sans KR',sans-serif",
+                boxShadow:`0 2px 10px ${T.accent}44`,fontFamily:"'Nanum Gothic',sans-serif",
               }}>+ 추가</button>
             </div>
           </div>}
@@ -707,16 +722,16 @@ export default function Yamlog() {
     <div style={{
       display:"flex",flexDirection:isMobile?"column":"row",
       minHeight:"100vh",background:T.bg,
-      fontFamily:"'Noto Sans KR',sans-serif",color:T.text,
+      fontFamily:"'Nanum Gothic',sans-serif",color:T.text,
     }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Nanum+Gothic:wght@400;700&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
         body{background:#F7F4EF;}
         ::-webkit-scrollbar{width:4px;height:4px;}
         ::-webkit-scrollbar-track{background:#F0EDE7;}
         ::-webkit-scrollbar-thumb{background:#CEC5B8;border-radius:2px;}
-        input,textarea,button{font-family:'Noto Sans KR',sans-serif;}
+        input,textarea,button{font-family:'Nanum Gothic',sans-serif;}
         input[type=date]::-webkit-calendar-picker-indicator,
         input[type=time]::-webkit-calendar-picker-indicator{opacity:.4;cursor:pointer;}
         button:focus{outline:none;}
@@ -744,7 +759,7 @@ export default function Yamlog() {
                       <button key={v} onClick={()=>setView(v)} style={{
                         padding:"3px 8px",borderRadius:5,cursor:"pointer",fontSize:11,
                         background:view===v?T.bgCard:"transparent",border:view===v?`1px solid ${T.border}`:"none",
-                        color:view===v?T.text:T.textSub,fontFamily:"'Noto Sans KR',sans-serif",
+                        color:view===v?T.text:T.textSub,fontFamily:"'Nanum Gothic',sans-serif",
                       }}>{v}</button>
                     ))}
                   </div>
