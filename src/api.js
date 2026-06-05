@@ -10,18 +10,6 @@ export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
-// ── 모바일 감지 훅 ──────────────────────────────────
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== "undefined" ? window.innerWidth < 768 : false
-  );
-  useEffect(() => {
-    const fn = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", fn);
-    return () => window.removeEventListener("resize", fn);
-  }, []);
-  return isMobile;
-}
-
 // ── 이벤트 목록 훅 ─────────────────────────────────
 // filterSub 제거: sub_category 필터는 뷰에서 클라이언트 사이드 처리
 export function useEvents(filterCat) {
