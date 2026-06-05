@@ -895,6 +895,55 @@ function WeightSection() {
 
 
 /* ─────────────────────────────────────────────────────
+   IMAGE UPLOAD
+───────────────────────────────────────────────────── */
+const IMAGE_CATS = new Set(["event","archive"]);
+
+function ImageUpload({ images, onChange, catColor }) {
+  const handleFiles = (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file=>{
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        onChange(prev=>[...prev, {src:ev.target.result, name:file.name}]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+  const remove = (i) => onChange(prev=>prev.filter((_,idx)=>idx!==i));
+  return (
+    <div style={{marginBottom:10}}>
+      <div style={{fontSize:11,color:T.textSub,fontWeight:500,marginBottom:6}}>이미지 첨부</div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+        {images.map((img,i)=>(
+          <div key={i} style={{position:"relative",width:64,height:64,borderRadius:8,overflow:"hidden",border:`1px solid ${T.border}`}}>
+            <img src={img.src} alt={img.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+            <button onClick={()=>remove(i)} style={{
+              position:"absolute",top:2,right:2,
+              width:16,height:16,borderRadius:"50%",
+              background:"rgba(44,40,37,0.7)",border:"none",
+              color:"white",fontSize:9,cursor:"pointer",
+              display:"flex",alignItems:"center",justifyContent:"center",
+            }}>x</button>
+          </div>
+        ))}
+        <label style={{
+          width:64,height:64,borderRadius:8,cursor:"pointer",
+          border:`1.5px dashed ${catColor||T.borderMid}`,
+          background:T.bgSub,
+          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+          gap:3,color:T.textMute,fontSize:10,flexShrink:0,
+        }}>
+          <span style={{fontSize:18,lineHeight:1,color:catColor||T.borderMid}}>+</span>
+          <span>사진</span>
+          <input type="file" accept="image/*" multiple onChange={handleFiles} style={{display:"none"}}/>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────
    ADD MODAL — 새 카테고리 구조
 ───────────────────────────────────────────────────── */
 function AddModal({ onClose, onSaved }) {
