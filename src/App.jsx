@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -39,16 +39,44 @@ const T = {
   accent:    "#6B7C3A",   // primary accent — olive
 };
 
-// Category color system: each cat gets a hue with 3 tones (main, light bg, text)
+// 새 카테고리 구조
+// 최상위: 일정(빨강) / 이벤트(노랑) / 아카이브(초록)
+// 아카이브 서브: 건강(파랑) / 경제(남색) / 리뷰(보라)
 const CATS = [
-  { id:"health",   label:"건강",    icon:"o", color:"#C0443A", bg:"#FDECEA", text:"#9B2E25" },  // 빨강
-  { id:"personal", label:"개인",    icon:"o", color:"#C96A2A", bg:"#FDF1E8", text:"#9E4D18" },  // 주황
-  { id:"economy",  label:"경제",    icon:"o", color:"#B09520", bg:"#FBF8E3", text:"#7A6A10" },  // 노랑
-  { id:"work",     label:"업무",    icon:"o", color:"#4A8A5A", bg:"#EBF5EE", text:"#2E6640" },  // 초록
-  { id:"event",    label:"이벤트",  icon:"o", color:"#2E6FA5", bg:"#E8F2FA", text:"#1A4E7A" },  // 파랑
-  { id:"review",   label:"리뷰",    icon:"o", color:"#3A52A0", bg:"#EAECF8", text:"#243580" },  // 남색
-  { id:"archive",  label:"아카이브", icon:"o", color:"#7E4FA0", bg:"#F3EBF8", text:"#5A2E80" },  // 보라
+  { id:"schedule", label:"일정",    icon:"o", color:"#C0443A", bg:"#FDECEA", text:"#9B2E25" },  // 빨강
+  { id:"event",    label:"이벤트",  icon:"o", color:"#B09520", bg:"#FBF8E3", text:"#7A6A10" },  // 노랑
+  { id:"archive",  label:"아카이브", icon:"o", color:"#4A8A5A", bg:"#EBF5EE", text:"#2E6640" },  // 초록
 ];
+
+// 아카이브 서브카테고리
+const ARCHIVE_SUBS = [
+  { id:"health",  label:"건강", color:"#2E6FA5", bg:"#E8F2FA", text:"#1A4E7A" },  // 파랑
+  { id:"economy", label:"경제", color:"#3A52A0", bg:"#EAECF8", text:"#243580" },  // 남색
+  { id:"review",  label:"리뷰", color:"#7E4FA0", bg:"#F3EBF8", text:"#5A2E80" },  // 보라
+];
+
+// 건강 서브카테고리
+const HEALTH_SUBS = [
+  { id:"weight",   label:"체중" },
+  { id:"diet",     label:"식단" },
+  { id:"weight_training", label:"웨이트" },
+  { id:"cardio",   label:"카디오" },
+];
+
+// 리뷰 서브카테고리
+const REVIEW_SUBS = [
+  { id:"book",   label:"책" },
+  { id:"wine",   label:"와인" },
+  { id:"coffee", label:"커피" },
+];
+
+// 전체 카테고리 조회용 헬퍼
+const allCatOf = (category, sub_category) => {
+  if(category === "archive") {
+    return ARCHIVE_SUBS.find(s=>s.id===sub_category) || ARCHIVE_SUBS[0];
+  }
+  return CATS.find(c=>c.id===category) || CATS[0];
+};
 
 const VIEWS = ["주","월","년"];
 const WEEKDAYS = ["일","월","화","수","목","금","토"];
@@ -60,85 +88,85 @@ const today = new Date();
 /* ─────────────────────────────────────────────────────
    SAMPLE DATA
 ───────────────────────────────────────────────────── */
-const EVENTS = [
-  { id:1,  cat:"health",   sub:"운동",     title:"데드리프트 3x5",         date:"2025-06-03", hour:7,  done:true,
-    detail:"메인 세트: 100kg x 3세트 x 5회\n보조 운동: 루마니안 데드 80kg x 3x8\n컨디션 좋음. 다음 주 102.5kg 도전 예정." },
-  { id:2,  cat:"health",   sub:"체중",     title:"체중 71.2kg",             date:"2025-06-03", hour:8,  done:true,
-    detail:"기상 직후 측정. 전날 대비 -0.3kg.\n식단: 단백질 위주, 탄수화물 저녁만." },
-  { id:3,  cat:"work",     sub:"",         title:"팀 주간 회의",             date:"2025-06-03", hour:10, done:false,
-    detail:"안건: Q2 성과 정리, Q3 로드맵 초안 리뷰\n준비물: 대시보드 캡처, KPI 슬라이드\n참석자: 팀장, 기획 3명, 개발 2명" },
-  { id:4,  cat:"personal", sub:"",         title:"친구 생일 선물 구매",      date:"2025-06-03", hour:13, done:false,
-    detail:"예산: 5만원 내외\n후보: 무선이어폰, 향수, 지갑\n배송지 확인 필요." },
-  { id:5,  cat:"review",   sub:"북",       title:"파친코 — 이민진",          date:"2025-06-02", hour:21, done:true,
-    detail:"평점: 4/5\n역사와 가족사가 교차하는 서사. 4대에 걸친 재일교포 이야기.\n인상적인 문장: '역사는 우리를 저버렸지만, 그래도 버텼다.'\n다음 읽을 책: 채식주의자" },
-  { id:6,  cat:"economy",  sub:"주식 리뷰", title:"NVDA 급등 포지션 정리",    date:"2025-06-02", hour:18, done:true,
-    detail:"매도 가격: $127.4 (평단 $89.2 대비 +43%)\n매도 수량: 보유의 30%\n이유: 고점 부근, 리스크 관리\n잔여 포지션 유지. 조정 시 재매수 고려." },
-  { id:7,  cat:"event",    sub:"피부과",   title:"레이저 토닝 시술",          date:"2025-06-05", hour:11, done:false,
-    detail:"병원: 강남 OO피부과\n시술: 레이저 토닝 + 보습 앰플\n주의사항: 시술 후 3일 자외선 차단제 필수, 세안 조심\n다음 예약: 8주 후" },
-  { id:8,  cat:"work",     sub:"",         title:"기획서 초안 제출",          date:"2025-06-04", hour:14, done:false,
-    detail:"프로젝트: 앱 리뉴얼 기획\n포함 내용: 사용자 페르소나, 기능 정의, 화면 흐름도\nFigma 링크 첨부 예정." },
-  { id:9,  cat:"health",   sub:"식단",     title:"단백질 170g 달성",          date:"2025-06-01", hour:20, done:true,
-    detail:"아침: 닭가슴살 150g + 계란 3개 (단백질 약 55g)\n점심: 연어 200g + 현미밥 (약 50g)\n저녁: 소고기 150g + 두부 (약 65g)\n총 칼로리: 약 2,100kcal" },
-  { id:10, cat:"event",    sub:"차 수리",  title:"엔진오일 교체",             date:"2025-05-20", hour:10, done:true,
-    detail:"공업사: 성수 OO카센터\n교체 부품: 엔진오일 5W-30, 오일 필터\n비용: 85,000원\n다음 교체: 5,000km 후 또는 6개월 후" },
-  { id:11, cat:"review",   sub:"와인",     title:"Barolo 2019",              date:"2025-05-15", hour:20, done:true,
-    detail:"생산지: 이탈리아 피에몬테\n품종: 네비올로 100%\n평점: 5/5\n특징: 타닌 강하고 깊은 루비색. 체리, 가죽, 흙 향.\n푸드 페어링: 양갈비구이, 숙성 치즈\n재구매 의향: 있음" },
-  { id:12, cat:"health",   sub:"운동",     title:"5km 러닝 28분",             date:"2025-05-10", hour:7,  done:true,
-    detail:"경로: 한강 뚝섬 구간\n페이스: 5'36\"/km\n심박수: 평균 158bpm\n날씨: 맑음, 18도\n피로도 낮음. 다음 목표: 27분대" },
-  { id:13, cat:"economy",  sub:"주식 리뷰", title:"포트폴리오 월간 점검",      date:"2025-04-30", hour:9,  done:true,
-    detail:"총 평가금액: 약 3,800만원\nYTD 수익률: +12.4%\n주요 보유: NVDA(30%), MSFT(20%), 국내 ETF(50%)\n이달 리밸런싱: 국내 비중 +5% 조정 예정" },
-  { id:14, cat:"event",    sub:"기타",     title:"이사 완료",                 date:"2025-03-15", hour:0,  done:true,
-    detail:"이전 주소: 서울 마포구\n신규 주소: 서울 성동구\n이삿짐센터: OO이사\n비용: 85만원\n정리 기간: 약 1주일 소요" },
-  { id:15, cat:"archive",  sub:"",         title:"React 렌더링 최적화 노트",  date:"2025-06-01", hour:22, done:true,
-    detail:"핵심 개념:\n1. useMemo: 값 캐싱, 연산 비용 높을 때\n2. useCallback: 함수 참조 안정화\n3. React.memo: 컴포넌트 리렌더 방지\n4. 가상화(react-window): 긴 리스트\n참고: React 공식 docs, Kent C. Dodds 블로그" },
-  { id:16, cat:"personal", sub:"",         title:"독서 30분",                 date:"2025-06-03", hour:22, done:false,
-    detail:"오늘 목표: 채식주의자 1부 마무리\n현재 진도: p.87\n메모할 내용 있으면 리뷰 카테고리에 기록 예정" },
-  { id:17, cat:"work",     sub:"",         title:"코드 리뷰",                 date:"2025-06-03", hour:15, done:false,
-    detail:"PR #247 — 검색 필터 리팩토링\nPR #251 — 온보딩 플로우 수정\n예상 소요: 1시간\n코멘트 2건 남길 예정" },
-  { id:18, cat:"health",   sub:"컨디션",   title:"컨디션 메모",               date:"2025-06-02", hour:23, done:true,
-    detail:"피로감: 중간 (6/10)\n수면: 6시간 (부족)\n스트레스: 업무 마감으로 다소 높음\n내일: 수면 7시간 이상 목표, 카페인 오후 2시 이후 금지" },
-  { id:19, cat:"review",   sub:"커피",     title:"블루보틀 나이트로",          date:"2025-05-28", hour:10, done:true,
-    detail:"매장: 블루보틀 성수\n메뉴: 나이트로 콜드브루 (M)\n가격: 7,500원\n평점: 4/5\n특징: 크리미한 질감, 산미 낮음, 달지 않음\n재방문 의향: 있음" },
-  { id:20, cat:"economy",  sub:"주식 리뷰", title:"금리 이슈 채권 비중 검토",   date:"2025-06-03", hour:8,  done:true,
-    detail:"배경: 연준 금리 동결 기조 유지 발표\n분석: 단기채 매력 상승, TLT 저점 가능성\n액션: 채권 ETF 비중 5%p 확대 검토\n참고 자료: Bloomberg, 연준 성명서" },
-  { id:21, cat:"personal", sub:"",         title:"명상 10분",                 date:"2025-06-03", hour:6,  done:true,
-    detail:"앱: Calm\n방식: 호흡 명상\n집중도: 중간. 잡생각 많았음.\n내일은 가이디드 보다 사일런트 시도 예정" },
-  { id:22, cat:"event",    sub:"기타",     title:"부모님 생신 저녁",           date:"2025-06-15", hour:18, done:false,
-    detail:"장소: 압구정 한정식\n예약: 6시 30분\n참석: 가족 4명\n선물: 용돈 + 케이크" },
-  { id:23, cat:"review",   sub:"북",       title:"도둑맞은 집중력 — 요한 하리", date:"2025-05-05", hour:21, done:true,
-    detail:"평점: 5/5\n현대 집중력 위기를 체계적으로 분석. SNS, 업무 환경, 식단까지.\n핵심 메시지: 집중력 저하는 개인 의지 문제가 아니라 구조적 문제\n실천: 폰 흑백 모드 설정, 알림 전면 차단 시작" },
-  { id:24, cat:"health",   sub:"운동",     title:"스쿼트 4x8",                date:"2025-06-01", hour:7,  done:true,
-    detail:"메인: 80kg x 4세트 x 8회\n보조: 레그프레스 120kg x 3x10\n무릎 약간 불편함. 다음 세션 무게 유지 후 폼 점검 예정." },
-  { id:25, cat:"work",     sub:"",         title:"분기 보고서 마감",           date:"2025-06-30", hour:18, done:false,
-    detail:"포함 내용: Q2 KPI, 팀 성과, Q3 계획\n초안 마감: 6/25\n검토자: 팀장, 본부장\n양식: 사내 공유 드라이브 템플릿 사용" },
-];
-
-const RAW_WEIGHT = [
-  {day:0,w:72.4},{day:3,w:72.1},{day:7,w:71.8},{day:10,w:71.9},
-  {day:14,w:71.5},{day:18,w:71.2},{day:21,w:71.0},{day:25,w:70.8},{day:29,w:70.5},
-];
-const WEIGHT_DATA = (() => {
-  const base = new Date(today); base.setDate(base.getDate()-29);
-  return Array.from({length:30},(_,i)=>{
-    const exact = RAW_WEIGHT.find(r=>r.day===i);
-    const dd = new Date(base); dd.setDate(dd.getDate()+i);
-    const label = `${dd.getMonth()+1}/${dd.getDate()}`;
-    if(exact) return {day:i, weight:exact.w, actual:true, label};
-    const prev=[...RAW_WEIGHT].reverse().find(r=>r.day<i);
-    const next=RAW_WEIGHT.find(r=>r.day>i);
-    if(prev&&next){
-      const w=prev.w+(next.w-prev.w)*((i-prev.day)/(next.day-prev.day));
-      return {day:i, weight:+w.toFixed(1), actual:false, label};
-    }
-    return {day:i, weight:null, actual:false, label};
-  });
-})();
-
 /* ─────────────────────────────────────────────────────
+   SUPABASE DATA HOOKS
+───────────────────────────────────────────────────── */
+
+// 이벤트 목록 불러오기
+function useEvents(filterCat, filterSub) {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    try {
+      let q = supabase.from("events").select("*").order("date", {ascending:false}).order("hour");
+      if(filterCat && filterCat !== "all") q = q.eq("category", filterCat);
+      if(filterSub) q = q.eq("sub_category", filterSub);
+      const { data, error } = await q;
+      if(error) throw error;
+      setEvents(data || []);
+    } catch(e) {
+      console.error("events 로드 실패:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [filterCat, filterSub]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+  return { events, loading, refetch: fetch };
+}
+
+// 체중 기록 불러오기 (30일)
+function useWeightLogs() {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetch = useCallback(async () => {
+    try {
+      const from = new Date(); from.setDate(from.getDate()-89);
+      const { data, error } = await supabase
+        .from("weight_logs")
+        .select("*")
+        .gte("date", from.toISOString().slice(0,10))
+        .order("date");
+      if(error) throw error;
+      setLogs(data || []);
+    } catch(e) {
+      console.error("weight 로드 실패:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetch(); }, [fetch]);
+  return { logs, loading, refetch: fetch };
+}
+
+// 이벤트 완료 토글
+async function toggleDone(ev) {
+  await supabase.from("events").update({done: !ev.done}).eq("id", ev.id);
+}
+
+// 이벤트 추가
+async function addEvent(data) {
+  const { error } = await supabase.from("events").insert([data]);
+  if(error) throw error;
+}
+
+// 체중 추가/수정
+async function upsertWeight(date, weight, memo="") {
+  const { error } = await supabase.from("weight_logs")
+    .upsert([{date, weight, memo}], {onConflict:"date"});
+  if(error) throw error;
+}
+
    HELPERS
 ───────────────────────────────────────────────────── */
 const dateStr = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-const catOf = (id) => CATS.find(c=>c.id===id) || CATS[0];
+const catOf = (category, sub) => allCatOf(category, sub);
+// legacy compat for old calls with single arg
+
 
 function getWeekDays(date) {
   const d = new Date(date), day = d.getDay();
@@ -157,7 +185,7 @@ function getMonthCells(date) {
    DETAIL MODAL
 ───────────────────────────────────────────────────── */
 function DetailModal({ ev, onClose }) {
-  const cat = catOf(ev.cat);
+  const cat = catOf(ev.category||ev.cat, ev.sub_category||ev.sub);
   const [done, setDone] = useState(ev.done);
   return (
     <div onClick={onClose} style={{
@@ -280,7 +308,7 @@ function DetailModal({ ev, onClose }) {
    TASK CHIP — light, clean, MyRoutine-style
 ───────────────────────────────────────────────────── */
 function TaskChip({ ev, compact=false, onOpen }) {
-  const cat = catOf(ev.cat);
+  const cat = catOf(ev.category||ev.cat, ev.sub_category||ev.sub);
   return (
     <div onClick={()=>onOpen(ev)} style={{
       display:"flex", alignItems:"center", gap:10,
@@ -395,7 +423,7 @@ function DayView({ date, filterCat, onOpen }) {
 /* ─────────────────────────────────────────────────────
    WEEK VIEW — fixed equal grid, early collapse, done opacity
 ───────────────────────────────────────────────────── */
-function WeekView({ date, filterCat, onOpen }) {
+function WeekView({ date, filterCat, onOpen, events=[] }) {
   const days = getWeekDays(date);
   const todayStr = dateStr(today);
   const [showEarly, setShowEarly] = useState(false);
@@ -533,7 +561,7 @@ function WeekView({ date, filterCat, onOpen }) {
 /* ─────────────────────────────────────────────────────
    MONTH VIEW — equal cells, todo first / done bottom, opacity
 ───────────────────────────────────────────────────── */
-function MonthView({ date, filterCat, onDayClick, onOpen }) {
+function MonthView({ date, filterCat, onDayClick, onOpen, events=[] }) {
   const cells = getMonthCells(date);
   const todayStr = dateStr(today);
   while (cells.length < 42) cells.push(null);
@@ -554,7 +582,7 @@ function MonthView({ date, filterCat, onDayClick, onOpen }) {
           );
           const ds=dateStr(d);
           const isToday=ds===todayStr;
-          const allEvs=EVENTS.filter(e=>e.date===ds&&(filterCat==="all"||e.cat===filterCat));
+          const allEvs=events.filter(e=>e.date===ds);
           // Split: todo first, done at bottom
           const todoEvs=allEvs.filter(e=>!e.done);
           const doneEvs=allEvs.filter(e=>e.done);
@@ -624,14 +652,14 @@ function MonthView({ date, filterCat, onDayClick, onOpen }) {
 /* ─────────────────────────────────────────────────────
    YEAR VIEW
 ───────────────────────────────────────────────────── */
-function YearView({ date, filterCat, onOpen }) {
+function YearView({ date, filterCat, onOpen, events=[] }) {
   const year = date.getFullYear();
   const [tooltip, setTooltip] = useState(null);
   const todayStr = dateStr(today);
 
   const eventsByDate = useMemo(()=>{
     const map={};
-    EVENTS.filter(e=>e.date.startsWith(`${year}`)&&e.cat==="event"&&(filterCat==="all"||filterCat==="event"))
+    events.filter(e=>e.date.startsWith(`${year}`)&&e.category==="event")
       .forEach(e=>{ if(!map[e.date])map[e.date]=[]; map[e.date].push(e); });
     return map;
   },[year,filterCat]);
@@ -773,7 +801,128 @@ function RandomReview({ events, onOpen }) {
   const [idx, setIdx] = useState(()=>Math.floor(Math.random()*Math.max(pool.length,1)));
   if(!pool.length) return null;
   const ev = pool[idx % pool.length];
-  const cat = catOf(ev.cat);
+  const cat = catOf(ev.category||ev.cat, ev.sub_category||ev.sub);
+  const snippet = ev.detail ? ev.detail.split("\n").slice(0,2).join(" · ") : ev.title;
+  return (
+    <div style={{background:cat.bg,borderRadius:10,padding:"11px 12px",border:`1px solid ${cat.color}22`,marginTop:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+        <span style={{fontSize:9,color:cat.text,fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>리뷰</span>
+        <button onClick={()=>setIdx(i=>(i+1)%pool.length)} style={{
+          background:"transparent",border:`1px solid ${cat.color}44`,
+          borderRadius:6,padding:"2px 7px",cursor:"pointer",
+          fontSize:9,color:T.textSub,
+        }}>다음</button>
+      </div>
+      <div
+        onClick={()=>onOpen&&onOpen(ev)}
+        style={{
+          fontSize:12,color:T.text,fontWeight:500,marginBottom:4,lineHeight:1.4,
+          cursor:"pointer",
+          textDecoration:"underline",textDecorationColor:cat.color+"66",
+          textUnderlineOffset:2,
+        }}
+      >{ev.title}</div>
+      {snippet&&snippet!==ev.title&&(
+        <div style={{fontSize:10,color:T.textSub,lineHeight:1.5,
+          display:"-webkit-box",WebkitLineClamp:3,WebkitBoxOrient:"vertical",overflow:"hidden"
+        }}>{snippet}</div>
+      )}
+      <div style={{fontSize:9,color:T.textMute,marginTop:5}}>{cat.label} · {ev.date}</div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────
+   WEIGHT CHART — Supabase 연동
+───────────────────────────────────────────────────── */
+function WeightSection() {
+  const { logs } = useWeightLogs();
+  const catHealth = {color:"#D4867E", bg:"#FEF5F4"};
+
+  if(!logs.length) return (
+    <div style={{background:T.bgCard,borderRadius:10,padding:"12px 10px",border:`1px solid ${T.border}`,marginBottom:8}}>
+      <div style={{fontSize:9,color:T.textSub,fontWeight:600,letterSpacing:.5,textTransform:"uppercase",marginBottom:4}}>체중</div>
+      <div style={{fontSize:11,color:T.textMute}}>기록 없음</div>
+    </div>
+  );
+
+  const latest = logs[logs.length-1];
+  const chartData = logs.map(l=>({
+    label: `${new Date(l.date).getMonth()+1}/${new Date(l.date).getDate()}`,
+    weight: l.weight,
+    actual: true,
+  }));
+  const min = Math.min(...logs.map(l=>l.weight)) - .8;
+  const max = Math.max(...logs.map(l=>l.weight)) + .5;
+  const avg = +(logs.reduce((a,l)=>a+l.weight,0)/logs.length).toFixed(1);
+
+  const CustomDot=(props)=>{
+    const{cx,cy}=props;
+    return <circle cx={cx} cy={cy} r={4} fill={catHealth.color} stroke={T.bgCard} strokeWidth={2}/>;
+  };
+  const CustomTip=({active,payload})=>{
+    if(!active||!payload?.length)return null;
+    const d=payload[0].payload;
+    return(
+      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 10px",fontSize:11}}>
+        <div style={{color:T.textMute}}>{d.label}</div>
+        <div style={{color:catHealth.color,fontWeight:700}}>{d.weight}kg</div>
+      </div>
+    );
+  };
+
+  return(
+    <div style={{background:catHealth.bg,borderRadius:10,padding:"12px 10px",border:`1px solid ${catHealth.color}22`,marginBottom:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:7,alignItems:"center"}}>
+        <span style={{fontSize:9,color:"#9B3D33",fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>체중</span>
+        <span style={{fontSize:9,color:"#9B3D33",fontWeight:400,opacity:.7}}>{latest.weight}kg</span>
+      </div>
+      <ResponsiveContainer width="100%" height={90}>
+        <LineChart data={chartData} margin={{top:2,right:4,left:-28,bottom:0}}>
+          <CartesianGrid strokeDasharray="3 3" stroke={T.border}/>
+          <XAxis dataKey="label" tick={{fontSize:8,fill:T.textMute}} interval={Math.floor(logs.length/3)}/>
+          <YAxis domain={[min,max]} tick={{fontSize:8,fill:T.textMute}}/>
+          <Tooltip content={<CustomTip/>}/>
+          <ReferenceLine y={avg} stroke={catHealth.color+"55"} strokeDasharray="3 3"/>
+          <Line type="monotone" dataKey="weight" stroke={catHealth.color} strokeWidth={1.5} dot={<CustomDot/>} activeDot={{r:4}}/>
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+
+/* ─────────────────────────────────────────────────────
+   LIVE CLOCK  (sidebar today card)
+───────────────────────────────────────────────────── */
+function LiveClock() {
+  const [time, setTime] = useState(()=>{
+    const n=new Date();
+    return `${String(n.getHours()).padStart(2,"0")}:${String(n.getMinutes()).padStart(2,"0")}`;
+  });
+  useState(()=>{
+    const id=setInterval(()=>{
+      const n=new Date();
+      setTime(`${String(n.getHours()).padStart(2,"0")}:${String(n.getMinutes()).padStart(2,"0")}`);
+    },30000);
+    return ()=>clearInterval(id);
+  });
+  return (
+    <span style={{fontSize:12,color:"#9E9E9E",fontFamily:"'Noto Sans KR',sans-serif",fontWeight:300,letterSpacing:.5}}>
+      {time}
+    </span>
+  );
+}
+
+/* ─────────────────────────────────────────────────────
+   RANDOM REVIEW CARD  (sidebar bottom)
+───────────────────────────────────────────────────── */
+function RandomReview({ events, onOpen }) {
+  const pool = events.filter(e=>e.cat==="archive"||(e.cat==="review"&&e.sub==="북"));
+  const [idx, setIdx] = useState(()=>Math.floor(Math.random()*Math.max(pool.length,1)));
+  if(!pool.length) return null;
+  const ev = pool[idx % pool.length];
+  const cat = catOf(ev.category||ev.cat, ev.sub_category||ev.sub);
   const snippet = ev.detail ? ev.detail.split("\n").slice(0,2).join(" · ") : ev.title;
   return (
     <div style={{background:cat.bg,borderRadius:10,padding:"11px 12px",border:`1px solid ${cat.color}22`,marginTop:8}}>
@@ -1006,169 +1155,203 @@ function ImageUpload({ images, onChange, catColor }) {
 }
 
 /* ─────────────────────────────────────────────────────
-   ADD MODAL
+   ADD MODAL — 새 카테고리 구조
 ───────────────────────────────────────────────────── */
-function AddModal({ onClose }) {
-  const [cat, setCat] = useState("personal");
-  const [tmpl, setTmpl] = useState(null);  // null = free form
+function AddModal({ onClose, onSaved }) {
+  const [cat, setCat] = useState("schedule");
+  const [archiveSub, setArchiveSub] = useState("health");
+  const [healthSub, setHealthSub] = useState("weight");
+  const [reviewSub, setReviewSub] = useState("book");
   const [title, setTitle] = useState("");
+  const [detail, setDetail] = useState("");
   const [fields, setFields] = useState({});
   const [images, setImages] = useState([]);
-  const c = catOf(cat);
+  const [date, setDate] = useState(new Date().toISOString().slice(0,10));
+  const [hour, setHour] = useState("09");
+  const [saving, setSaving] = useState(false);
 
-  const setField = (key, val) => setFields(f=>({...f,[key]:val}));
+  const setField = (k,v) => setFields(f=>({...f,[k]:v}));
+
+  // 현재 선택된 색상 계산
+  const currentColor = () => {
+    if(cat==="archive") return ARCHIVE_SUBS.find(s=>s.id===archiveSub)||ARCHIVE_SUBS[0];
+    return CATS.find(c=>c.id===cat)||CATS[0];
+  };
+  const c = currentColor();
+
+  // 저장
+  const handleSave = async () => {
+    if(!title.trim()) return;
+    setSaving(true);
+    try {
+      const sub = cat==="archive"
+        ? (archiveSub==="health" ? healthSub : archiveSub==="review" ? reviewSub : "economy")
+        : null;
+
+      // 체중인 경우 weight_logs에도 저장
+      if(cat==="archive" && archiveSub==="health" && healthSub==="weight" && fields.weight) {
+        await upsertWeight(date, parseFloat(fields.weight), detail);
+      }
+
+      await addEvent({
+        category: cat,
+        sub_category: sub,
+        title: title.trim(),
+        date,
+        hour: parseInt(hour)||9,
+        done: false,
+        detail: detail||null,
+        fields,
+      });
+
+      onSaved?.();
+      onClose();
+    } catch(e) {
+      console.error("저장 실패:", e);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const inputStyle = {
     width:"100%", background:T.bgSub,
     border:`1px solid ${T.border}`, borderRadius:8,
-    padding:"9px 12px", color:T.text, fontSize:12,
+    padding:"10px 12px", color:T.text, fontSize:13,
     outline:"none", boxSizing:"border-box",
     fontFamily:"'Noto Sans KR',sans-serif",
   };
 
-  const currentTmpl = tmpl ? TEMPLATES[tmpl] : null;
-
   return (
     <div onClick={onClose} style={{
-      position:"fixed", inset:0, background:"rgba(44,40,37,0.4)",
-      display:"flex", alignItems:"center", justifyContent:"center", zIndex:400,
+      position:"fixed",inset:0,background:"rgba(44,40,37,0.4)",
+      display:"flex",alignItems:"center",justifyContent:"center",zIndex:400,
       backdropFilter:"blur(3px)",
     }}>
       <div onClick={e=>e.stopPropagation()} style={{
         background:T.bgCard, borderRadius:18,
-        width:460, maxWidth:"94vw", maxHeight:"88vh",
+        width:400, maxWidth:"94vw", maxHeight:"90vh",
         boxShadow:"0 20px 60px rgba(44,40,37,0.18)",
         border:`1px solid ${T.border}`,
-        display:"flex", flexDirection:"column",
-        overflow:"hidden",
+        display:"flex", flexDirection:"column", overflow:"hidden",
       }}>
-
-        {/* Modal header */}
-        <div style={{padding:"20px 22px 14px", borderBottom:`1px solid ${T.border}`, flexShrink:0}}>
-          <div style={{
-            fontSize:16, fontWeight:600, color:T.text, marginBottom:14,
-            fontFamily:"'Libre Baskerville',Georgia,serif",
-          }}>새 기록 추가</div>
-
-          {/* Category selector */}
-          <div style={{display:"flex", gap:5, flexWrap:"wrap", marginBottom:12}}>
+        {/* 헤더 */}
+        <div style={{padding:"18px 20px 12px", borderBottom:`1px solid ${T.border}`, flexShrink:0}}>
+          <div style={{fontSize:16,fontWeight:600,color:T.text,marginBottom:14,fontFamily:"'Libre Baskerville',serif"}}>
+            새 기록
+          </div>
+          {/* 최상위 카테고리 */}
+          <div style={{display:"flex",gap:6,marginBottom:8}}>
             {CATS.map(ct=>(
-              <button key={ct.id} onClick={()=>{setCat(ct.id); setTmpl(null); setFields({}); setImages([]);}} style={{
-                padding:"4px 11px", borderRadius:20, fontSize:11, cursor:"pointer",
+              <button key={ct.id} onClick={()=>setCat(ct.id)} style={{
+                flex:1, padding:"7px 4px", borderRadius:9, cursor:"pointer", fontSize:12,
                 background:cat===ct.id?ct.bg:T.bgSub,
                 border:`1px solid ${cat===ct.id?ct.color+"88":T.border}`,
-                color:cat===ct.id?ct.text:T.textSub,
-                fontWeight:cat===ct.id?600:400, transition:"all .12s",
+                color:cat===ct.id?ct.text:T.textSub, fontWeight:cat===ct.id?600:400,
               }}>{ct.label}</button>
             ))}
           </div>
-
-          {/* Template selector — only shows when category has templates */}
-          {CAT_TEMPLATES[cat] && (
-            <div style={{display:"flex", gap:5, flexWrap:"wrap", alignItems:"center", marginTop:6}}>
-              <span style={{fontSize:10, color:T.textMute, marginRight:2}}>템플릿</span>
-              <button onClick={()=>setTmpl(null)} style={{
-                padding:"3px 10px", borderRadius:20, fontSize:11, cursor:"pointer",
-                background:!tmpl?T.text:T.bgSub,
-                border:`1px solid ${!tmpl?T.text:T.border}`,
-                color:!tmpl?"white":T.textSub, fontWeight:!tmpl?600:400,
-              }}>자유</button>
-              {CAT_TEMPLATES[cat].map(tk=>{
-                const t=TEMPLATES[tk];
-                const active=tmpl===tk;
-                const tcat=catOf(t.catId);
-                return (
-                  <button key={tk} onClick={()=>{setTmpl(tk); setFields({});}} style={{
-                    padding:"3px 10px", borderRadius:20, fontSize:11, cursor:"pointer",
-                    background:active?tcat.bg:T.bgSub,
-                    border:`1px solid ${active?tcat.color+"88":T.border}`,
-                    color:active?tcat.text:T.textSub, fontWeight:active?600:400,
-                  }}>{t.label}</button>
-                );
-              })}
+          {/* 아카이브 서브 */}
+          {cat==="archive" && (
+            <div style={{display:"flex",gap:5}}>
+              {ARCHIVE_SUBS.map(s=>(
+                <button key={s.id} onClick={()=>setArchiveSub(s.id)} style={{
+                  flex:1, padding:"5px 4px", borderRadius:7, cursor:"pointer", fontSize:11,
+                  background:archiveSub===s.id?s.bg:T.bgSub,
+                  border:`1px solid ${archiveSub===s.id?s.color+"88":T.border}`,
+                  color:archiveSub===s.id?s.text:T.textSub, fontWeight:archiveSub===s.id?600:400,
+                }}>{s.label}</button>
+              ))}
+            </div>
+          )}
+          {/* 건강 서브 */}
+          {cat==="archive" && archiveSub==="health" && (
+            <div style={{display:"flex",gap:4,marginTop:5}}>
+              {HEALTH_SUBS.map(s=>(
+                <button key={s.id} onClick={()=>setHealthSub(s.id)} style={{
+                  flex:1, padding:"4px 2px", borderRadius:6, cursor:"pointer", fontSize:10,
+                  background:healthSub===s.id?"#E8F2FA":T.bgSub,
+                  border:`1px solid ${healthSub===s.id?"#2E6FA588":T.border}`,
+                  color:healthSub===s.id?"#1A4E7A":T.textSub, fontWeight:healthSub===s.id?600:400,
+                }}>{s.label}</button>
+              ))}
+            </div>
+          )}
+          {/* 리뷰 서브 */}
+          {cat==="archive" && archiveSub==="review" && (
+            <div style={{display:"flex",gap:5,marginTop:5}}>
+              {REVIEW_SUBS.map(s=>(
+                <button key={s.id} onClick={()=>setReviewSub(s.id)} style={{
+                  flex:1, padding:"4px 2px", borderRadius:6, cursor:"pointer", fontSize:10,
+                  background:reviewSub===s.id?"#F3EBF8":T.bgSub,
+                  border:`1px solid ${reviewSub===s.id?"#7E4FA088":T.border}`,
+                  color:reviewSub===s.id?"#5A2E80":T.textSub, fontWeight:reviewSub===s.id?600:400,
+                }}>{s.label}</button>
+              ))}
             </div>
           )}
         </div>
 
-        {/* Scrollable body */}
-        <div style={{flex:1, overflowY:"auto", padding:"16px 22px"}}>
-
-          {/* Free form */}
-          {!currentTmpl && (
+        {/* 폼 */}
+        <div style={{flex:1, overflowY:"auto", padding:"14px 20px"}}>
+          {/* 체중 입력 */}
+          {cat==="archive" && archiveSub==="health" && healthSub==="weight" ? (
             <>
-              <input placeholder="제목 입력..." style={{...inputStyle, marginBottom:8}}
-                value={title} onChange={e=>setTitle(e.target.value)}/>
-              <textarea placeholder="상세 내용" rows={5}
-                style={{...inputStyle, resize:"vertical", marginBottom:8}}/>
-              {IMAGE_CATS.has(cat) && (
-                <ImageUpload images={images} onChange={setImages} catColor={c.color}/>
-              )}
-              <div style={{display:"flex", gap:7}}>
-                <input type="date" defaultValue="2025-06-03" style={{flex:1,...inputStyle}}/>
-                <input type="time" defaultValue="09:00" style={{flex:1,...inputStyle}}/>
-              </div>
+              <div style={{fontSize:11,color:T.textSub,marginBottom:6}}>체중 (kg)</div>
+              <input type="number" step="0.1" placeholder="예) 71.2"
+                style={{...inputStyle,marginBottom:10,fontSize:18,fontWeight:600,textAlign:"center"}}
+                value={fields.weight||""} onChange={e=>setField("weight",e.target.value)}/>
+              <textarea placeholder="메모 (선택)" rows={2}
+                style={{...inputStyle,resize:"none",marginBottom:10}}
+                value={detail} onChange={e=>setDetail(e.target.value)}/>
             </>
-          )}
-
-          {/* Template form */}
-          {currentTmpl && (
+          ) : (
             <>
-              <input placeholder="제목 입력..." style={{...inputStyle, marginBottom:12}}
+              <input placeholder="제목 입력..." style={{...inputStyle,marginBottom:8}}
                 value={title} onChange={e=>setTitle(e.target.value)}/>
-              {currentTmpl.fields.map(f=>(
-                <div key={f.key} style={{marginBottom:10}}>
-                  <div style={{
-                    fontSize:11, color:T.textSub, fontWeight:500, marginBottom:4,
-                    display:"flex", alignItems:"center", gap:6,
-                  }}>
-                    {f.label}
-                    {f.type==="score" && (
-                      <span style={{fontSize:10, color:T.textMute}}>/5</span>
-                    )}
+
+              {/* 템플릿별 필드 */}
+              {cat==="archive" && archiveSub==="health" && healthSub==="weight_training" && (
+                <div style={{marginBottom:8}}>
+                  <div style={{fontSize:11,color:T.textSub,marginBottom:5}}>부위</div>
+                  <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
+                    {["가슴","등","어깨","팔","하체","전신"].map(p=>(
+                      <button key={p} onClick={()=>setField("part",p)} style={{
+                        padding:"4px 10px",borderRadius:16,fontSize:11,cursor:"pointer",
+                        background:fields.part===p?"#E8F2FA":T.bgSub,
+                        border:`1px solid ${fields.part===p?"#2E6FA588":T.border}`,
+                        color:fields.part===p?"#1A4E7A":T.textSub,
+                      }}>{p}</button>
+                    ))}
                   </div>
-                  {f.type==="score" ? (
-                    <div style={{display:"flex", gap:5}}>
-                      {[1,2,3,4,5].map(n=>(
-                        <button key={n} onClick={()=>setField(f.key, n)} style={{
-                          width:34, height:34, borderRadius:8, cursor:"pointer", fontSize:13,
-                          background:fields[f.key]===n?c.color:T.bgSub,
-                          border:`1px solid ${fields[f.key]===n?c.color:T.border}`,
-                          color:fields[f.key]===n?"white":T.textSub, fontWeight:600,
-                        }}>{n}</button>
-                      ))}
-                      {fields[f.key] && (
-                        <button onClick={()=>setField(f.key,null)} style={{
-                          width:34,height:34,borderRadius:8,cursor:"pointer",fontSize:10,
-                          background:"transparent",border:`1px solid ${T.border}`,color:T.textMute,
-                        }}>x</button>
-                      )}
-                    </div>
-                  ) : f.type==="textarea" ? (
-                    <textarea rows={3} placeholder={f.placeholder||""} style={{...inputStyle,resize:"vertical"}}
-                      value={fields[f.key]||""} onChange={e=>setField(f.key,e.target.value)}/>
-                  ) : f.type==="date" ? (
-                    <input type="date" style={inputStyle}
-                      value={fields[f.key]||"2025-06-03"} onChange={e=>setField(f.key,e.target.value)}/>
-                  ) : (
-                    <input type="text" placeholder={f.placeholder||""} style={inputStyle}
-                      value={fields[f.key]||""} onChange={e=>setField(f.key,e.target.value)}/>
-                  )}
                 </div>
-              ))}
-              {IMAGE_CATS.has(cat) && (
+              )}
+
+              <textarea placeholder="상세 내용" rows={4}
+                style={{...inputStyle,resize:"vertical",marginBottom:8}}
+                value={detail} onChange={e=>setDetail(e.target.value)}/>
+
+              {/* 이미지 첨부 (이벤트/아카이브) */}
+              {(cat==="event"||cat==="archive") && (
                 <ImageUpload images={images} onChange={setImages} catColor={c.color}/>
               )}
-              <div style={{display:"flex", gap:7, marginTop:4}}>
-                <input type="date" defaultValue="2025-06-03" style={{flex:1,...inputStyle}}/>
-                <input type="time" defaultValue="09:00" style={{flex:1,...inputStyle}}/>
-              </div>
             </>
           )}
+
+          {/* 날짜/시간 */}
+          <div style={{display:"flex",gap:7}}>
+            <input type="date" style={{flex:2,...inputStyle}}
+              value={date} onChange={e=>setDate(e.target.value)}/>
+            {cat!=="archive" || archiveSub!=="health" || healthSub!=="weight" ? (
+              <input type="time" style={{flex:1,...inputStyle}}
+                value={`${hour}:00`}
+                onChange={e=>setHour(e.target.value.split(":")[0])}/>
+            ) : null}
+          </div>
         </div>
 
-        {/* Footer */}
+        {/* 푸터 */}
         <div style={{
-          padding:"14px 22px", borderTop:`1px solid ${T.border}`,
+          padding:"12px 20px", borderTop:`1px solid ${T.border}`,
           display:"flex", gap:8, flexShrink:0, background:T.bgSub,
         }}>
           <button onClick={onClose} style={{
@@ -1176,12 +1359,13 @@ function AddModal({ onClose }) {
             background:"transparent", border:`1px solid ${T.borderMid}`,
             color:T.textSub, fontSize:13,
           }}>취소</button>
-          <button onClick={onClose} style={{
+          <button onClick={handleSave} disabled={saving} style={{
             flex:1, padding:"11px", borderRadius:9, cursor:"pointer",
             background:c.color, border:"none", color:"white",
             fontSize:13, fontWeight:600,
             boxShadow:`0 3px 14px ${c.color}44`,
-          }}>저장</button>
+            opacity:saving?0.6:1,
+          }}>{saving?"저장 중...":"저장"}</button>
         </div>
       </div>
     </div>
@@ -1393,12 +1577,12 @@ function BriefingView() {
    BOTTOM TAB BAR (모바일 전용)
 ───────────────────────────────────────────────────── */
 const TAB_ITEMS = [
-  { id:"all",      label:"전체",   icon:"○" },
-  { id:"briefing", label:"브리핑", icon:"◈" },
-  { id:"health",   label:"건강",   icon:"○" },
-  { id:"personal", label:"개인",   icon:"○" },
-  { id:"work",     label:"업무",   icon:"○" },
-  { id:"more",     label:"더보기", icon:"≡" },
+  { id:"all",      label:"전체",    icon:"○" },
+  { id:"briefing", label:"브리핑",  icon:"◈" },
+  { id:"schedule", label:"일정",    icon:"○" },
+  { id:"event",    label:"이벤트",  icon:"○" },
+  { id:"archive",  label:"아카이브", icon:"○" },
+  { id:"more",     label:"더보기",  icon:"≡" },
 ];
 
 function BottomTabBar({ filterCat, showBriefing, setFilterCat, setShowBriefing, setShowMoreSheet }) {
@@ -1451,7 +1635,7 @@ function BottomTabBar({ filterCat, showBriefing, setFilterCat, setShowBriefing, 
 
 /* 더보기 시트 (나머지 카테고리) */
 function MoreSheet({ filterCat, showBriefing, setFilterCat, setShowBriefing, onClose }) {
-  const moreCats = CATS.filter(c=>!["health","personal","work"].includes(c.id));
+  const moreCats = ARCHIVE_SUBS;
   return (
     <div onClick={onClose} style={{
       position:"fixed", inset:0, background:"rgba(44,40,37,0.3)",
@@ -1502,6 +1686,13 @@ export default function Yamlog() {
   const [showDetail, setShowDetail] = useState(null);
   const [sideOpen, setSideOpen] = useState(true);
   const [showMoreSheet, setShowMoreSheet] = useState(false);
+  const [archiveSub, setArchiveSub] = useState(null);
+
+  // Supabase 데이터
+  const { events, loading: eventsLoading, refetch: refetchEvents } = useEvents(
+    showBriefing ? null : (filterCat === "all" ? null : filterCat),
+    archiveSub
+  );
   const isMobile = useIsMobile();
 
   const navigate = (dir) => {
@@ -1530,7 +1721,7 @@ export default function Yamlog() {
     if(view==="년") return `${curDate.getFullYear()}년`;
   };
 
-  const todayEvs = EVENTS.filter(e=>e.date===dateStr(today));
+  const todayEvs = events.filter(e=>e.date===dateStr(today));
   const doneCount = todayEvs.filter(e=>e.done).length;
 
   return (
@@ -1600,63 +1791,59 @@ export default function Yamlog() {
           {/* Nav */}
           <nav style={{padding:"10px 10px",flex:1}}>
             {/* 전체 보기 */}
-            {[{id:"all",label:"전체 보기",color:T.textSub,bg:T.bgCard,text:T.text}].map(item=>{
-              const active=filterCat===item.id&&!showBriefing;
+            {[{id:"all",label:"전체 보기",color:T.textSub}].concat(
+              [{id:"briefing",label:"브리핑",color:"#6B7C3A",bg:"#F2F5EA",text:"#4a5828"}],
+              CATS,
+            ).map(item=>{
+              const isBriefing = item.id==="briefing";
+              const active = isBriefing ? showBriefing : (filterCat===item.id&&!showBriefing&&archiveSub===null);
+              const color = item.color||T.textSub;
               return (
-                <button key={item.id} onClick={()=>{setFilterCat(item.id);setShowBriefing(false);}} style={{
-                  width:"100%",textAlign:"left",padding:"8px 12px",
-                  borderRadius:9,marginBottom:2,cursor:"pointer",
-                  background:active?T.bgCard:"transparent",
-                  border:`1px solid ${active?"#88888844":T.bgSub}`,
-                  color:active?T.text:T.textSub,
-                  fontSize:13,display:"flex",alignItems:"center",gap:8,transition:"all .12s",
-                  fontWeight:active?600:400,
-                }}>
-                  <div style={{width:8,height:8,borderRadius:"50%",flexShrink:0,background:active?T.accent:T.borderMid}}/>
-                  전체 보기
-                </button>
-              );
-            })}
-            {/* 브리핑 */}
-            <button onClick={()=>setShowBriefing(s=>!s)} style={{
-              width:"100%",textAlign:"left",padding:"8px 12px",
-              borderRadius:9,marginBottom:2,cursor:"pointer",
-              background:showBriefing?"#6B7C3A18":"transparent",
-              border:`1px solid ${showBriefing?"#6B7C3A44":T.bgSub}`,
-              color:showBriefing?"#6B7C3A":T.textSub,
-              fontSize:13,display:"flex",alignItems:"center",gap:8,transition:"all .12s",
-              fontWeight:showBriefing?600:400,
-            }}>
-              <div style={{width:8,height:8,borderRadius:"50%",flexShrink:0,background:showBriefing?"#6B7C3A":T.borderMid}}/>
-              브리핑
-            </button>
-            {/* Category items */}
-            {CATS.map(item=>{
-              const active=filterCat===item.id&&!showBriefing;
-              return (
-                <button key={item.id} onClick={()=>{setFilterCat(item.id);setShowBriefing(false);}} style={{
+                <button key={item.id} onClick={()=>{
+                  if(isBriefing){setShowBriefing(true);setFilterCat("all");setArchiveSub(null);}
+                  else{setFilterCat(item.id);setShowBriefing(false);setArchiveSub(null);}
+                }} style={{
                   width:"100%",textAlign:"left",padding:"8px 12px",
                   borderRadius:9,marginBottom:2,cursor:"pointer",
                   background:active?(item.bg||T.bgCard):"transparent",
-                  border:`1px solid ${active?(item.color+"44"):T.bgSub}`,
-                  color:active?(item.text||T.text):T.textSub,
+                  border:`1px solid ${active?(color+"44"):T.bgSub}`,
+                  color:active?(item.text||color):T.textSub,
                   fontSize:13,display:"flex",alignItems:"center",gap:8,transition:"all .12s",
                   fontWeight:active?600:400,
                 }}>
-                  <div style={{
-                    width:8,height:8,borderRadius:"50%",flexShrink:0,
-                    background:active?(item.color||T.accent):T.borderMid,
-                  }}/>
+                  <div style={{width:8,height:8,borderRadius:"50%",flexShrink:0,background:active?color:T.borderMid}}/>
                   {item.label}
                 </button>
               );
             })}
+            {/* 아카이브 서브카테고리 */}
+            {filterCat==="archive"&&!showBriefing&&(
+              <div style={{paddingLeft:20,marginTop:2}}>
+                {ARCHIVE_SUBS.map(sub=>{
+                  const active=archiveSub===sub.id;
+                  return(
+                    <button key={sub.id} onClick={()=>setArchiveSub(active?null:sub.id)} style={{
+                      width:"100%",textAlign:"left",padding:"6px 10px",
+                      borderRadius:8,marginBottom:1,cursor:"pointer",
+                      background:active?sub.bg:"transparent",
+                      border:`1px solid ${active?sub.color+"44":T.bgSub}`,
+                      color:active?sub.text:T.textSub,
+                      fontSize:12,display:"flex",alignItems:"center",gap:7,
+                      fontWeight:active?600:400,
+                    }}>
+                      <div style={{width:6,height:6,borderRadius:"50%",background:active?sub.color:T.borderMid}}/>
+                      {sub.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </nav>
 
           {/* Weight chart + Random review */}
           <div style={{padding:"10px 12px",borderTop:`1px solid ${T.border}`}}>
             <WeightSection/>
-            <RandomReview events={EVENTS} onOpen={setShowDetail}/>
+            <RandomReview events={events} onOpen={setShowDetail}/>
           </div>
         </aside>
       )}
@@ -1736,7 +1923,7 @@ export default function Yamlog() {
           overflowX:"auto",borderBottom:`1px solid ${T.border}`,
           background:T.bg,
         }}>
-          <button onClick={()=>{setFilterCat("all");setShowBriefing(false);}} style={{
+          <button onClick={()=>{setFilterCat("all");setShowBriefing(false);setArchiveSub(null);}} style={{
             padding:"4px 14px",borderRadius:20,fontSize:11,cursor:"pointer",flexShrink:0,
             background:filterCat==="all"&&!showBriefing?T.text:T.bgCard,
             border:`1px solid ${filterCat==="all"&&!showBriefing?T.text:T.border}`,
@@ -1744,15 +1931,28 @@ export default function Yamlog() {
             fontWeight:filterCat==="all"&&!showBriefing?600:400,
           }}>전체</button>
           {CATS.map(c=>{
-            const active=filterCat===c.id&&!showBriefing;
+            const active=filterCat===c.id&&!showBriefing&&archiveSub===null;
             return (
-              <button key={c.id} onClick={()=>{setFilterCat(c.id);setShowBriefing(false);}} style={{
+              <button key={c.id} onClick={()=>{setFilterCat(c.id);setShowBriefing(false);setArchiveSub(null);}} style={{
                 padding:"4px 13px",borderRadius:20,fontSize:11,cursor:"pointer",flexShrink:0,
                 background:active?c.bg:T.bgCard,
                 border:`1px solid ${active?c.color+"88":T.border}`,
                 color:active?c.text:T.textSub,
                 fontWeight:active?600:400,transition:"all .12s",
               }}>{c.label}</button>
+            );
+          })}
+          {/* 아카이브 서브 칩 */}
+          {filterCat==="archive"&&!showBriefing&&ARCHIVE_SUBS.map(s=>{
+            const active=archiveSub===s.id;
+            return(
+              <button key={s.id} onClick={()=>setArchiveSub(active?null:s.id)} style={{
+                padding:"4px 11px",borderRadius:20,fontSize:10,cursor:"pointer",flexShrink:0,
+                background:active?s.bg:T.bgSub,
+                border:`1px solid ${active?s.color+"88":T.border}`,
+                color:active?s.text:T.textMute,
+                fontWeight:active?600:400,
+              }}>{s.label}</button>
             );
           })}
         </div>}
@@ -1763,15 +1963,15 @@ export default function Yamlog() {
             <BriefingView/>
           ) : (
             <>
-              {view==="주" && <WeekView date={curDate} filterCat={filterCat} onOpen={setShowDetail}/>}
-              {view==="월" && <MonthView date={curDate} filterCat={filterCat} onDayClick={d=>{setCurDate(d);setView("주");}} onOpen={setShowDetail}/>}
-              {view==="년" && <YearView date={curDate} filterCat={filterCat} onOpen={setShowDetail}/>}
+              {view==="주" && <WeekView date={curDate} filterCat={filterCat} onOpen={setShowDetail} events={events}/>}
+              {view==="월" && <MonthView date={curDate} filterCat={filterCat} onDayClick={d=>{setCurDate(d);setView("주");}} onOpen={setShowDetail} events={events}/>}
+              {view==="년" && <YearView date={curDate} filterCat={filterCat} onOpen={setShowDetail} events={events}/>}
             </>
           )}
         </div>
       </main>
 
-      {showModal && <AddModal onClose={()=>setShowModal(false)}/>}
+      {showModal && <AddModal onClose={()=>setShowModal(false)} onSaved={refetchEvents}/>}
       {showDetail && <DetailModal ev={showDetail} onClose={()=>setShowDetail(null)}/>}
       {isMobile && (
         <BottomTabBar
