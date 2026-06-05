@@ -422,14 +422,17 @@ function EditModal({ ev, onClose, onSaved }) {
   const isBook           = sub === "book";
   const isWine           = sub === "wine";
   const isCoffee         = sub === "coffee";
-  const isBasic          = ev.category === "schedule" || ev.category === "event";
+  const KNOWN_ARCHIVE_SUBS = ["weight","diet","weight_training","cardio","economy","book","wine","coffee"];
+  const isBasic = ev.category === "schedule" || ev.category === "event"
+    || (ev.category === "archive" && !KNOWN_ARCHIVE_SUBS.includes(sub));
 
-  const [title,  setTitle]  = useState(ev.title  || "");
-  const [detail, setDetail] = useState(ev.detail || "");
-  const [date,   setDate]   = useState(ev.date   || dateStr(new Date()));
-  const [hour,   setHour]   = useState(String(ev.hour ?? 9).padStart(2,"0"));
-  const [fields, setFields] = useState(ev.fields || {});
-  const [saving, setSaving] = useState(false);
+  const [title,      setTitle]      = useState(ev.title  || "");
+  const [detail,     setDetail]     = useState(ev.detail || "");
+  const [date,       setDate]       = useState(ev.date   || dateStr(new Date()));
+  const [startTime,  setStartTime]  = useState(`${String(ev.hour??9).padStart(2,'0')}:${String(ev.fields?.startMinute||0).padStart(2,'0')}`);
+  const [endTime,    setEndTime]    = useState(ev.fields?.endHour!=null?`${String(ev.fields.endHour).padStart(2,'0')}:${String(ev.fields.endMinute||0).padStart(2,'0')}`:'');
+  const [fields,     setFields]     = useState(ev.fields || {});
+  const [saving,     setSaving]     = useState(false);
 
   const setField = (k, v) => setFields(f => ({...f, [k]: v}));
 
@@ -1068,7 +1071,7 @@ export function WeightSection() {
 }
 
 // ─────────────────────────────────────────────────────
-// WORD SECTION — 단어 ○/✕ 학습 시스템, 노란 카드
+// WORD SECTION — 단어 학습 카드 (WeightSection 스타일)
 // ─────────────────────────────────────────────────────
 export function WordSection() {
   const [known, setKnown] = useState(() => {
@@ -1087,47 +1090,57 @@ export function WordSection() {
     setKnown(next);
     localStorage.setItem("yamlog_known_words", JSON.stringify([...next]));
   };
-
   const nextWord = () => { if (pool.length > 1) setIdx(i => (i+1) % pool.length); };
   const prevWord = () => { if (pool.length > 1) setIdx(i => (i-1+pool.length) % pool.length); };
+  const reset    = () => { setKnown(new Set()); localStorage.removeItem("yamlog_known_words"); setIdx(0); };
 
-  const reset = () => {
-    setKnown(new Set());
-    localStorage.removeItem("yamlog_known_words");
-    setIdx(0);
-  };
+  const clrW = { color:"#1A4E7A", bg:"rgba(46,111,165,0.08)", border:"rgba(46,111,165,0.25)" };
 
   if (pool.length === 0) return (
-    <div style={{background:"#E8F2FA",borderRadius:10,padding:"11px 12px",border:"1px solid #2E6FA544",marginTop:8}}>
-      <div style={{fontSize:9,color:"#1A4E7A",fontWeight:600,letterSpacing:.5,textTransform:"uppercase",marginBottom:8}}>단어</div>
-      <div style={{fontSize:13,color:"#5C4200",marginBottom:8,fontWeight:500}}>모든 단어 완료 🎉</div>
-      <div style={{fontSize:11,color:"#7A5800",marginBottom:10}}>{known.size}개 모두 알고 있어요</div>
-      <button onClick={reset} style={{width:"100%",padding:"7px",borderRadius:7,cursor:"pointer",background:"#2E6FA522",border:"1px solid #2E6FA544",color:"#1A4E7A",fontSize:11}}>초기화</button>
+    <div style={{background:clrW.bg,borderRadius:10,padding:"12px 10px",
+      border:`1px solid ${clrW.border}`,marginTop:8}}>
+      <div style={{fontSize:9,color:clrW.color,fontWeight:600,letterSpacing:.5,
+        textTransform:"uppercase",marginBottom:6}}>단어</div>
+      <div style={{fontSize:12,color:clrW.color,marginBottom:8,fontWeight:500}}>모든 단어 완료 🎉</div>
+      <button onClick={reset} style={{width:"100%",padding:"7px",borderRadius:7,cursor:"pointer",
+        background:clrW.bg,border:`1px solid ${clrW.border}`,color:clrW.color,fontSize:11}}>초기화</button>
     </div>
   );
 
   return (
-    <div style={{background:"#E8F2FA",borderRadius:10,padding:"11px 12px",border:"1px solid #2E6FA544",marginTop:8}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-        <span style={{fontSize:9,color:"#1A4E7A",fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>단어</span>
+    <div style={{background:clrW.bg,borderRadius:10,padding:"12px 10px",
+      border:`1px solid ${clrW.border}`,marginTop:8}}>
+      {/* 헤더: 라벨 + 화살표 */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
+        <span style={{fontSize:9,color:clrW.color,fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>단어</span>
         <div style={{display:"flex",gap:4}}>
-          <button onClick={prevWord} style={{width:24,height:24,background:"#1A4E7A22",border:"1px solid #2E6FA544",borderRadius:5,cursor:"pointer",fontSize:12,color:"#1A4E7A",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
-          <button onClick={nextWord} style={{width:24,height:24,background:"#1A4E7A22",border:"1px solid #2E6FA544",borderRadius:5,cursor:"pointer",fontSize:12,color:"#1A4E7A",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
+          <button onClick={prevWord} style={{
+            width:26,height:26,borderRadius:6,cursor:"pointer",
+            background:clrW.bg,border:`1px solid ${clrW.border}`,
+            color:clrW.color,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",
+          }}>‹</button>
+          <button onClick={nextWord} style={{
+            width:26,height:26,borderRadius:6,cursor:"pointer",
+            background:clrW.bg,border:`1px solid ${clrW.border}`,
+            color:clrW.color,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",
+          }}>›</button>
         </div>
       </div>
-      <div style={{fontFamily:"'Libre Baskerville',Georgia,serif",fontSize:16,color:"#1A3A6A",fontWeight:600,marginBottom:5}}>{current.word}</div>
-      <div style={{fontSize:12,color:"#2E5A8A",lineHeight:1.5,marginBottom:10}}>{current.meaning}</div>
-      <div style={{display:"flex",gap:6,marginBottom:6}}>
+      {/* 단어 */}
+      <div style={{fontFamily:"'KoPub Batang',Georgia,serif",fontSize:15,color:"#0F3058",
+        fontWeight:700,marginBottom:4}}>{current.word}</div>
+      <div style={{fontSize:11,color:"#1A4E7A",lineHeight:1.5,marginBottom:12}}>{current.meaning}</div>
+      {/* O / X 버튼 */}
+      <div style={{display:"flex",gap:6}}>
         <button onClick={markKnown} style={{
-          flex:1,aspectRatio:"1",padding:"0",borderRadius:7,cursor:"pointer",fontSize:14,fontWeight:700,
-          background:"#1A4E7A",border:"none",color:"white",height:38,
-        }} title="알아요">O</button>
+          flex:1,height:34,borderRadius:7,cursor:"pointer",fontSize:13,fontWeight:700,
+          background:"#1A4E7A",border:"none",color:"white",
+        }}>O</button>
         <button onClick={nextWord} style={{
-          flex:1,aspectRatio:"1",padding:"0",borderRadius:7,cursor:"pointer",fontSize:14,fontWeight:700,
-          background:"#E8F2FA",border:"1px solid #2E6FA555",color:"#1A4E7A",height:38,
-        }} title="모르겠어요">X</button>
+          flex:1,height:34,borderRadius:7,cursor:"pointer",fontSize:13,fontWeight:700,
+          background:clrW.bg,border:`1px solid ${clrW.border}`,color:clrW.color,
+        }}>X</button>
       </div>
-      <div style={{fontSize:9,color:"#2E6FA5",textAlign:"right"}}>{known.size}개 완료 / {TOEIC_WORDS.length}개</div>
     </div>
   );
 }

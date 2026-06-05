@@ -220,13 +220,13 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd, isMobile }) {
           const isWknd=d.getDay()===0||d.getDay()===6;
           return (
             <div key={i} onClick={()=>onAdd(ds,9)} style={{
-              height:isMobile?90:110,overflow:"hidden",minWidth:0,borderRadius:8,padding:"4px 4px",cursor:"pointer",
+              height:isMobile?80:122,overflow:"hidden",minWidth:0,borderRadius:8,padding:"4px 4px",cursor:"pointer",
               background:isToday?T.accent+"18":T.bgCard,
               border:`1px solid ${isToday?T.accent+"55":T.border}`,transition:"border-color .12s",
             }}
             onMouseEnter={e=>{if(!isToday)e.currentTarget.style.borderColor=T.accent+"55";}}
             onMouseLeave={e=>{if(!isToday)e.currentTarget.style.borderColor=T.border;}}>
-              <div style={{fontSize:isMobile?9:11,fontWeight:isToday?700:400,marginBottom:2,
+              <div style={{fontSize:isMobile?7:11,fontWeight:isToday?700:400,marginBottom:2,
                 color:isToday?T.accent:isWknd?d.getDay()===0?"#C0443A":"#2E6FA5":T.text}}>
                 {d.getDate()}
               </div>
@@ -234,7 +234,7 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd, isMobile }) {
                 const cat=catOf(ev.category,ev.sub_category);
                 return (
                   <div key={ev.id} onClick={e=>{e.stopPropagation();onOpen(ev);}} style={{
-                    fontSize:isMobile?9:11,marginBottom:2,padding:"2px 5px",borderRadius:4,cursor:"pointer",
+                    fontSize:isMobile?7:11,marginBottom:2,padding:"1px 3px",borderRadius:4,cursor:"pointer",
                     background:cat.bg,color:cat.text,border:`1px solid ${cat.color}33`,
                     whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
                   }}>{ev.title}</div>
@@ -307,7 +307,7 @@ function YearView({ curDate, events, onOpen }) {
       )}
 
       {/* 12개월 미니 달력 */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gridTemplateRows:"repeat(4,1fr)",gap:6,flex:1,minHeight:0}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gridTemplateRows:"repeat(3,1fr)",gap:8,flex:1,minHeight:0}}>
         {Array.from({length:12},(_,m)=>m).map(m=>{
           const cells=getMonthCells(new Date(year,m,1));
           return (
