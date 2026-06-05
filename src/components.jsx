@@ -28,7 +28,7 @@ export function LiveClock() {
     return () => clearInterval(id);
   }, []);
   return (
-    <span style={{fontSize:12,color:"#9E9E9E",fontFamily:"'Noto Sans KR',sans-serif",fontWeight:300,letterSpacing:.5}}>
+    <span style={{fontSize:10,color:T.textMute,fontFamily:"'Noto Sans KR',sans-serif",fontWeight:400,letterSpacing:.3}}>
       {time}
     </span>
   );
@@ -988,10 +988,10 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
 // ─────────────────────────────────────────────────────
 export function WeightSection() {
   const { logs } = useWeightLogs();
-  const clr = { color:"#D4867E", bg:"#FEF5F4", text:"#9B3D33" };
+  const clr = { color:"#C0443A", bg:"#FDECEA", text:"#9B2E25" };
 
   if (!logs.length) return (
-    <div style={{background:clr.bg,borderRadius:10,padding:"12px 10px",border:"1px solid #D4867E22",marginBottom:8}}>
+    <div style={{background:clr.bg,borderRadius:10,padding:"12px 10px",border:"1px solid #C0443A22",marginBottom:8}}>
       <div style={{fontSize:9,color:clr.text,fontWeight:600,letterSpacing:.5,textTransform:"uppercase",marginBottom:4}}>체중</div>
       <div style={{fontSize:11,color:T.textMute}}>기록 없음</div>
     </div>
@@ -1013,7 +1013,7 @@ export function WeightSection() {
   };
 
   return (
-    <div style={{background:clr.bg,borderRadius:10,padding:"12px 10px",border:"1px solid #D4867E22",marginBottom:8}}>
+    <div style={{background:clr.bg,borderRadius:10,padding:"12px 10px",border:"1px solid #C0443A22",marginBottom:8}}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:7,alignItems:"center"}}>
         <span style={{fontSize:9,color:clr.text,fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>체중</span>
         <span style={{fontSize:9,color:clr.text,opacity:.7}}>{latest.weight}kg</span>
@@ -1063,25 +1063,25 @@ export function WordSection() {
   };
 
   if (pool.length === 0) return (
-    <div style={{background:"#FFFBEA",borderRadius:10,padding:"11px 12px",border:"1px solid #D4A01744",marginTop:8}}>
-      <div style={{fontSize:9,color:"#8C6A10",fontWeight:600,letterSpacing:.5,textTransform:"uppercase",marginBottom:8}}>단어</div>
+    <div style={{background:"#FBF8E3",borderRadius:10,padding:"11px 12px",border:"1px solid #B0952044",marginTop:8}}>
+      <div style={{fontSize:9,color:"#7A6A10",fontWeight:600,letterSpacing:.5,textTransform:"uppercase",marginBottom:8}}>단어</div>
       <div style={{fontSize:13,color:"#5C4200",marginBottom:8,fontWeight:500}}>모든 단어 완료 🎉</div>
       <div style={{fontSize:11,color:"#7A5800",marginBottom:10}}>{known.size}개 모두 알고 있어요</div>
-      <button onClick={reset} style={{width:"100%",padding:"7px",borderRadius:7,cursor:"pointer",background:"#D4A01722",border:"1px solid #D4A01744",color:"#8C6A10",fontSize:11}}>초기화</button>
+      <button onClick={reset} style={{width:"100%",padding:"7px",borderRadius:7,cursor:"pointer",background:"#B0952022",border:"1px solid #B0952044",color:"#7A6A10",fontSize:11}}>초기화</button>
     </div>
   );
 
   return (
-    <div style={{background:"#FFFBEA",borderRadius:10,padding:"11px 12px",border:"1px solid #D4A01744",marginTop:8}}>
+    <div style={{background:"#FBF8E3",borderRadius:10,padding:"11px 12px",border:"1px solid #B0952044",marginTop:8}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-        <span style={{fontSize:9,color:"#8C6A10",fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>단어</span>
+        <span style={{fontSize:9,color:"#7A6A10",fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>단어</span>
         <div style={{display:"flex",gap:4}}>
           <button onClick={prevWord} style={{background:"transparent",border:"1px solid #D4A01744",borderRadius:5,padding:"1px 7px",cursor:"pointer",fontSize:11,color:"#8C6A10"}}>‹</button>
           <button onClick={nextWord} style={{background:"transparent",border:"1px solid #D4A01744",borderRadius:5,padding:"1px 7px",cursor:"pointer",fontSize:11,color:"#8C6A10"}}>›</button>
         </div>
       </div>
-      <div style={{fontFamily:"'Libre Baskerville',Georgia,serif",fontSize:16,color:"#5C4200",fontWeight:600,marginBottom:5}}>{current.word}</div>
-      <div style={{fontSize:12,color:"#7A5800",lineHeight:1.5,marginBottom:10}}>{current.meaning}</div>
+      <div style={{fontFamily:"'Libre Baskerville',Georgia,serif",fontSize:16,color:"#4A3C00",fontWeight:600,marginBottom:5}}>{current.word}</div>
+      <div style={{fontSize:12,color:"#6A5200",lineHeight:1.5,marginBottom:10}}>{current.meaning}</div>
       <div style={{display:"flex",gap:6,marginBottom:6}}>
         <button onClick={markKnown} style={{
           flex:1,padding:"8px",borderRadius:7,cursor:"pointer",fontSize:15,fontWeight:700,
@@ -1092,7 +1092,7 @@ export function WordSection() {
           background:"#C0443A22",border:"1px solid #C0443A55",color:"#9B2E25",
         }} title="모르겠어요">X</button>
       </div>
-      <div style={{fontSize:9,color:"#B09040",textAlign:"right"}}>{known.size}개 완료 / {TOEIC_WORDS.length}개</div>
+      <div style={{fontSize:9,color:"#9A8030",textAlign:"right"}}>{known.size}개 완료 / {TOEIC_WORDS.length}개</div>
     </div>
   );
 }

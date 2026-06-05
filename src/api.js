@@ -11,7 +11,6 @@ export const supabase = createClient(
 );
 
 // ── 모바일 감지 훅 ──────────────────────────────────
-export function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" ? window.innerWidth < 768 : false
   );

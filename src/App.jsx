@@ -1,17 +1,28 @@
 /* ─────────────────────────────────────────────────────
    APP.JSX — 캘린더 뷰, 아카이브 뷰, 메인 Yamlog 컴포넌트
 ───────────────────────────────────────────────────── */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   T, CATS, VIEWS, WEEKDAYS, MONTHS_KR, HOURS,
   today, catOf, dateStr, getWeekDays, getMonthCells,
 } from "./constants.js";
-import { useEvents, useIsMobile, addEvent } from "./api.js";
+import { useEvents, addEvent } from "./api.js";
 import {
   LiveClock, TaskChip, DetailModal, AddModal,
   WeightSection, WordSection,
   BriefingView, BottomTabBar,
 } from "./components.jsx";
+
+// useIsMobile - UI hook, belongs here not in api.js (SoC fix)
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== "undefined" ? window.innerWidth < 768 : false);
+  useEffect(() => {
+    const fn = () => setM(window.innerWidth < 768);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return m;
+}
 
 const todayStr = dateStr(today);
 
@@ -29,6 +40,13 @@ function getISOWeek(date) {
 // ─────────────────────────────────────────────────────
 function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
   const days = useMemo(() => getWeekDays(curDate), [curDate]);
+  const [showNight, setShowNight] = useState(false);
+  const [nowHour,   setNowHour]   = useState(() => new Date().getHours());
+  useEffect(() => {
+    const id = setInterval(() => setNowHour(new Date().getHours()), 60000);
+    return () => clearInterval(id);
+  }, []);
+  const visibleHours = showNight ? HOURS : HOURS.filter(h => h >= 7);
 
   return (
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
@@ -41,7 +59,8 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
         <div style={{width:28,flexShrink:0}}/>
         {days.map((d,i)=>{
           const ds=dateStr(d), isToday=ds===todayStr;
-          const isWknd=d.getDay()===0||d.getDay()===6;
+          const dow=d.getDay();
+          const wkndColor=dow===0?"#C0443A":dow===6?"#2E6FA5":null;
           return (
             <div key={i} style={{flex:1,textAlign:"center",padding:"4px 2px"}}>
               <div style={{
@@ -49,10 +68,10 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
                 background:isToday?T.accent:"transparent",
                 borderRadius:8,padding:"4px 5px",minWidth:30,
               }}>
-                <div style={{fontSize:9,color:isToday?"#fff":isWknd?d.getDay()===0?"#C0443A":"#2E6FA5":T.textMute}}>
-                  {WEEKDAYS[d.getDay()]}
+                <div style={{fontSize:9,color:isToday?"#fff":wkndColor||T.textMute}}>
+                  {WEEKDAYS[dow]}
                 </div>
-                <div style={{fontSize:13,fontWeight:isToday?700:400,color:isToday?"#fff":T.text}}>
+                <div style={{fontSize:13,fontWeight:isToday?700:400,color:isToday?"#fff":wkndColor||T.text}}>
                   {d.getDate()}
                 </div>
               </div>
@@ -61,9 +80,19 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
         })}
       </div>
 
+      {/* 0-6시 접기/펼치기 토글 */}
+      <div style={{display:"flex",justifyContent:"flex-start",padding:"2px 4px 2px 28px",background:T.bg,flexShrink:0}}>
+        <button onClick={()=>setShowNight(s=>!s)} style={{
+          fontSize:9,color:T.textMute,background:"transparent",border:`1px solid ${T.border}`,
+          borderRadius:4,padding:"2px 8px",cursor:"pointer",lineHeight:1.4,
+        }}>
+          {showNight?"▲ 0-6시 접기":"▼ 0-6시 펼치기"}
+        </button>
+      </div>
+
       {/* 시간 그리드 — 전체가 하나로 스크롤 */}
       <div style={{flex:1,overflowY:"auto"}}>
-        {HOURS.map(h=>(
+        {visibleHours.map(h=>(
           <div key={h} style={{display:"flex",minHeight:44,borderBottom:`1px solid ${T.border}`}}>
             {/* 시간 레이블 */}
             <div style={{
@@ -75,6 +104,7 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
             {/* 날짜별 셀 */}
             {days.map((d,i)=>{
               const ds=dateStr(d), isToday=ds===todayStr;
+              const isCurrentSlot=isToday&&h===nowHour;
               const evs=events.filter(e=>
                 e.date===ds&&e.hour===h&&(filterCat==="all"||e.category===filterCat)
               );
@@ -84,10 +114,11 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
                   style={{
                     flex:1,minWidth:0,borderLeft:`1px solid ${T.border}`,
                     padding:"2px 2px",cursor:"pointer",
-                    background:isToday?T.accent+"08":"transparent",
+                    background:isCurrentSlot?"#6B7C3A28":isToday?T.accent+"08":"transparent",
+                    borderTop:isCurrentSlot?`2px solid ${T.accent}`:"none",
                   }}
-                  onMouseEnter={e=>e.currentTarget.style.background=isToday?T.accent+"14":T.bgSub}
-                  onMouseLeave={e=>e.currentTarget.style.background=isToday?T.accent+"08":"transparent"}
+                  onMouseEnter={e=>e.currentTarget.style.background=isCurrentSlot?"#6B7C3A38":isToday?T.accent+"14":T.bgSub}
+                  onMouseLeave={e=>e.currentTarget.style.background=isCurrentSlot?"#6B7C3A28":isToday?T.accent+"08":"transparent"}
                 >
                   {evs.map(ev=>{
                     const cat=catOf(ev.category,ev.sub_category);
@@ -131,14 +162,14 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd }) {
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
         {cells.map((d,i)=>{
-          if(!d) return <div key={i}/>;
+          if(!d) return <div key={i} style={{minWidth:0}}/>;
           const ds=dateStr(d), isToday=ds===todayStr;
           const allEvs=events.filter(e=>e.date===ds&&(filterCat==="all"||e.category===filterCat));
           const todoEvs=allEvs.filter(e=>!e.done), doneEvs=allEvs.filter(e=>e.done);
           const isWknd=d.getDay()===0||d.getDay()===6;
           return (
             <div key={i} onClick={()=>onAdd(ds,9)} style={{
-              minHeight:80,borderRadius:8,padding:"4px 5px",cursor:"pointer",
+              height:80,overflow:"hidden",minWidth:0,borderRadius:8,padding:"4px 4px",cursor:"pointer",
               background:isToday?T.accent+"18":T.bgCard,
               border:`1px solid ${isToday?T.accent+"55":T.border}`,transition:"border-color .12s",
             }}
@@ -229,21 +260,23 @@ function YearView({ curDate, events, onOpen }) {
         {Array.from({length:12},(_,m)=>m).map(m=>{
           const cells=getMonthCells(new Date(year,m,1));
           return (
-            <div key={m} style={{background:T.bgCard,borderRadius:10,padding:"10px 8px",border:`1px solid ${T.border}`}}>
+            <div key={m} style={{background:T.bgCard,borderRadius:10,padding:"12px 10px",border:`1px solid ${T.border}`}}>
               <div style={{fontSize:11,fontWeight:600,color:T.textSub,marginBottom:6}}>{MONTHS_KR[m]}</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:1}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
                 {cells.map((d,i)=>{
-                  if(!d) return <div key={i}/>;
+                  if(!d) return <div key={i} style={{minWidth:0}}/>;
                   const ds=dateStr(d);
                   const hasEv=eventEvs.some(e=>e.date===ds);
                   const isSelected=clickedDay===ds;
                   const isTod=ds===todayStr;
+                  const ydow=d.getDay();
+                  const ywknd=ydow===0?"#C0443A":ydow===6?"#2E6FA5":null;
                   return (
                     <div key={i}
                       onClick={()=>hasEv&&setClickedDay(isSelected?null:ds)}
                       style={{
-                        fontSize:7,textAlign:"center",borderRadius:2,padding:"1px 0",
-                        color:isTod?T.accent:hasEv?eventCat.color:T.textMute,
+                        fontSize:9,textAlign:"center",borderRadius:2,padding:"3px 1px",
+                        color:isTod?T.accent:hasEv?eventCat.color:ywknd||T.textMute,
                         fontWeight:isTod||hasEv?700:400,
                         background:isSelected?eventCat.color+"22":isTod?T.accent+"22":"transparent",
                         cursor:hasEv?"pointer":"default",
@@ -533,17 +566,20 @@ export default function Yamlog() {
       display:"flex",flexDirection:"column",overflow:"hidden",
     }}>
       {/* 로고 */}
-      <div style={{padding:"22px 18px 14px",borderBottom:`1px solid ${T.border}`}}>
-        <div style={{fontFamily:"'Libre Baskerville',Georgia,serif",fontSize:18,fontWeight:700,color:T.text,letterSpacing:-.3,lineHeight:1,marginBottom:3}}>얌로그</div>
-        <LiveClock/>
-        <div style={{fontSize:10,color:T.textMute,marginTop:3,fontFamily:"'Noto Sans KR',sans-serif"}}>
-          {today.toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"short"})}
+      <div style={{padding:"20px 18px 14px",borderBottom:`1px solid ${T.border}`}}>
+        <div style={{fontFamily:"'Libre Baskerville',Georgia,serif",fontSize:22,fontWeight:700,color:T.text,letterSpacing:-.5,lineHeight:1,marginBottom:10}}>Yamlog</div>
+        <div style={{display:"flex",alignItems:"center",gap:6,fontFamily:"'Noto Sans KR',sans-serif",fontSize:10}}>
+          <span style={{color:T.accent,fontWeight:600}}>
+            {today.toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"short"})}
+          </span>
+          <span style={{color:T.textMute}}>·</span>
+          <LiveClock/>
         </div>
       </div>
 
       {/* 인용문 — 각 문장 끝 줄바꿈, 문단 사이 빈줄 없음 */}
       <div style={{padding:"16px 18px 14px",borderBottom:`1px solid ${T.border}`}}>
-        <div style={{fontSize:13,color:T.text,lineHeight:2,fontFamily:"'Noto Sans KR',sans-serif",fontWeight:500}}>
+        <div style={{fontSize:13,color:T.text,lineHeight:1.55,fontFamily:"'Noto Sans KR',sans-serif",fontWeight:500}}>
           탁월함은 일시적 행위가 아니라<br/>
           우리를 정의하는 습관이다.<br/>
           이는 곧 중용의 태도이자<br/>
