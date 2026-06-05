@@ -376,7 +376,7 @@ function TaskChip({ ev, compact=false, onOpen }) {
 /* ─────────────────────────────────────────────────────
    DAY VIEW
 ───────────────────────────────────────────────────── */
-function DayView({ date, filterCat, onOpen }) {
+function DayView({ date, filterCat, onOpen, events=[] }) {
   const ds = dateStr(date);
   const [showEarly, setShowEarly] = useState(false);
   const earlyHours = [0,1,2,3,4,5,6,7];
@@ -384,7 +384,7 @@ function DayView({ date, filterCat, onOpen }) {
   const nowH = today.getHours ? today.getHours() : -1;
 
   const renderRow = (h) => {
-    const evs = EVENTS.filter(e=>e.date===ds&&e.hour===h&&(filterCat==="all"||e.cat===filterCat));
+    const evs = events.filter(e=>e.date===ds&&e.hour===h&&(filterCat==="all"||e.category===filterCat));
     const isNow = ds===dateStr(today)&&h===nowH;
     return (
       <div key={h} style={{display:"flex",gap:12,minHeight:52,borderBottom:`1px solid ${T.border}`,padding:"5px 0"}}>
@@ -400,7 +400,7 @@ function DayView({ date, filterCat, onOpen }) {
   };
 
   const earlyEvCount = earlyHours.reduce((acc,h)=>
-    acc+EVENTS.filter(e=>e.date===ds&&e.hour===h&&(filterCat==="all"||e.cat===filterCat)).length,0);
+    acc+events.filter(e=>e.date===ds&&e.hour===h&&(filterCat==="all"||e.category===filterCat)).length,0);
 
   return (
     <div style={{overflowY:"auto",maxHeight:"calc(100vh - 155px)",paddingRight:4}}>
@@ -435,7 +435,7 @@ function WeekView({ date, filterCat, onOpen, events=[] }) {
 
   const earlyEvCount = earlyHours.reduce((acc,h)=>
     acc+days.reduce((a2,d)=>
-      a2+EVENTS.filter(e=>e.date===dateStr(d)&&e.hour===h&&(filterCat==="all"||e.cat===filterCat)).length,0),0);
+      a2+events.filter(e=>e.date===dateStr(d)&&e.hour===h&&(filterCat==="all"||e.category===filterCat)).length,0),0);
 
   const renderRow = (h) => (
     <div key={h} style={{
@@ -453,7 +453,7 @@ function WeekView({ date, filterCat, onOpen, events=[] }) {
       </div>
       {/* day columns */}
       {days.map((d,i)=>{
-        const evs=EVENTS.filter(e=>e.date===dateStr(d)&&e.hour===h&&(filterCat==="all"||e.cat===filterCat));
+        const evs=events.filter(e=>e.date===dateStr(d)&&e.hour===h&&(filterCat==="all"||e.category===filterCat));
         const isLastCol = i===6;
         return (
           <div key={i} style={{
@@ -461,7 +461,7 @@ function WeekView({ date, filterCat, onOpen, events=[] }) {
             borderRight:"0.5px solid rgba(228,221,211,0.22)",
           }}>
             {evs.map(ev=>{
-              const cat=catOf(ev.cat);
+              const cat=catOf(ev.category||ev.cat, ev.sub_category||ev.sub);
               return (
                 <div key={ev.id} onClick={()=>onOpen(ev)} title={ev.title} style={{
                   fontSize:11,padding:"3px 7px",borderRadius:5,marginBottom:2,
@@ -587,7 +587,7 @@ function MonthView({ date, filterCat, onDayClick, onOpen, events=[] }) {
           // Split: todo first, done at bottom
           const todoEvs=allEvs.filter(e=>!e.done);
           const doneEvs=allEvs.filter(e=>e.done);
-          const uniqueCats=[...new Set(todoEvs.map(e=>e.cat))];
+          const uniqueCats=[...new Set(todoEvs.map(e=>e.category))];
           return (
             <div key={i} onClick={()=>onDayClick(d)} style={{
               padding:"6px 7px 4px",borderRadius:10,cursor:"pointer",
@@ -615,7 +615,7 @@ function MonthView({ date, filterCat, onDayClick, onOpen, events=[] }) {
               {/* Todo items — normal */}
               <div style={{flex:1,overflow:"hidden"}}>
                 {todoEvs.slice(0,2).map(ev=>{
-                  const cat=catOf(ev.cat);
+                  const cat=catOf(ev.category||ev.cat, ev.sub_category||ev.sub);
                   return (
                     <div key={ev.id} onClick={e=>{e.stopPropagation();onOpen(ev);}} style={{
                       fontSize:9,color:cat.text,marginBottom:2,
@@ -691,7 +691,7 @@ function YearView({ date, filterCat, onOpen, events=[] }) {
                   const ds=dateStr(d);
                   const evs=eventsByDate[ds]||[];
                   const isToday=ds===todayStr;
-                  const cats=[...new Set(evs.map(e=>e.cat))];
+                  const cats=[...new Set(evs.map(e=>e.category))];
                   const hasEvs=evs.length>0;
 
                   let bg="transparent";
@@ -750,7 +750,7 @@ function YearView({ date, filterCat, onOpen, events=[] }) {
             {tooltip.d.getMonth()+1}월 {tooltip.d.getDate()}일
           </div>
           {tooltip.evs.map(ev=>{
-            const cat=catOf(ev.cat);
+            const cat=catOf(ev.category||ev.cat, ev.sub_category||ev.sub);
             return (
               <div key={ev.id} style={{display:"flex",alignItems:"flex-start",gap:7,marginBottom:7}}>
                 <div style={{
@@ -798,128 +798,7 @@ function LiveClock() {
    RANDOM REVIEW CARD  (sidebar bottom)
 ───────────────────────────────────────────────────── */
 function RandomReview({ events, onOpen }) {
-  const pool = events.filter(e=>e.cat==="archive"||(e.cat==="review"&&e.sub==="북"));
-  const [idx, setIdx] = useState(()=>Math.floor(Math.random()*Math.max(pool.length,1)));
-  if(!pool.length) return null;
-  const ev = pool[idx % pool.length];
-  const cat = catOf(ev.category||ev.cat, ev.sub_category||ev.sub);
-  const snippet = ev.detail ? ev.detail.split("\n").slice(0,2).join(" · ") : ev.title;
-  return (
-    <div style={{background:cat.bg,borderRadius:10,padding:"11px 12px",border:`1px solid ${cat.color}22`,marginTop:8}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-        <span style={{fontSize:9,color:cat.text,fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>리뷰</span>
-        <button onClick={()=>setIdx(i=>(i+1)%pool.length)} style={{
-          background:"transparent",border:`1px solid ${cat.color}44`,
-          borderRadius:6,padding:"2px 7px",cursor:"pointer",
-          fontSize:9,color:T.textSub,
-        }}>다음</button>
-      </div>
-      <div
-        onClick={()=>onOpen&&onOpen(ev)}
-        style={{
-          fontSize:12,color:T.text,fontWeight:500,marginBottom:4,lineHeight:1.4,
-          cursor:"pointer",
-          textDecoration:"underline",textDecorationColor:cat.color+"66",
-          textUnderlineOffset:2,
-        }}
-      >{ev.title}</div>
-      {snippet&&snippet!==ev.title&&(
-        <div style={{fontSize:10,color:T.textSub,lineHeight:1.5,
-          display:"-webkit-box",WebkitLineClamp:3,WebkitBoxOrient:"vertical",overflow:"hidden"
-        }}>{snippet}</div>
-      )}
-      <div style={{fontSize:9,color:T.textMute,marginTop:5}}>{cat.label} · {ev.date}</div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────
-   WEIGHT CHART — Supabase 연동
-───────────────────────────────────────────────────── */
-function WeightSection() {
-  const { logs } = useWeightLogs();
-  const catHealth = {color:"#D4867E", bg:"#FEF5F4"};
-
-  if(!logs.length) return (
-    <div style={{background:T.bgCard,borderRadius:10,padding:"12px 10px",border:`1px solid ${T.border}`,marginBottom:8}}>
-      <div style={{fontSize:9,color:T.textSub,fontWeight:600,letterSpacing:.5,textTransform:"uppercase",marginBottom:4}}>체중</div>
-      <div style={{fontSize:11,color:T.textMute}}>기록 없음</div>
-    </div>
-  );
-
-  const latest = logs[logs.length-1];
-  const chartData = logs.map(l=>({
-    label: `${new Date(l.date).getMonth()+1}/${new Date(l.date).getDate()}`,
-    weight: l.weight,
-    actual: true,
-  }));
-  const min = Math.min(...logs.map(l=>l.weight)) - .8;
-  const max = Math.max(...logs.map(l=>l.weight)) + .5;
-  const avg = +(logs.reduce((a,l)=>a+l.weight,0)/logs.length).toFixed(1);
-
-  const CustomDot=(props)=>{
-    const{cx,cy}=props;
-    return <circle cx={cx} cy={cy} r={4} fill={catHealth.color} stroke={T.bgCard} strokeWidth={2}/>;
-  };
-  const CustomTip=({active,payload})=>{
-    if(!active||!payload?.length)return null;
-    const d=payload[0].payload;
-    return(
-      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 10px",fontSize:11}}>
-        <div style={{color:T.textMute}}>{d.label}</div>
-        <div style={{color:catHealth.color,fontWeight:700}}>{d.weight}kg</div>
-      </div>
-    );
-  };
-
-  return(
-    <div style={{background:catHealth.bg,borderRadius:10,padding:"12px 10px",border:`1px solid ${catHealth.color}22`,marginBottom:8}}>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:7,alignItems:"center"}}>
-        <span style={{fontSize:9,color:"#9B3D33",fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>체중</span>
-        <span style={{fontSize:9,color:"#9B3D33",fontWeight:400,opacity:.7}}>{latest.weight}kg</span>
-      </div>
-      <ResponsiveContainer width="100%" height={90}>
-        <LineChart data={chartData} margin={{top:2,right:4,left:-28,bottom:0}}>
-          <CartesianGrid strokeDasharray="3 3" stroke={T.border}/>
-          <XAxis dataKey="label" tick={{fontSize:8,fill:T.textMute}} interval={Math.floor(logs.length/3)}/>
-          <YAxis domain={[min,max]} tick={{fontSize:8,fill:T.textMute}}/>
-          <Tooltip content={<CustomTip/>}/>
-          <ReferenceLine y={avg} stroke={catHealth.color+"55"} strokeDasharray="3 3"/>
-          <Line type="monotone" dataKey="weight" stroke={catHealth.color} strokeWidth={1.5} dot={<CustomDot/>} activeDot={{r:4}}/>
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-
-/* ─────────────────────────────────────────────────────
-   LIVE CLOCK  (sidebar today card)
-───────────────────────────────────────────────────── */
-function LiveClock() {
-  const [time, setTime] = useState(()=>{
-    const n=new Date();
-    return `${String(n.getHours()).padStart(2,"0")}:${String(n.getMinutes()).padStart(2,"0")}`;
-  });
-  useState(()=>{
-    const id=setInterval(()=>{
-      const n=new Date();
-      setTime(`${String(n.getHours()).padStart(2,"0")}:${String(n.getMinutes()).padStart(2,"0")}`);
-    },30000);
-    return ()=>clearInterval(id);
-  });
-  return (
-    <span style={{fontSize:12,color:"#9E9E9E",fontFamily:"'Noto Sans KR',sans-serif",fontWeight:300,letterSpacing:.5}}>
-      {time}
-    </span>
-  );
-}
-
-/* ─────────────────────────────────────────────────────
-   RANDOM REVIEW CARD  (sidebar bottom)
-───────────────────────────────────────────────────── */
-function RandomReview({ events, onOpen }) {
-  const pool = events.filter(e=>e.cat==="archive"||(e.cat==="review"&&e.sub==="북"));
+  const pool = events.filter(e=>e.category==="archive"||(e.category==="archive"&&e.sub_category==="review"&&e.sub==="북"));
   const [idx, setIdx] = useState(()=>Math.floor(Math.random()*Math.max(pool.length,1)));
   if(!pool.length) return null;
   const ev = pool[idx % pool.length];
@@ -1379,6 +1258,8 @@ function AddModal({ onClose, onSaved }) {
 /* ─────────────────────────────────────────────────────
    BRIEFING — 폴백용 상수 (Supabase 데이터 없을 때만 사용)
 ───────────────────────────────────────────────────── */
+const BRIEFING_HEADLINE = "오늘의 핵심 한 줄을 불러오는 중입니다.";
+
 const BRIEFING_FALLBACK = {
   headline: "브리핑을 불러오는 중입니다. 잠시 후 다시 확인해주세요.",
   sections: [
