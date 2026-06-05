@@ -49,6 +49,27 @@ export const KNOWN_SUBS = [
   "book","wine","coffee",
 ];
 
+// 아카이브 4섹션 정의 (색상·subs 포함) — ArchiveView, ArchiveEntryCard 공통
+export const ARCHIVE_SECTS = [
+  { id:"health",  label:"건강", color:"#4A8A5A", bg:"#EBF5EE", text:"#2E6640",
+    subs:["weight","diet","weight_training","cardio"] },
+  { id:"economy", label:"경제", color:"#2E6FA5", bg:"#E8F2FA", text:"#1A4E7A",
+    subs:["economy"] },
+  { id:"review",  label:"리뷰", color:"#1A4080", bg:"#E5EAF5", text:"#0F2A60",
+    subs:["book","wine","coffee"] },
+  { id:"etc",     label:"기타", color:"#7E4FA0", bg:"#F3EBF8", text:"#5A2E80",
+    subs:null },
+];
+
+// 하단 탭바 아이콘/색상 — BottomTabBar 전용
+export const TAB_ITEMS = [
+  { id:"all",      label:"홈",      icon:"🏠", color:"#8C8077" },
+  { id:"briefing", label:"브리핑",  icon:"📋", color:"#6B7C3A" },
+  { id:"schedule", label:"일정",    icon:"✅",  color:"#C0443A" },
+  { id:"event",    label:"이벤트",  icon:"🎞",  color:"#B09520" },
+  { id:"archive",  label:"아카이브", icon:"🗂",  color:"#4A8A5A" },
+];
+
 // ── View constants ──────────────────────────────────
 export const VIEWS     = ["주","월","년"];
 export const WEEKDAYS  = ["일","월","화","수","목","금","토"];

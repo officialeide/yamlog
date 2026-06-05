@@ -8,7 +8,7 @@ import {
 } from "recharts";
 import {
   T, CATS, ARCHIVE_SUBS, HEALTH_SUBS, REVIEW_SUBS,
-  TOEIC_WORDS, catOf, dateStr, KNOWN_SUBS,
+  TOEIC_WORDS, catOf, dateStr, KNOWN_SUBS, TAB_ITEMS,
 } from "./constants.js";
 import { supabase, useWeightLogs, updateEvent, upsertWeight, deleteEvent, deleteWeight } from "./api.js";
 
@@ -236,7 +236,7 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight }) {
         </div>
       );
       if (f.origin||f.grape) rows.push(<div key="wmeta" style={{fontSize:10,color:T.textMute,marginBottom:5}}>{f.origin}{f.origin&&f.grape&&" · "}{f.grape}</div>);
-      if (f.alcohol) rows.push(<div key="walc" style={{fontSize:11,color:T.textMute,marginBottom:4}}>🍷 도수 {f.alcohol}</div>);
+      if (f.alcohol) rows.push(<div key="walc" style={{fontSize:11,color:T.textMute,marginBottom:4}}>도수 {f.alcohol}</div>);
       if (f.sweetness||f.acidity||f.tannin||f.body||f.score) rows.push(
         <div key="wtaste" style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:5,marginTop:2,alignItems:"center"}}>
           {[["sweetness","당도"],["acidity","산도"],["tannin","타닌"],["body","바디"],["score","총점"]].filter(([k])=>f[k]).map(([k,label])=>(
@@ -1276,13 +1276,7 @@ export function BriefingView(){
 // BOTTOM TAB BAR — 사이드바와 동일 구성 (전체/브리핑/일정/이벤트/아카이브)
 // ─────────────────────────────────────────────────────
 export function BottomTabBar({ filterCat, showBriefing, setFilterCat, setShowBriefing }) {
-  const tabs = [
-    { id:"all",      label:"홈",      icon:"🏠", color:T.textSub },
-    { id:"briefing", label:"브리핑",  icon:"📋", color:"#6B7C3A" },
-    { id:"schedule", label:"일정",    icon:"✅",  color:"#C0443A" },
-    { id:"event",    label:"이벤트",  icon:"🎞",  color:"#B09520" },
-    { id:"archive",  label:"아카이브", icon:"🗂",  color:"#4A8A5A" },
-  ];
+  const tabs = TAB_ITEMS;
   return (
     <div style={{
       position:"fixed",bottom:0,left:0,right:0,zIndex:200,

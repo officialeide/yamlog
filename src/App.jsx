@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   T, CATS, VIEWS, WEEKDAYS, MONTHS_KR, HOURS,
-  catOf, dateStr, getWeekDays, getMonthCells, KNOWN_SUBS,
+  catOf, dateStr, getWeekDays, getMonthCells, KNOWN_SUBS, ARCHIVE_SECTS,
 } from "./constants.js";
 import { useEvents, addEvent, useWeightLogs } from "./api.js";
 import {
@@ -552,6 +552,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
               {f.wineName||ev.title}
             </div>
             {f.vintage&&<div style={{marginBottom:2}}><span style={{fontSize:11,color:T.textMute}}>빈티지 </span><span style={{fontSize:11,color:T.text}}>{f.vintage}</span></div>}
+            {f.alcohol&&<div style={{marginBottom:2}}><span style={{fontSize:11,color:T.textMute}}>도수 </span><span style={{fontSize:11,color:T.text}}>{f.alcohol}</span></div>}
             {(f.origin||f.grape)&&<div style={{marginBottom:4}}>
               {f.origin&&<span><span style={{fontSize:11,color:T.textMute}}>생산지 </span><span style={{fontSize:11,color:T.text}}>{f.origin}</span></span>}
               {f.origin&&f.grape&&<span style={{color:T.textMute}}> · </span>}
@@ -606,12 +607,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
 // ─────────────────────────────────────────────────────
 // ARCHIVE VIEW — 초/파/남/보 색상, 4섹션 탭
 // ─────────────────────────────────────────────────────
-const ARCHIVE_SECTS = [
-  { id:"health",  label:"건강", color:"#4A8A5A", bg:"#EBF5EE", text:"#2E6640",  subs:["weight","diet","weight_training","cardio"] },
-  { id:"economy", label:"경제", color:"#2E6FA5", bg:"#E8F2FA", text:"#1A4E7A",  subs:["economy"] },
-  { id:"review",  label:"리뷰", color:"#1A4080", bg:"#E5EAF5", text:"#0F2A60",  subs:["book","wine","coffee"] },
-  { id:"etc",     label:"기타", color:"#7E4FA0", bg:"#F3EBF8", text:"#5A2E80",  subs:null },
-];
+
 
 function ArchiveView({ events, onOpen, onAddFromArchive }) {
   const [activeSec, setActiveSec] = useState("health");
