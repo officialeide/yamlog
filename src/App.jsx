@@ -46,7 +46,7 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
     const id = setInterval(() => setNowHour(new Date().getHours()), 60000);
     return () => clearInterval(id);
   }, []);
-  const visibleHours = showNight ? HOURS : HOURS.filter(h => h >= 7);
+  const visibleHours = showNight ? HOURS : HOURS.filter(h => h >= 8);
 
   return (
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
@@ -86,7 +86,7 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
           fontSize:9,color:T.textMute,background:"transparent",border:`1px solid ${T.border}`,
           borderRadius:4,padding:"2px 8px",cursor:"pointer",lineHeight:1.4,
         }}>
-          {showNight?"▲ 0-6시 접기":"▼ 0-6시 펼치기"}
+          {showNight?"▲ 0-7시 접기":"▼ 0-7시 펼치기"}
         </button>
       </div>
 
@@ -160,7 +160,7 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd }) {
             color:i===0?"#C0443A":i===6?"#2E6FA5":T.textSub}}>{d}</div>
         ))}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:0,flex:1,alignContent:"start"}}>
         {cells.map((d,i)=>{
           if(!d) return <div key={i} style={{minWidth:0}}/>;
           const ds=dateStr(d), isToday=ds===todayStr;
@@ -169,7 +169,7 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd }) {
           const isWknd=d.getDay()===0||d.getDay()===6;
           return (
             <div key={i} onClick={()=>onAdd(ds,9)} style={{
-              height:80,overflow:"hidden",minWidth:0,borderRadius:8,padding:"4px 4px",cursor:"pointer",
+              height:110,overflow:"hidden",minWidth:0,borderRadius:8,padding:"5px 5px",cursor:"pointer",
               background:isToday?T.accent+"18":T.bgCard,
               border:`1px solid ${isToday?T.accent+"55":T.border}`,transition:"border-color .12s",
             }}
@@ -220,7 +220,7 @@ function YearView({ curDate, events, onOpen }) {
   const eventCat  = CATS.find(c => c.id === "event") || CATS[0];
 
   return (
-    <div>
+    <div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
       {/* 클릭된 날짜의 이벤트 상세 */}
       {clickedDay && dayDetail.length > 0 && (
         <div style={{
@@ -256,13 +256,13 @@ function YearView({ curDate, events, onOpen }) {
       )}
 
       {/* 12개월 미니 달력 */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gridTemplateRows:"repeat(4,1fr)",gap:10,flex:1}}>
         {Array.from({length:12},(_,m)=>m).map(m=>{
           const cells=getMonthCells(new Date(year,m,1));
           return (
-            <div key={m} style={{background:T.bgCard,borderRadius:10,padding:"12px 10px",border:`1px solid ${T.border}`}}>
+            <div key={m} style={{background:T.bgCard,borderRadius:10,padding:"14px 12px",border:`1px solid ${T.border}`,display:"flex",flexDirection:"column"}}>
               <div style={{fontSize:11,fontWeight:600,color:T.textSub,marginBottom:6}}>{MONTHS_KR[m]}</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:0,flex:1,alignContent:"start"}}>
                 {cells.map((d,i)=>{
                   if(!d) return <div key={i} style={{minWidth:0}}/>;
                   const ds=dateStr(d);
@@ -275,11 +275,12 @@ function YearView({ curDate, events, onOpen }) {
                     <div key={i}
                       onClick={()=>hasEv&&setClickedDay(isSelected?null:ds)}
                       style={{
-                        fontSize:9,textAlign:"center",borderRadius:2,padding:"3px 1px",
-                        color:isTod?T.accent:hasEv?eventCat.color:ywknd||T.textMute,
+                        fontSize:10,textAlign:"center",borderRadius:"50%",padding:"4px 1px",lineHeight:1.5,
+                        color:isTod?T.bgCard:hasEv?"#6A4E00":ywknd||T.textMute,
                         fontWeight:isTod||hasEv?700:400,
-                        background:isSelected?eventCat.color+"22":isTod?T.accent+"22":"transparent",
+                        background:isSelected?"#B09520CC":isTod?T.accent:hasEv?"#B0952066":"transparent",
                         cursor:hasEv?"pointer":"default",
+                        border:"none",
                       }}
                     >{d.getDate()}</div>
                   );
@@ -351,15 +352,15 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
       case "economy":
         return (
           <div>
-            {f.index&&<div style={{marginBottom:4}}><span style={{fontSize:10,color:T.textMute}}>주요 지수 </span><span style={{fontSize:12,color:T.text,fontWeight:600}}>{f.index}</span></div>}
+            {f.index&&<div style={{marginBottom:4}}><span style={{fontSize:11,color:T.textMute}}>지수 </span><span style={{fontSize:11,color:T.text,fontWeight:600}}>{f.index}</span></div>}
             {f.keyword&&<div style={{marginBottom:6}}>
-              <span style={{fontSize:10,color:T.textMute,marginRight:4}}>키워드</span>
+              <span style={{fontSize:11,color:T.textMute,marginRight:4}}>키워드 </span>
               {f.keyword.split(/\s+/).filter(Boolean).map((kw,i)=>(
                 <span key={i} style={{display:"inline-block",marginRight:4,padding:"2px 7px",borderRadius:10,fontSize:10,background:accentColor+"18",color:accentColor,border:`1px solid ${accentColor}33`}}>{kw}</span>
               ))}
             </div>}
             {ev.detail&&<div style={{marginBottom:4}}><span style={{fontSize:10,color:T.textMute}}>요약 </span><span style={{fontSize:12,color:T.text,lineHeight:1.75}}>{ev.detail}</span></div>}
-            {f.watchlist&&<div style={{fontSize:11,color:T.textMute,marginTop:4}}>📌 내일 주목: {f.watchlist}</div>}
+            {f.watchlist&&<div style={{fontSize:11,color:T.textMute,marginTop:4}}>📌 {f.watchlist}</div>}
           </div>
         );
       case "book":
@@ -368,11 +369,11 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
             <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:3,fontFamily:"'Libre Baskerville',serif"}}>
               {f.bookTitle||ev.title}
             </div>
-            {f.author&&<div style={{marginBottom:2}}><span style={{fontSize:10,color:T.textMute}}>작가 </span><span style={{fontSize:11,color:T.text}}>{f.author}</span></div>}
+            {f.author&&<div style={{marginBottom:2}}><span style={{fontSize:11,color:T.textMute}}>작가 </span><span style={{fontSize:11,color:T.text}}>{f.author}</span></div>}
             {(f.genre||f.period)&&<div style={{marginBottom:4}}>
-              {f.genre&&<span><span style={{fontSize:10,color:T.textMute}}>장르 </span><span style={{fontSize:11,color:T.text}}>{f.genre}</span></span>}
+              {f.genre&&<span><span style={{fontSize:11,color:T.textMute}}>장르 </span><span style={{fontSize:11,color:T.text}}>{f.genre}</span></span>}
               {f.genre&&f.period&&<span style={{color:T.textMute}}> · </span>}
-              {f.period&&<span><span style={{fontSize:10,color:T.textMute}}>기간 </span><span style={{fontSize:11,color:T.text}}>{f.period}</span></span>}
+              {f.period&&<span><span style={{fontSize:11,color:T.textMute}}>기간 </span><span style={{fontSize:11,color:T.text}}>{f.period}</span></span>}
             </div>}
             {f.score&&<div style={{fontSize:13,color:accentColor,marginBottom:4}}>{"★".repeat(f.score)}{"☆".repeat(5-f.score)}</div>}
             {ev.detail&&<div style={{fontSize:12,color:T.textSub,lineHeight:1.7}}>{ev.detail}</div>}
@@ -384,11 +385,11 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
             <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:2,fontFamily:"'Libre Baskerville',serif"}}>
               {f.wineName||ev.title}
             </div>
-            {f.vintage&&<div style={{marginBottom:2}}><span style={{fontSize:10,color:T.textMute}}>빈티지 </span><span style={{fontSize:12,color:T.text}}>{f.vintage}</span></div>}
+            {f.vintage&&<div style={{marginBottom:2}}><span style={{fontSize:11,color:T.textMute}}>빈티지 </span><span style={{fontSize:11,color:T.text}}>{f.vintage}</span></div>}
             {(f.origin||f.grape)&&<div style={{marginBottom:4}}>
-              {f.origin&&<span><span style={{fontSize:10,color:T.textMute}}>생산지 </span><span style={{fontSize:11,color:T.text}}>{f.origin}</span></span>}
+              {f.origin&&<span><span style={{fontSize:11,color:T.textMute}}>생산지 </span><span style={{fontSize:11,color:T.text}}>{f.origin}</span></span>}
               {f.origin&&f.grape&&<span style={{color:T.textMute}}> · </span>}
-              {f.grape&&<span><span style={{fontSize:10,color:T.textMute}}>품종 </span><span style={{fontSize:11,color:T.text}}>{f.grape}</span></span>}
+              {f.grape&&<span><span style={{fontSize:11,color:T.textMute}}>품종 </span><span style={{fontSize:11,color:T.text}}>{f.grape}</span></span>}
             </div>}
             {f.score&&<div style={{fontSize:13,color:accentColor,marginBottom:4}}>{"★".repeat(f.score)}{"☆".repeat(5-f.score)}</div>}
             {ev.detail&&<div style={{fontSize:12,color:T.textSub}}>{ev.detail}</div>}
@@ -579,7 +580,7 @@ export default function Yamlog() {
 
       {/* 인용문 — 각 문장 끝 줄바꿈, 문단 사이 빈줄 없음 */}
       <div style={{padding:"16px 18px 14px",borderBottom:`1px solid ${T.border}`}}>
-        <div style={{fontSize:13,color:T.text,lineHeight:1.55,fontFamily:"'Noto Sans KR',sans-serif",fontWeight:500}}>
+        <div style={{fontSize:11,color:T.textSub,lineHeight:1.5,fontFamily:"'Noto Sans KR',sans-serif",fontWeight:400}}>
           탁월함은 일시적 행위가 아니라<br/>
           우리를 정의하는 습관이다.<br/>
           이는 곧 중용의 태도이자<br/>
