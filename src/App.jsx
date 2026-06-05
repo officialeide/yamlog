@@ -1230,9 +1230,9 @@ function BriefingSection({ section }) {
         <div style={{padding:"0 14px 12px",borderTop:`1px solid ${section.color}18`}}>
           {(() => {
             // DB 형식: { summary, lines } / 폴백 형식: { content: [...] }
-            const items = section.content
+            const items = Array.isArray(section.content) && section.content.length > 0
               ? section.content
-              : [section.summary, ...(section.lines||[])];
+              : [section.summary, ...(section.lines||[])].filter(Boolean);
             return items.filter(Boolean).map((line,i)=>(
               <div key={i} style={{
                 marginTop: i===0?10:7,
@@ -1666,63 +1666,68 @@ export default function Yamlog() {
 
         {/* Top bar */}
         <header style={{
-          display:"flex",alignItems:"center",gap:8,flexShrink:0,
-          padding:"12px 20px",
+          flexShrink:0,
           borderBottom:`1px solid ${T.border}`,
-          background:T.bg,zIndex:10,
+          background:T.bg, zIndex:10,
         }}>
-          <button onClick={()=>setSideOpen(s=>!s)} style={{
-            background:"transparent",border:"none",color:T.textMute,
-            cursor:"pointer",fontSize:16,padding:"5px 7px",borderRadius:7,
+          <div style={{
+            display:"flex", alignItems:"center", gap:isMobile?4:8,
+            padding:isMobile?"10px 10px":"12px 20px",
+            flexWrap:"nowrap", overflowX:"hidden",
           }}>
-            <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
-              <rect width="16" height="1.5" rx=".75" fill={T.textMute}/>
-              <rect y="5.25" width="16" height="1.5" rx=".75" fill={T.textMute}/>
-              <rect y="10.5" width="16" height="1.5" rx=".75" fill={T.textMute}/>
-            </svg>
-          </button>
-
-          <div style={{display:"flex",alignItems:"center",gap:4}}>
+            {!isMobile && (
+              <button onClick={()=>setSideOpen(s=>!s)} style={{
+                background:"transparent",border:"none",color:T.textMute,
+                cursor:"pointer",fontSize:16,padding:"5px 7px",borderRadius:7,flexShrink:0,
+              }}>
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
+                  <rect width="16" height="1.5" rx=".75" fill={T.textMute}/>
+                  <rect y="5.25" width="16" height="1.5" rx=".75" fill={T.textMute}/>
+                  <rect y="10.5" width="16" height="1.5" rx=".75" fill={T.textMute}/>
+                </svg>
+              </button>
+            )}
             <button onClick={()=>navigate(-1)} style={{
               background:T.bgCard,border:`1px solid ${T.border}`,
               color:T.textSub,cursor:"pointer",borderRadius:7,
-              padding:"5px 11px",fontSize:14,boxShadow:"0 1px 3px rgba(44,40,37,0.06)",
+              padding:"5px 9px",fontSize:14,flexShrink:0,
             }}>&#8249;</button>
             <div style={{
-              fontFamily:"'Libre Baskerville',Georgia,serif",fontSize:15,color:T.text,
-              minWidth:186,textAlign:"center",fontWeight:600,letterSpacing:.2,
+              fontFamily:"'Libre Baskerville',Georgia,serif",
+              fontSize:isMobile?13:15,color:T.text,
+              flex:1,textAlign:"center",fontWeight:600,letterSpacing:.2,
+              minWidth:0,
             }}>{headerLabel()}</div>
             <button onClick={()=>navigate(1)} style={{
               background:T.bgCard,border:`1px solid ${T.border}`,
               color:T.textSub,cursor:"pointer",borderRadius:7,
-              padding:"5px 11px",fontSize:14,boxShadow:"0 1px 3px rgba(44,40,37,0.06)",
+              padding:"5px 9px",fontSize:14,flexShrink:0,
             }}>&#8250;</button>
+            <button onClick={()=>setCurDate(new Date(today))} style={{
+              background:"#6B7C3A22",border:"1px solid #6B7C3A66",
+              color:"#4a5828",cursor:"pointer",borderRadius:7,
+              padding:"5px 8px",fontSize:10,fontWeight:600,flexShrink:0,
+            }}>오늘</button>
+            <div style={{display:"flex",background:T.bgCard,borderRadius:8,padding:2,gap:1,border:`1px solid ${T.border}`,flexShrink:0}}>
+              {VIEWS.map(v=>(
+                <button key={v} onClick={()=>setView(v)} style={{
+                  padding:isMobile?"4px 7px":"5px 12px",
+                  borderRadius:6,fontSize:isMobile?10:12,cursor:"pointer",
+                  background:view===v?T.accent:"transparent",
+                  border:"none",color:view===v?"white":T.textSub,
+                  fontWeight:view===v?600:400,
+                }}>{v}</button>
+              ))}
+            </div>
+            <button onClick={()=>setShowModal(true)} style={{
+              padding:isMobile?"6px 10px":"8px 16px",
+              borderRadius:9,cursor:"pointer",flexShrink:0,
+              background:T.accent,border:"none",color:"white",
+              fontSize:isMobile?11:13,fontWeight:600,
+              boxShadow:`0 2px 12px ${T.accent}44`,
+              whiteSpace:"nowrap",
+            }}>+ 추가</button>
           </div>
-
-          <button onClick={()=>setCurDate(new Date(today))} style={{
-            background:"#6B7C3A22",border:"1px solid #6B7C3A66",
-            color:"#4a5828",cursor:"pointer",borderRadius:7,padding:"5px 12px",fontSize:11,fontWeight:600,
-          }}>오늘</button>
-
-          <div style={{flex:1}}/>
-
-          <div style={{display:"flex",background:T.bgCard,borderRadius:9,padding:3,gap:1,border:`1px solid ${T.border}`}}>
-            {VIEWS.map(v=>(
-              <button key={v} onClick={()=>setView(v)} style={{
-                padding:"5px 14px",borderRadius:7,fontSize:12,cursor:"pointer",
-                background:view===v?T.accent:"transparent",
-                border:"none",color:view===v?"white":T.textSub,
-                transition:"all .12s",fontWeight:view===v?600:400,
-              }}>{v}</button>
-            ))}
-          </div>
-
-          <button onClick={()=>setShowModal(true)} style={{
-            padding:"8px 18px",borderRadius:9,cursor:"pointer",
-            background:T.accent,border:"none",color:"white",
-            fontSize:13,fontWeight:600,
-            boxShadow:`0 2px 12px ${T.accent}44`,
-          }}>+ 추가</button>
         </header>
 
         {/* Category filter chips — 데스크탑만 */}
