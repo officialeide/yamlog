@@ -78,7 +78,7 @@ function layoutDayEvents(evs, startH, ROW_H) {
 // ─────────────────────────────────────────────────────
 // WEEK VIEW — 분 단위 절대좌표 일기장 스타일
 // ─────────────────────────────────────────────────────
-function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
+function WeekView({ curDate, events, filterCat, onOpen, onAdd, isMobile }) {
   const days = useMemo(() => getWeekDays(curDate), [curDate]);
   const [showNight, setShowNight] = useState(false);
   const [nowHour,   setNowHour]   = useState(() => new Date().getHours());
@@ -181,7 +181,7 @@ function WeekView({ curDate, events, filterCat, onOpen, onAdd }) {
                         opacity:ev.done?0.55:1,
                         boxShadow:"0 1px 3px rgba(44,40,37,0.08)",
                       }}>
-                      <div style={{fontSize:11,color:ev.done?T.textMute:cat.text,
+                      <div style={{fontSize:isMobile?8:11,color:ev.done?T.textMute:cat.text,
                         lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
                         fontWeight:500}}>
                         {ev.title}
@@ -226,7 +226,7 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd, isMobile }) {
             }}
             onMouseEnter={e=>{if(!isToday)e.currentTarget.style.borderColor=T.accent+"55";}}
             onMouseLeave={e=>{if(!isToday)e.currentTarget.style.borderColor=T.border;}}>
-              <div style={{fontSize:isMobile?7:11,fontWeight:isToday?700:400,marginBottom:2,
+              <div style={{fontSize:isMobile?8:11,fontWeight:isToday?700:400,marginBottom:2,
                 color:isToday?T.accent:isWknd?d.getDay()===0?"#C0443A":"#2E6FA5":T.text}}>
                 {d.getDate()}
               </div>
@@ -234,7 +234,7 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd, isMobile }) {
                 const cat=catOf(ev.category,ev.sub_category);
                 return (
                   <div key={ev.id} onClick={e=>{e.stopPropagation();onOpen(ev);}} style={{
-                    fontSize:isMobile?7:11,marginBottom:2,padding:"1px 3px",borderRadius:4,cursor:"pointer",
+                    fontSize:isMobile?8:11,marginBottom:2,padding:"1px 3px",borderRadius:4,cursor:"pointer",
                     background:cat.bg,color:cat.text,border:`1px solid ${cat.color}33`,
                     whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
                   }}>{ev.title}</div>
@@ -261,7 +261,7 @@ function MonthView({ curDate, events, filterCat, onOpen, onAdd, isMobile }) {
 // ─────────────────────────────────────────────────────
 // YEAR VIEW — 이벤트만 표시, 클릭 시 상세 표시
 // ─────────────────────────────────────────────────────
-function YearView({ curDate, events, onOpen }) {
+function YearView({ curDate, events, onOpen, isMobile }) {
   const year = curDate.getFullYear();
   const [clickedDay, setClickedDay] = useState(null);
 
@@ -307,7 +307,7 @@ function YearView({ curDate, events, onOpen }) {
       )}
 
       {/* 12개월 미니 달력 */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gridTemplateRows:"repeat(3,1fr)",gap:8,flex:1,minHeight:0}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(3,1fr)":"repeat(3,1fr)",gridTemplateRows:isMobile?"repeat(4,1fr)":"repeat(4,1fr)",gap:isMobile?4:8,flex:1,minHeight:0,overflow:"hidden"}}>
         {Array.from({length:12},(_,m)=>m).map(m=>{
           const cells=getMonthCells(new Date(year,m,1));
           return (
@@ -428,6 +428,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
               {f.period&&<span><span style={{fontSize:11,color:T.textMute}}>기간 </span><span style={{fontSize:11,color:T.text}}>{f.period}</span></span>}
             </div>}
             {f.score&&<div style={{fontSize:13,color:accentColor,marginBottom:4}}>{"★".repeat(f.score)}{"☆".repeat(5-f.score)}</div>}
+            {f.record&&<div style={{fontSize:12,color:T.textSub,fontStyle:"italic",padding:"7px 10px",background:T.bgSub,borderRadius:6,marginBottom:5,lineHeight:1.7,borderLeft:`2px solid ${accentColor}55`}}>{f.record}</div>}
             {ev.detail&&<div style={{fontSize:12,color:T.textSub,lineHeight:1.7}}>{ev.detail}</div>}
           </div>
         );
@@ -443,7 +444,20 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
               {f.origin&&f.grape&&<span style={{color:T.textMute}}> · </span>}
               {f.grape&&<span><span style={{fontSize:11,color:T.textMute}}>품종 </span><span style={{fontSize:11,color:T.text}}>{f.grape}</span></span>}
             </div>}
-            {f.score&&<div style={{fontSize:13,color:accentColor,marginBottom:4}}>{"★".repeat(f.score)}{"☆".repeat(5-f.score)}</div>}
+            {/* 당도~총점 바 */}
+            {(f.sweetness||f.acidity||f.tannin||f.body||f.score)&&(
+              <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:6,marginTop:2}}>
+                {[["sweetness","당도"],["acidity","산도"],["tannin","타닌"],["body","바디"],["score","총점"]].filter(([k])=>f[k]).map(([k,label])=>(
+                  <div key={k} style={{display:"flex",alignItems:"center",gap:7}}>
+                    <span style={{fontSize:10,color:T.textMute,minWidth:26,flexShrink:0}}>{label}</span>
+                    <div style={{flex:1,height:5,borderRadius:3,background:T.bgSub,overflow:"hidden"}}>
+                      <div style={{width:`${(f[k]/5)*100}%`,height:"100%",borderRadius:3,background:k==="score"?accentColor:"#7E4FA066"}}/>
+                    </div>
+                    <span style={{fontSize:10,color:k==="score"?accentColor:T.textSub,fontWeight:k==="score"?700:400,minWidth:8}}>{f[k]}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {ev.detail&&<div style={{fontSize:12,color:T.textSub}}>{ev.detail}</div>}
           </div>
         );
@@ -740,14 +754,14 @@ export default function Yamlog() {
               <div style={{fontSize:13,color:T.textMute}}>불러오는 중...</div>
             </div>
           ):view==="주"?(
-            <WeekView curDate={curDate} events={events} filterCat={filterCat} onOpen={setShowDetail} onAdd={handleAdd}/>
+            <WeekView curDate={curDate} events={events} filterCat={filterCat} onOpen={setShowDetail} onAdd={handleAdd} isMobile={isMobile}/>
           ):view==="월"?(
             <div style={{flex:1,overflowY:"auto"}}>
               <MonthView curDate={curDate} events={events} filterCat={filterCat} onOpen={setShowDetail} onAdd={handleAdd} isMobile={isMobile}/>
             </div>
           ):(
-            <div style={{flex:1,overflowY:"auto"}}>
-              <YearView curDate={curDate} events={events} onOpen={setShowDetail}/>
+            <div style={{flex:1,overflowY:isMobile?"hidden":"auto",display:"flex",flexDirection:"column"}}>
+              <YearView curDate={curDate} events={events} onOpen={setShowDetail} isMobile={isMobile}/>
             </div>
           )}
         </>

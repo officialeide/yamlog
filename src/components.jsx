@@ -642,7 +642,7 @@ function EditModal({ ev, onClose, onSaved }) {
             ))}
             {[["sweetness","당도"],["acidity","산도"],["tannin","타닌"],["body","바디감"],["score","총점"]].map(([k,label])=>(
               <div key={k} style={{marginBottom:8}}>
-                <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label} /5</div>
+                <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label}</div>
                 <div style={{display:"flex",gap:4}}>
                   {[1,2,3,4,5].map(n=>(
                     <button key={n} onClick={()=>setField(k,n)} style={{
@@ -955,7 +955,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
             ))}
             {[["sweetness","당도"],["acidity","산도"],["tannin","타닌"],["body","바디감"],["score","총점"]].map(([k,label])=>(
               <div key={k} style={{marginBottom:8}}>
-                <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label} /5</div>
+                <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label}</div>
                 <div style={{display:"flex",gap:4}}>
                   {[1,2,3,4,5].map(n=>(
                     <button key={n} onClick={()=>setField(k,n)} style={{
