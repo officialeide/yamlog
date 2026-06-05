@@ -1351,9 +1351,9 @@ function AddModal({ onClose, onSaved, presetDate, presetHour }) {
                 </div>
               </div>
               <div style={{fontSize:11,color:T.textSub,marginBottom:4,fontWeight:500}}>운동 기록</div>
-              <textarea placeholder={"예)
+              <textarea placeholder={`예)
 스쿼트 (80kg, 8회, 4세트)
-데드리프트 (100kg, 5회, 3세트)"} rows={4}
+데드리프트 (100kg, 5회, 3세트)`} rows={4}
                 style={{...inputStyle,resize:"vertical",marginBottom:8}}
                 value={detail} onChange={e=>setDetail(e.target.value)}/>
             </>
