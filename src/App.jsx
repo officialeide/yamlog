@@ -9,7 +9,7 @@ import {
 import { useEvents, useIsMobile, addEvent } from "./api.js";
 import {
   LiveClock, TaskChip, DetailModal, AddModal,
-  WeightSection, WordSection, RandomReview,
+  WeightSection, WordSection,
   BriefingView, BottomTabBar,
 } from "./components.jsx";
 
