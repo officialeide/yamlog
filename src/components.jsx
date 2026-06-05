@@ -10,7 +10,7 @@ import {
   T, CATS, ARCHIVE_SUBS, HEALTH_SUBS, REVIEW_SUBS,
   TOEIC_WORDS, catOf, dateStr, KNOWN_SUBS, TAB_ITEMS,
 } from "./constants.js";
-import { supabase, useWeightLogs, updateEvent, upsertWeight, deleteEvent, deleteWeight } from "./api.js";
+import { supabase, updateEvent, upsertWeight, deleteEvent, deleteWeight } from "./api.js";
 
 // ─────────────────────────────────────────────────────
 // LIVE CLOCK
@@ -38,65 +38,6 @@ export function LiveClock() {
     <span style={{fontSize:10,color:T.textMute,fontFamily:"'KoPub Dotum',sans-serif",fontWeight:400,letterSpacing:.3}}>
       {time}
     </span>
-  );
-}
-
-// ─────────────────────────────────────────────────────
-// TASK CHIP
-// ─────────────────────────────────────────────────────
-export function TaskChip({ ev, compact=false, onOpen }) {
-  const cat = catOf(ev.category||ev.cat, ev.sub_category||ev.sub);
-  return (
-    <div
-      onClick={(e) => { e.stopPropagation(); onOpen(ev); }}
-      style={{
-        display:"flex",alignItems:"center",gap:10,
-        padding:compact?"6px 10px":"10px 13px",
-        borderRadius:10,
-        background:ev.done?T.bgSub:T.bgCard,
-        border:`1px solid ${ev.done?T.border:cat.color+"44"}`,
-        borderLeft:`3px solid ${ev.done?T.borderMid:cat.color}`,
-        cursor:"pointer",transition:"box-shadow .12s",
-        opacity:ev.done?0.6:1,
-        marginBottom:compact?3:5,
-        boxShadow:"0 1px 4px rgba(44,40,37,0.05)",
-      }}
-      onMouseEnter={e=>{ if(!ev.done) e.currentTarget.style.boxShadow=`0 3px 14px ${cat.color}22`; }}
-      onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 1px 4px rgba(44,40,37,0.05)"; }}
-    >
-      <div style={{
-        width:18,height:18,borderRadius:"50%",flexShrink:0,
-        border:`1.5px solid ${ev.done?T.borderMid:cat.color}`,
-        background:ev.done?T.borderMid:"transparent",
-        display:"flex",alignItems:"center",justifyContent:"center",
-        fontSize:9,color:"white",
-      }}>{ev.done&&"✓"}</div>
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{
-          fontSize:compact?11:13,color:ev.done?T.textMute:T.text,
-          whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
-          fontWeight:ev.done?400:500,
-        }}>{ev.title}</div>
-        {!compact&&ev.detail&&(
-          <div style={{fontSize:11,color:T.textMute,marginTop:2,
-            whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-            {ev.detail.split("\n")[0]}
-          </div>
-        )}
-      </div>
-      {!compact&&(
-        <div style={{
-          fontSize:10,padding:"2px 8px",borderRadius:20,flexShrink:0,
-          background:cat.bg,color:cat.text,border:`1px solid ${cat.color}33`,
-        }}>{cat.label}</div>
-      )}
-      {!compact&&(
-        <div style={{fontSize:10,color:T.textMute,flexShrink:0,minWidth:30,textAlign:"right"}}>
-          {String(ev.hour).padStart(2,"0")}:00
-        </div>
-      )}
-      <div style={{fontSize:10,color:T.textMute,flexShrink:0}}>›</div>
-    </div>
   );
 }
 
@@ -1186,6 +1127,14 @@ const BRIEFING_FALLBACK = {
   ],
 };
 
+// 브리핑 텍스트 내 숫자 콤마 포맷팅 (1000 이상)
+const fmtNums = (str) =>
+  String(str).replace(/\d+(\.\d+)?/g, (m) => {
+    const n = parseFloat(m);
+    if (n >= 1000 && Number.isInteger(n)) return n.toLocaleString("ko-KR");
+    return m;
+  });
+
 function BriefingSection({section}){
   const [open,setOpen]=useState(true);
   return(
@@ -1204,7 +1153,7 @@ function BriefingSection({section}){
               ?section.content:[section.summary,...(section.lines||[])].filter(Boolean);
             return items.filter(Boolean).map((line,i)=>(
               <div key={i} style={{marginTop:i===0?10:7,paddingLeft:i===0?0:10,borderLeft:i===0?"none":`2px solid ${section.color}55`}}>
-                <span style={{fontSize:12,color:i===0?section.color:T.text,lineHeight:1.7,fontWeight:i===0?700:400,fontFamily:"'KoPub Dotum',sans-serif"}}>{line}</span>
+                <span style={{fontSize:12,color:i===0?section.color:T.text,lineHeight:1.7,fontWeight:i===0?700:400,fontFamily:"'KoPub Dotum',sans-serif"}}>{fmtNums(line)}</span>
               </div>
             ));
           })()}

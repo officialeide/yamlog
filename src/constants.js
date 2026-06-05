@@ -81,16 +81,15 @@ export const HOURS     = Array.from({length:24},(_,i)=>i);
 export const dateStr = (d) =>
   `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 
-const _HEALTH_SUBS = ["weight","diet","weight_training","cardio"];
-const _REVIEW_SUBS = ["book","wine","coffee"];
+/** 카테고리/서브카테고리로 색상 객체 반환 — ARCHIVE_SECTS 기반으로 subs 파생 */
+const subsOf = (id) => ARCHIVE_SECTS.find(s => s.id === id)?.subs || [];
 
-/** 카테고리/서브카테고리로 색상 객체 반환 */
 export const catOf = (category, sub_category) => {
   if (category === "archive") {
     if (!sub_category) return CATS.find(c=>c.id==="archive") || CATS[0];
-    if (_HEALTH_SUBS.includes(sub_category)) return ARCHIVE_SUBS.find(s=>s.id==="health")  || CATS[2];
-    if (_REVIEW_SUBS.includes(sub_category)) return ARCHIVE_SUBS.find(s=>s.id==="review")  || CATS[2];
-    if (sub_category === "economy")          return ARCHIVE_SUBS.find(s=>s.id==="economy") || CATS[2];
+    if (subsOf("health").includes(sub_category)) return ARCHIVE_SUBS.find(s=>s.id==="health")  || CATS[2];
+    if (subsOf("review").includes(sub_category)) return ARCHIVE_SUBS.find(s=>s.id==="review")  || CATS[2];
+    if (sub_category === "economy")              return ARCHIVE_SUBS.find(s=>s.id==="economy") || CATS[2];
     return ARCHIVE_SUBS.find(s=>s.id===sub_category) || CATS.find(c=>c.id==="archive") || CATS[0];
   }
   return CATS.find(c=>c.id===category) || CATS[0];
