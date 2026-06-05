@@ -17,7 +17,7 @@ RULES FOR JSON STRINGS (violations will break parsing):
 - No 결론: prefix. Numbers only with Korean units (조 억 만 원)
 
 Portfolio (do not mention 한독):
-삼성전자4주 삼성전자우4주 KODEX200 30주 현대건설4주
+삼성전자4주 삼성전자우4주 KODEX200 30주 현대건설4주 에이피알2주
 한화에어로2주 한화시스템15주(매수중단) TIGER코리아AI전력기기90주
 SOL원자력SMR10주 TIGER원자력40주(신중) 버크셔B 0.3956주 예수금210만원
 
