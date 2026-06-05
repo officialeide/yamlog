@@ -270,7 +270,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
       case "weight":
         return (
           <div>
-            {f.weight&&<span style={{fontSize:22,fontWeight:700,color:accentColor,fontFamily:"'Libre Baskerville',serif"}}>{f.weight}<span style={{fontSize:13,fontWeight:400,marginLeft:3}}>kg</span></span>}
+            {f.weight&&<span style={{fontSize:15,fontWeight:700,color:accentColor}}>{f.weight}<span style={{fontSize:12,fontWeight:400,marginLeft:3}}>kg</span></span>}
             {ev.detail&&<div style={{fontSize:12,color:T.textSub,marginTop:4}}>{ev.detail}</div>}
           </div>
         );
@@ -318,23 +318,29 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
       case "economy":
         return (
           <div>
-            {f.index&&<div style={{fontSize:12,color:T.text,fontWeight:600,marginBottom:4}}>{f.index}</div>}
+            {f.index&&<div style={{marginBottom:4}}><span style={{fontSize:10,color:T.textMute}}>주요 지수 </span><span style={{fontSize:12,color:T.text,fontWeight:600}}>{f.index}</span></div>}
             {f.keyword&&<div style={{marginBottom:6}}>
+              <span style={{fontSize:10,color:T.textMute,marginRight:4}}>키워드</span>
               {f.keyword.split(/\s+/).filter(Boolean).map((kw,i)=>(
                 <span key={i} style={{display:"inline-block",marginRight:4,padding:"2px 7px",borderRadius:10,fontSize:10,background:accentColor+"18",color:accentColor,border:`1px solid ${accentColor}33`}}>{kw}</span>
               ))}
             </div>}
-            {ev.detail&&<div style={{fontSize:12,color:T.text,lineHeight:1.75}}>{ev.detail}</div>}
-            {f.watchlist&&<div style={{fontSize:11,color:T.textMute,marginTop:6}}>내일 주목: {f.watchlist}</div>}
+            {ev.detail&&<div style={{marginBottom:4}}><span style={{fontSize:10,color:T.textMute}}>요약 </span><span style={{fontSize:12,color:T.text,lineHeight:1.75}}>{ev.detail}</span></div>}
+            {f.watchlist&&<div style={{fontSize:11,color:T.textMute,marginTop:4}}>📌 내일 주목: {f.watchlist}</div>}
           </div>
         );
       case "book":
         return (
           <div>
-            <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:2,fontFamily:"'Libre Baskerville',serif"}}>
-              {f.bookTitle||ev.title}{f.author&&<span style={{fontSize:11,fontWeight:400,color:T.textSub,fontFamily:"'Noto Sans KR',sans-serif"}}> · {f.author}</span>}
+            <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:3,fontFamily:"'Libre Baskerville',serif"}}>
+              {f.bookTitle||ev.title}
             </div>
-            {(f.genre||f.period)&&<div style={{fontSize:10,color:T.textMute,marginBottom:5}}>{f.genre}{f.genre&&f.period&&" · "}{f.period}</div>}
+            {f.author&&<div style={{marginBottom:2}}><span style={{fontSize:10,color:T.textMute}}>작가 </span><span style={{fontSize:11,color:T.text}}>{f.author}</span></div>}
+            {(f.genre||f.period)&&<div style={{marginBottom:4}}>
+              {f.genre&&<span><span style={{fontSize:10,color:T.textMute}}>장르 </span><span style={{fontSize:11,color:T.text}}>{f.genre}</span></span>}
+              {f.genre&&f.period&&<span style={{color:T.textMute}}> · </span>}
+              {f.period&&<span><span style={{fontSize:10,color:T.textMute}}>기간 </span><span style={{fontSize:11,color:T.text}}>{f.period}</span></span>}
+            </div>}
             {f.score&&<div style={{fontSize:13,color:accentColor,marginBottom:4}}>{"★".repeat(f.score)}{"☆".repeat(5-f.score)}</div>}
             {ev.detail&&<div style={{fontSize:12,color:T.textSub,lineHeight:1.7}}>{ev.detail}</div>}
           </div>
@@ -343,9 +349,14 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
         return (
           <div>
             <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:2,fontFamily:"'Libre Baskerville',serif"}}>
-              {f.wineName||ev.title}{f.vintage&&<span style={{fontSize:11,fontWeight:400,color:T.textSub,fontFamily:"'Noto Sans KR',sans-serif"}}> {f.vintage}</span>}
+              {f.wineName||ev.title}
             </div>
-            {(f.origin||f.grape)&&<div style={{fontSize:10,color:T.textMute,marginBottom:5}}>{f.origin}{f.origin&&f.grape&&" · "}{f.grape}</div>}
+            {f.vintage&&<div style={{marginBottom:2}}><span style={{fontSize:10,color:T.textMute}}>빈티지 </span><span style={{fontSize:12,color:T.text}}>{f.vintage}</span></div>}
+            {(f.origin||f.grape)&&<div style={{marginBottom:4}}>
+              {f.origin&&<span><span style={{fontSize:10,color:T.textMute}}>생산지 </span><span style={{fontSize:11,color:T.text}}>{f.origin}</span></span>}
+              {f.origin&&f.grape&&<span style={{color:T.textMute}}> · </span>}
+              {f.grape&&<span><span style={{fontSize:10,color:T.textMute}}>품종 </span><span style={{fontSize:11,color:T.text}}>{f.grape}</span></span>}
+            </div>}
             {f.score&&<div style={{fontSize:13,color:accentColor,marginBottom:4}}>{"★".repeat(f.score)}{"☆".repeat(5-f.score)}</div>}
             {ev.detail&&<div style={{fontSize:12,color:T.textSub}}>{ev.detail}</div>}
           </div>
@@ -359,7 +370,12 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
           </div>
         );
       default:
-        return ev.detail?<div style={{fontSize:12,color:T.textSub,lineHeight:1.75}}>{ev.detail}</div>:null;
+        return (
+          <div>
+            {ev.title&&ev.title!=="기타"&&<div style={{fontSize:13,fontWeight:600,color:T.text,marginBottom:4}}>{ev.title}</div>}
+            {ev.detail&&<div style={{fontSize:12,color:T.textSub,lineHeight:1.75}}>{ev.detail}</div>}
+          </div>
+        );
     }
   };
 
@@ -513,7 +529,7 @@ export default function Yamlog() {
   const sidebar = (
     <div style={{
       width:220,flexShrink:0,height:"100vh",
-      background:T.bgCard,borderRight:`1px solid ${T.border}`,
+      background:T.bgSub,borderRight:`1px solid ${T.border}`,
       display:"flex",flexDirection:"column",overflow:"hidden",
     }}>
       {/* 로고 */}
@@ -653,9 +669,21 @@ export default function Yamlog() {
   return (
     <div style={{
       display:"flex",flexDirection:isMobile?"column":"row",
-      height:"100vh",background:T.bg,
-      fontFamily:"'Noto Sans KR',sans-serif",
+      minHeight:"100vh",background:T.bg,
+      fontFamily:"'Noto Sans KR',sans-serif",color:T.text,
     }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{background:#F7F4EF;}
+        ::-webkit-scrollbar{width:4px;height:4px;}
+        ::-webkit-scrollbar-track{background:#F0EDE7;}
+        ::-webkit-scrollbar-thumb{background:#CEC5B8;border-radius:2px;}
+        input,textarea,button{font-family:'Noto Sans KR',sans-serif;}
+        input[type=date]::-webkit-calendar-picker-indicator,
+        input[type=time]::-webkit-calendar-picker-indicator{opacity:.4;cursor:pointer;}
+        button:focus{outline:none;}
+      `}</style>
       {!isMobile && sidebar}
 
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minHeight:0,background:T.bg}}>
