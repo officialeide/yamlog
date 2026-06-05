@@ -1,6 +1,13 @@
 // netlify/functions/daily-briefing.mjs
 // 매일 KST 08:50 자동 실행 (UTC 23:50)
 
+tools: [
+  {
+    type: "web_search_20250305",
+    name: "web_search"
+  }
+],
+
 const SYSTEM_PROMPT = `You are a Korean stock market analyst. Output ONLY a valid JSON object. No markdown, no backticks, no explanation text.
 
 EXACT JSON format (copy this structure):
