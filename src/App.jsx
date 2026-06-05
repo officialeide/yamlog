@@ -283,8 +283,10 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
                 <span style={{color:T.textMute,fontSize:10,minWidth:22}}>{label}</span><span>{f[k]}</span>
               </div>
             ))}
-            {(f.calories||f.protein)&&<div style={{fontSize:10,color:T.textMute,marginTop:5,display:"flex",gap:10}}>
-              {f.calories&&<span>🔥 {f.calories}</span>}{f.protein&&<span>💪 {f.protein}</span>}
+            {(f.calories||f.protein||f.sugar)&&<div style={{fontSize:10,color:T.textMute,marginTop:5,display:"flex",gap:10,flexWrap:"wrap"}}>
+              {f.calories&&<span>🔥 {f.calories}</span>}
+              {f.protein&&<span>💪 단백질 {f.protein}</span>}
+              {f.sugar&&<span>🍬 당류 {f.sugar}</span>}
             </div>}
           </div>
         );
@@ -293,9 +295,9 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
         return (
           <div>
             <div style={{display:"flex",gap:12,fontSize:12,color:T.text,marginBottom:5,flexWrap:"wrap"}}>
-              {f.part&&<span style={{fontWeight:600}}>{f.part}</span>}
-              {f.duration&&<span style={{color:T.textSub}}>· {f.duration}</span>}
-              {f.condition&&<span style={{color:T.textSub}}>· 컨디션 {"★".repeat(f.condition)}</span>}
+              {f.part&&<span><span style={{color:T.textMute,fontSize:10}}>부위 </span><span style={{fontWeight:600}}>{f.part}</span></span>}
+              {f.duration&&<span><span style={{color:T.textMute,fontSize:10}}>시간 </span>{f.duration}</span>}
+              {f.condition&&<span><span style={{color:T.textMute,fontSize:10}}>컨디션 </span>{"★".repeat(f.condition)}{"☆".repeat(5-f.condition)}</span>}
             </div>
             {ev.detail&&<pre style={{fontSize:11,color:T.textSub,whiteSpace:"pre-wrap",margin:0,lineHeight:1.7,fontFamily:"'Noto Sans KR',sans-serif"}}>{ev.detail}</pre>}
           </div>
@@ -303,13 +305,14 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
       case "cardio":
         return (
           <div>
-            <div style={{display:"flex",gap:8,fontSize:12,color:T.text,flexWrap:"wrap"}}>
+            <div style={{display:"flex",gap:10,fontSize:12,color:T.text,flexWrap:"wrap",marginBottom:4}}>
               {f.type&&<span style={{fontWeight:600}}>{f.type}</span>}
-              {f.distance&&<span>· {f.distance}</span>}
-              {f.avgSpeed&&<span>· {f.avgSpeed}</span>}
-              {f.avgHr&&<span>· 심박 {f.avgHr}</span>}
+              {f.distance&&<span><span style={{color:T.textMute,fontSize:10}}>거리 </span>{f.distance}</span>}
+              {f.avgSpeed&&<span><span style={{color:T.textMute,fontSize:10}}>속도 </span>{f.avgSpeed}</span>}
+              {f.avgHr&&<span><span style={{color:T.textMute,fontSize:10}}>심박 </span>{f.avgHr}</span>}
+              {f.calories&&<span><span style={{color:T.textMute,fontSize:10}}>칼로리 </span>{f.calories}</span>}
             </div>
-            {ev.detail&&<div style={{fontSize:11,color:T.textSub,marginTop:4}}>{ev.detail}</div>}
+            {ev.detail&&<div style={{fontSize:11,color:T.textSub}}>{ev.detail}</div>}
           </div>
         );
       case "economy":
@@ -385,7 +388,7 @@ const ARCHIVE_SECTS = [
 ];
 const KNOWN_SUBS = ["weight","diet","weight_training","cardio","economy","book","wine","coffee"];
 
-function ArchiveView({ events, onOpen }) {
+function ArchiveView({ events, onOpen, onAddFromArchive }) {
   const [activeSec, setActiveSec] = useState("health");
   const archiveEvs = events.filter(e => e.category === "archive");
 
@@ -400,8 +403,9 @@ function ArchiveView({ events, onOpen }) {
 
   return (
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-      {/* 4섹션 탭 */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:4,marginBottom:14,flexShrink:0}}>
+      {/* 헤더: 섹션 탭 + 추가 버튼 */}
+      <div style={{display:"flex",gap:8,marginBottom:14,flexShrink:0,alignItems:"stretch"}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:4,flex:1}}>
         {ARCHIVE_SECTS.map(sec=>{
           const count=archiveEvs.filter(e=>sec.subs===null?!KNOWN_SUBS.includes(e.sub_category):sec.subs.includes(e.sub_category)).length;
           const active=activeSec===sec.id;
@@ -420,6 +424,14 @@ function ArchiveView({ events, onOpen }) {
             </button>
           );
         })}
+      </div>
+      {/* + 추가 버튼 */}
+      <button onClick={()=>onAddFromArchive&&onAddFromArchive(activeSec)} style={{
+        padding:"0 14px",borderRadius:12,cursor:"pointer",
+        background:activeDef?.color||T.accent,border:"none",color:"white",
+        fontWeight:700,fontSize:20,flexShrink:0,
+        boxShadow:`0 4px 14px ${activeDef?.color||T.accent}44`,
+      }}>+</button>
       </div>
 
       {/* 메모 목록 */}
@@ -456,6 +468,8 @@ export default function Yamlog() {
   const [showAdd,       setShowAdd]       = useState(false);
   const [addPresetDate, setAddPresetDate] = useState(null);
   const [addPresetHour, setAddPresetHour] = useState(null);
+  const [addPresetCat,  setAddPresetCat]  = useState(null);
+  const [addPresetSub,  setAddPresetSub]  = useState(null);
 
   const isArchiveView = filterCat === "archive" && !showBriefing;
   const isSpecialView = showBriefing || isArchiveView;
@@ -482,6 +496,16 @@ export default function Yamlog() {
   const handleAdd = (ds, h) => {
     setAddPresetDate(ds||null);
     setAddPresetHour(h!=null?String(h).padStart(2,"0"):null);
+    setAddPresetCat(null);
+    setAddPresetSub(null);
+    setShowAdd(true);
+  };
+
+  const handleAddFromArchive = (archiveSec) => {
+    setAddPresetDate(null);
+    setAddPresetHour(null);
+    setAddPresetCat("archive");
+    setAddPresetSub(archiveSec);
     setShowAdd(true);
   };
 
@@ -528,11 +552,11 @@ export default function Yamlog() {
           fontFamily:"'Noto Sans KR',sans-serif",fontSize:13,fontWeight:filterCat==="all"&&!showBriefing?600:400,
         }}>
           <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:filterCat==="all"&&!showBriefing?T.accent:T.borderMid}}/>
-          전체
+          홈
         </button>
         {/* 브리핑 */}
         <button onClick={()=>{setShowBriefing(true);setFilterCat("all");}} style={{
-          width:"100%",textAlign:"left",padding:"8px 10px",borderRadius:8,cursor:"pointer",marginBottom:8,
+          width:"100%",textAlign:"left",padding:"8px 10px",borderRadius:8,cursor:"pointer",marginBottom:2,
           background:showBriefing?"#6B7C3A22":"transparent",border:"none",
           display:"flex",alignItems:"center",gap:8,
           color:showBriefing?"#6B7C3A":T.textSub,
@@ -541,7 +565,7 @@ export default function Yamlog() {
           <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:showBriefing?"#6B7C3A":T.borderMid}}/>
           브리핑
         </button>
-        {/* 카테고리들 (라벨 없이 바로) */}
+        {/* 카테고리들 (라벨 없이, 간격 동일) */
         {CATS.map(cat=>(
           <button key={cat.id} onClick={()=>{setFilterCat(cat.id);setShowBriefing(false);}} style={{
             width:"100%",textAlign:"left",padding:"8px 10px",borderRadius:8,cursor:"pointer",marginBottom:2,
@@ -560,7 +584,6 @@ export default function Yamlog() {
       <div style={{flex:1,overflowY:"auto",padding:"10px 12px 16px"}}>
         <WeightSection/>
         <WordSection/>
-        <RandomReview events={events} onOpen={setShowDetail}/>
       </div>
     </div>
   );
@@ -575,11 +598,11 @@ export default function Yamlog() {
       {showBriefing ? (
         <BriefingView/>
       ) : isArchiveView ? (
-        <ArchiveView events={events} onOpen={setShowDetail}/>
+        <ArchiveView events={events} onOpen={setShowDetail} onAddFromArchive={handleAddFromArchive}/>
       ) : (
         <>
-          {/* 캘린더 헤더 */}
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexShrink:0}}>
+          {/* 캘린더 헤더 (데스크탑만) */}
+          {!isMobile&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexShrink:0}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <button onClick={()=>nav(-1)} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:7,padding:"4px 9px",cursor:"pointer",fontSize:14,color:T.textSub}}>‹</button>
               <div style={{fontSize:14,fontWeight:600,color:T.text,minWidth:60,textAlign:"center"}}>{dateLabel()}</div>
@@ -604,7 +627,7 @@ export default function Yamlog() {
                 boxShadow:`0 2px 10px ${T.accent}44`,fontFamily:"'Noto Sans KR',sans-serif",
               }}>+ 추가</button>
             </div>
-          </div>
+          </div>}
 
           {/* 뷰 본체 */}
           {loading?(
@@ -635,7 +658,7 @@ export default function Yamlog() {
     }}>
       {!isMobile && sidebar}
 
-      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minHeight:0}}>
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minHeight:0,background:T.bg}}>
         {/* 모바일 헤더 */}
         {isMobile&&(
           <div style={{padding:"10px 12px 8px",background:T.bgCard,borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
@@ -687,6 +710,7 @@ export default function Yamlog() {
       {showAdd&&(
         <AddModal
           presetDate={addPresetDate} presetHour={addPresetHour}
+          presetCat={addPresetCat} presetSub={addPresetSub}
           addEventFn={addEvent} onSaved={refetch} onClose={()=>setShowAdd(false)}
         />
       )}

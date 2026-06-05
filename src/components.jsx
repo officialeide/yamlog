@@ -513,9 +513,9 @@ function EditModal({ ev, onClose, onSaved }) {
                 <input style={{...inp}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
               </div>
             ))}
-            <div style={{display:"flex",gap:7,marginBottom:8}}>
-              {[["calories","칼로리"],["protein","단백질"]].map(([k,label])=>(
-                <div key={k} style={{flex:1}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:8}}>
+              {[["calories","총 칼로리"],["protein","총 단백질"],["sugar","총 당류"]].map(([k,label])=>(
+                <div key={k}>
                   <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label}</div>
                   <input style={{...inp}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
                 </div>
@@ -669,9 +669,9 @@ function EditModal({ ev, onClose, onSaved }) {
 // ─────────────────────────────────────────────────────
 // ADD MODAL
 // ─────────────────────────────────────────────────────
-export function AddModal({ onClose, onSaved, presetDate, presetHour, addEventFn }) {
-  const [cat,        setCat]        = useState("schedule");
-  const [archiveSub, setArchiveSub] = useState("health");
+export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, presetSub, addEventFn }) {
+  const [cat,        setCat]        = useState(presetCat || "schedule");
+  const [archiveSub, setArchiveSub] = useState(presetSub || "health");
   const [healthSub,  setHealthSub]  = useState("weight");
   const [reviewSub,  setReviewSub]  = useState("book");
   const [title,      setTitle]      = useState("");
@@ -705,6 +705,8 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, addEventFn 
           if      (reviewSub === "book")   finalTitle = fields.bookTitle || "책 리뷰";
           else if (reviewSub === "wine")   finalTitle = fields.wineName  || "와인 리뷰";
           else if (reviewSub === "coffee") finalTitle = fields.cafe      || "커피";
+        } else if (archiveSub === "etc") {
+          finalTitle = title.trim() || "기타";
         }
       }
     }
@@ -712,7 +714,10 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, addEventFn 
     setSaving(true);
     try {
       const sub = cat === "archive"
-        ? (archiveSub === "health" ? healthSub : archiveSub === "review" ? reviewSub : "economy")
+        ? (archiveSub === "health" ? healthSub
+          : archiveSub === "review" ? reviewSub
+          : archiveSub === "etc" ? "etc"
+          : "economy")
         : null;
 
       if (cat==="archive" && archiveSub==="health" && healthSub==="weight" && fields.weight) {
@@ -809,9 +814,9 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, addEventFn 
                 <input placeholder="메뉴 입력" style={{...inp}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
               </div>
             ))}
-            <div style={{display:"flex",gap:7,marginBottom:8}}>
-              {[["calories","총 칼로리","예) 2100kcal"],["protein","총 단백질","예) 170g"]].map(([k,label,ph])=>(
-                <div key={k} style={{flex:1}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:8}}>
+              {[["calories","총 칼로리","예) 2100kcal"],["protein","총 단백질","예) 170g"],["sugar","총 당류","예) 45g"]].map(([k,label,ph])=>(
+                <div key={k}>
                   <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label}</div>
                   <input placeholder={ph} style={{...inp}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
                 </div>
@@ -946,6 +951,11 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, addEventFn 
             <textarea rows={3} style={{...inp,resize:"vertical",marginBottom:8}} value={detail} onChange={e=>setDetail(e.target.value)}/>
           </>)}
 
+          {cat==="archive"&&archiveSub==="etc"&&(<>
+            <input placeholder="제목 입력..." style={{...inp,marginBottom:8}} value={title} onChange={e=>setTitle(e.target.value)}/>
+            <textarea placeholder="상세 내용" rows={4} style={{...inp,resize:"vertical",marginBottom:8}} value={detail} onChange={e=>setDetail(e.target.value)}/>
+          </>)}
+
           {(cat==="schedule"||cat==="event")&&(<>
             <input placeholder="제목 입력..." style={{...inp,marginBottom:8}} value={title} onChange={e=>setTitle(e.target.value)}/>
             <textarea placeholder="상세 내용" rows={4} style={{...inp,resize:"vertical",marginBottom:8}} value={detail} onChange={e=>setDetail(e.target.value)}/>
@@ -1023,25 +1033,66 @@ export function WeightSection() {
 }
 
 // ─────────────────────────────────────────────────────
-// WORD SECTION — 뜻 항상 표시, 노란 카드
+// WORD SECTION — 단어 ○/✕ 학습 시스템, 노란 카드
 // ─────────────────────────────────────────────────────
 export function WordSection() {
-  const [idx, setIdx] = useState(()=>Math.floor(Math.random()*TOEIC_WORDS.length));
-  const word = TOEIC_WORDS[idx];
+  const [known, setKnown] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("yamlog_known_words")||"[]")); }
+    catch { return new Set(); }
+  });
+
+  const pool = TOEIC_WORDS.filter(w => !known.has(w.word));
+  const [idx, setIdx] = useState(() => pool.length > 0 ? Math.floor(Math.random() * pool.length) : 0);
+  const safeIdx = pool.length > 0 ? idx % pool.length : 0;
+  const current = pool[safeIdx];
+
+  const markKnown = () => {
+    if (!current) return;
+    const next = new Set([...known, current.word]);
+    setKnown(next);
+    localStorage.setItem("yamlog_known_words", JSON.stringify([...next]));
+  };
+
+  const nextWord = () => { if (pool.length > 1) setIdx(i => (i+1) % pool.length); };
+  const prevWord = () => { if (pool.length > 1) setIdx(i => (i-1+pool.length) % pool.length); };
+
+  const reset = () => {
+    setKnown(new Set());
+    localStorage.removeItem("yamlog_known_words");
+    setIdx(0);
+  };
+
+  if (pool.length === 0) return (
+    <div style={{background:"#FFFBEA",borderRadius:10,padding:"11px 12px",border:"1px solid #D4A01744",marginTop:8}}>
+      <div style={{fontSize:9,color:"#8C6A10",fontWeight:600,letterSpacing:.5,textTransform:"uppercase",marginBottom:8}}>단어</div>
+      <div style={{fontSize:13,color:"#5C4200",marginBottom:8,fontWeight:500}}>모든 단어 완료 🎉</div>
+      <div style={{fontSize:11,color:"#7A5800",marginBottom:10}}>{known.size}개 모두 알고 있어요</div>
+      <button onClick={reset} style={{width:"100%",padding:"7px",borderRadius:7,cursor:"pointer",background:"#D4A01722",border:"1px solid #D4A01744",color:"#8C6A10",fontSize:11}}>초기화</button>
+    </div>
+  );
+
   return (
     <div style={{background:"#FFFBEA",borderRadius:10,padding:"11px 12px",border:"1px solid #D4A01744",marginTop:8}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-        <span style={{fontSize:9,color:"#8C6A10",fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>토익 단어</span>
+        <span style={{fontSize:9,color:"#8C6A10",fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>단어</span>
         <div style={{display:"flex",gap:4}}>
-          <button onClick={()=>setIdx(i=>(i-1+TOEIC_WORDS.length)%TOEIC_WORDS.length)}
-            style={{background:"transparent",border:"1px solid #D4A01744",borderRadius:5,padding:"1px 7px",cursor:"pointer",fontSize:11,color:"#8C6A10"}}>‹</button>
-          <button onClick={()=>setIdx(i=>(i+1)%TOEIC_WORDS.length)}
-            style={{background:"transparent",border:"1px solid #D4A01744",borderRadius:5,padding:"1px 7px",cursor:"pointer",fontSize:11,color:"#8C6A10"}}>›</button>
+          <button onClick={prevWord} style={{background:"transparent",border:"1px solid #D4A01744",borderRadius:5,padding:"1px 7px",cursor:"pointer",fontSize:11,color:"#8C6A10"}}>‹</button>
+          <button onClick={nextWord} style={{background:"transparent",border:"1px solid #D4A01744",borderRadius:5,padding:"1px 7px",cursor:"pointer",fontSize:11,color:"#8C6A10"}}>›</button>
         </div>
       </div>
-      <div style={{fontFamily:"'Libre Baskerville',Georgia,serif",fontSize:16,color:"#5C4200",fontWeight:600,marginBottom:5}}>{word.word}</div>
-      <div style={{fontSize:12,color:"#7A5800",lineHeight:1.5}}>{word.meaning}</div>
-      <div style={{fontSize:9,color:"#B09040",marginTop:6,textAlign:"right"}}>{idx+1}/100</div>
+      <div style={{fontFamily:"'Libre Baskerville',Georgia,serif",fontSize:16,color:"#5C4200",fontWeight:600,marginBottom:5}}>{current.word}</div>
+      <div style={{fontSize:12,color:"#7A5800",lineHeight:1.5,marginBottom:10}}>{current.meaning}</div>
+      <div style={{display:"flex",gap:6,marginBottom:6}}>
+        <button onClick={markKnown} style={{
+          flex:1,padding:"8px",borderRadius:7,cursor:"pointer",fontSize:15,fontWeight:700,
+          background:"#4A8A5A22",border:"1px solid #4A8A5A55",color:"#2E6640",
+        }} title="알아요">○</button>
+        <button onClick={nextWord} style={{
+          flex:1,padding:"8px",borderRadius:7,cursor:"pointer",fontSize:15,fontWeight:700,
+          background:"#C0443A22",border:"1px solid #C0443A55",color:"#9B2E25",
+        }} title="모르겠어요">✕</button>
+      </div>
+      <div style={{fontSize:9,color:"#B09040",textAlign:"right"}}>{known.size}개 완료 / {TOEIC_WORDS.length}개</div>
     </div>
   );
 }
@@ -1049,7 +1100,7 @@ export function WordSection() {
 // ─────────────────────────────────────────────────────
 // RANDOM REVIEW
 // ─────────────────────────────────────────────────────
-export function RandomReview({ events, onOpen }) {
+function RandomReview({ events, onOpen }) {
   const pool = events.filter(e=>e.category==="archive"&&["book","wine","coffee"].includes(e.sub_category));
   const [idx, setIdx] = useState(0);
   const initialized = useRef(false);
@@ -1189,11 +1240,11 @@ export function BriefingView(){
 // ─────────────────────────────────────────────────────
 export function BottomTabBar({ filterCat, showBriefing, setFilterCat, setShowBriefing }) {
   const tabs = [
-    { id:"all",      label:"전체",    color:T.textSub,  activeBg:"transparent" },
-    { id:"briefing", label:"브리핑",  color:"#6B7C3A",  activeBg:"#6B7C3A" },
-    { id:"schedule", label:"일정",    color:"#C0443A",  activeBg:"#C0443A" },
-    { id:"event",    label:"이벤트",  color:"#B09520",  activeBg:"#B09520" },
-    { id:"archive",  label:"아카이브", color:"#4A8A5A",  activeBg:"#4A8A5A" },
+    { id:"all",      label:"홈",      icon:"🏠", color:T.textSub },
+    { id:"briefing", label:"브리핑",  icon:"📋", color:"#6B7C3A" },
+    { id:"schedule", label:"일정",    icon:"✅",  color:"#C0443A" },
+    { id:"event",    label:"이벤트",  icon:"🎞",  color:"#B09520" },
+    { id:"archive",  label:"아카이브", icon:"🗂",  color:"#4A8A5A" },
   ];
   return (
     <div style={{
@@ -1216,8 +1267,9 @@ export function BottomTabBar({ filterCat, showBriefing, setFilterCat, setShowBri
               width:28,height:28,borderRadius:8,
               background:isActive?tab.color+"22":"transparent",
               display:"flex",alignItems:"center",justifyContent:"center",
-              fontSize:13,color:isActive?tab.color:T.textMute,transition:"all .12s",
-            }}>●</div>
+              fontSize:16,transition:"all .12s",
+              filter:isActive?"none":"grayscale(80%) opacity(0.5)",
+            }}>{tab.icon}</div>
             <span style={{
               fontSize:9,color:isActive?tab.color:T.textMute,
               fontWeight:isActive?600:400,fontFamily:"'Noto Sans KR',sans-serif",
