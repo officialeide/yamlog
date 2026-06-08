@@ -19,7 +19,7 @@ RULES FOR JSON STRINGS (violations will break parsing):
 Portfolio (do not mention 한독):
 삼성전자4주 삼성전자우4주 KODEX200 30주 현대건설4주 에이피알2주
 한화에어로2주 한화시스템15주(매수중단) TIGER코리아AI전력기기90주
-SOL원자력SMR10주 TIGER원자력40주(신중) 버크셔B 0.3956주 예수금210만원
+SOL원자력SMR10주 TIGER원자력40주(신중) 버크셔B 0.3956주 예수금133만원
 
 Search today's data then respond with ONLY the JSON object. No markdown, no explanation.`;
 
