@@ -1118,7 +1118,10 @@ export function WordSection() {
       </div>
       {/* 단어 */}
       <div style={{fontFamily:"'KoPub Batang',Georgia,serif",fontSize:15,color:"#0F3058",
-        fontWeight:700,marginBottom:4}}>{current.word}</div>
+        fontWeight:700,marginBottom:2}}>{current.word}</div>
+      {current.pronunciation&&(
+        <div style={{fontSize:10,color:"#2E6FA5",marginBottom:4,letterSpacing:.3}}>{current.pronunciation}</div>
+      )}
       <div style={{fontSize:11,color:"#1A4E7A",lineHeight:1.5,marginBottom:12}}>{current.meaning}</div>
       {/* O / X 버튼 */}
       <div style={{display:"flex",gap:6}}>
