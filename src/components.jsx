@@ -1116,12 +1116,13 @@ export function WordSection() {
           }}>›</button>
         </div>
       </div>
-      {/* 단어 */}
-      <div style={{fontFamily:"'KoPub Batang',Georgia,serif",fontSize:15,color:"#0F3058",
-        fontWeight:700,marginBottom:2}}>{current.word}</div>
-      {current.pronunciation&&(
-        <div style={{fontSize:10,color:"#2E6FA5",marginBottom:4,letterSpacing:.3}}>{current.pronunciation}</div>
-      )}
+      {/* 단어 + 발음 병기 */}
+      <div style={{display:"flex",alignItems:"baseline",gap:6,flexWrap:"wrap",marginBottom:4}}>
+        <span style={{fontFamily:"'KoPub Batang',Georgia,serif",fontSize:15,color:"#0F3058",fontWeight:700}}>{current.word}</span>
+        {current.pronunciation&&(
+          <span style={{fontSize:10,color:"#2E6FA5",letterSpacing:.3,fontFamily:"Georgia,serif"}}>{current.pronunciation}</span>
+        )}
+      </div>
       <div style={{fontSize:11,color:"#1A4E7A",lineHeight:1.5,marginBottom:12}}>{current.meaning}</div>
       {/* O / X 버튼 */}
       <div style={{display:"flex",gap:6}}>
@@ -1168,27 +1169,35 @@ const fmtNums = (str) =>
 function BriefingSection({section}){
   const [open,setOpen]=useState(true);
   return(
-    <div style={{background:section.bg,borderRadius:12,border:`1px solid ${section.color}22`,marginBottom:8,overflow:"hidden"}}>
-      <div onClick={()=>setOpen(o=>!o)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",cursor:"pointer"}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <div style={{width:3,height:13,borderRadius:2,background:section.color,flexShrink:0}}/>
-          <span style={{fontSize:12,fontWeight:700,color:section.color}}>{section.title}</span>
-        </div>
-        <span style={{fontSize:9,color:section.color,opacity:.6}}>{open?"▲":"▼"}</span>
+    <div style={{position:"relative",marginBottom:16,marginTop:8}}>
+      {/* floating 제목 레이블 */}
+      <div style={{
+        position:"absolute",top:-9,left:12,zIndex:1,
+        display:"flex",alignItems:"center",gap:5,
+        background:T.bg,paddingLeft:4,paddingRight:8,
+      }}>
+        <div style={{width:3,height:11,borderRadius:2,background:section.color,flexShrink:0}}/>
+        <span style={{fontSize:11,fontWeight:700,color:section.color,lineHeight:1}}>{section.title}</span>
       </div>
-      {open&&(
-        <div style={{padding:"0 14px 12px",borderTop:`1px solid ${section.color}18`}}>
-          {(()=>{
-            const items=Array.isArray(section.content)&&section.content.length>0
-              ?section.content:[section.summary,...(section.lines||[])].filter(Boolean);
-            return items.filter(Boolean).map((line,i)=>(
-              <div key={i} style={{marginTop:i===0?8:3,paddingLeft:i===0?0:10,borderLeft:i===0?"none":`2px solid ${section.color}55`}}>
-                <span style={{fontSize:12,color:i===0?section.color:T.text,lineHeight:1.7,fontWeight:i===0?700:400,fontFamily:"'KoPub Dotum',sans-serif"}}>{fmtNums(line)}</span>
-              </div>
-            ));
-          })()}
+      {/* 카드 본문 */}
+      <div style={{background:section.bg,borderRadius:12,border:`1px solid ${section.color}33`,overflow:"hidden"}}>
+        <div onClick={()=>setOpen(o=>!o)} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",padding:"10px 14px 6px",cursor:"pointer"}}>
+          <span style={{fontSize:9,color:section.color,opacity:.6}}>{open?"▲":"▼"}</span>
         </div>
-      )}
+        {open&&(
+          <div style={{padding:"0 14px 12px"}}>
+            {(()=>{
+              const items=Array.isArray(section.content)&&section.content.length>0
+                ?section.content:[section.summary,...(section.lines||[])].filter(Boolean);
+              return items.filter(Boolean).map((line,i)=>(
+                <div key={i} style={{marginTop:i===0?0:3,paddingLeft:i===0?0:10,borderLeft:i===0?"none":`2px solid ${section.color}55`}}>
+                  <span style={{fontSize:12,color:i===0?section.color:T.text,lineHeight:1.7,fontWeight:i===0?700:400,fontFamily:"'KoPub Dotum',sans-serif"}}>{fmtNums(line)}</span>
+                </div>
+              ));
+            })()}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

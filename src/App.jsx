@@ -1,7 +1,7 @@
 /* ─────────────────────────────────────────────────────
    APP.JSX — 캘린더 뷰, 아카이브 뷰, 메인 Yamlog 컴포넌트
 ───────────────────────────────────────────────────── */
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   T, CATS, VIEWS, WEEKDAYS, MONTHS_KR, HOURS,
   catOf, dateStr, getWeekDays, getMonthCells, KNOWN_SUBS, ARCHIVE_SECTS,
@@ -104,16 +104,26 @@ function WeekView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
   const days = useMemo(() => getWeekDays(curDate), [curDate]);
   const [showNight, setShowNight] = useState(false);
   const [nowHour,   setNowHour]   = useState(() => new Date().getHours());
+  const [gridH,     setGridH]     = useState(0);
+  const gridRef = useRef(null);
   useEffect(() => {
     const id = setInterval(() => setNowHour(new Date().getHours()), 60000);
     return () => clearInterval(id);
   }, []);
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setGridH(entry.contentRect.height));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
-  const ROW_H  = 40;
-  const startH = showNight ? 0 : 8;
-  const visHrs = HOURS.filter(h => h >= startH);
-  const totalH = visHrs.length * ROW_H;
-  const COL_W  = 28;
+  const startH  = showNight ? 0 : 8;
+  const visHrs  = HOURS.filter(h => h >= startH);
+  // 컨테이너 높이를 시간 수로 나눠 ROW_H 동적 계산, 최소 28
+  const ROW_H   = gridH > 0 ? Math.max(28, Math.floor(gridH / visHrs.length)) : 40;
+  const totalH  = visHrs.length * ROW_H;
+  const COL_W   = 28;
 
   return (
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
@@ -145,8 +155,8 @@ function WeekView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
         }}>{showNight?"▲ 0-7시 접기":"▼ 0-7시 펼치기"}</button>
       </div>
 
-      {/* 스크롤 그리드 */}
-      <div style={{flex:1,overflowY:"auto"}}>
+      {/* 그리드 — 스크롤 없이 flex:1로 꽉 채움 */}
+      <div ref={gridRef} style={{flex:1,overflow:"hidden"}}>
         <div style={{display:"flex",height:totalH}}>
 
           {/* 시간 레이블 열 */}
@@ -184,6 +194,15 @@ function WeekView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
                     }}/>
                   );
                 })}
+                {/* 30분 단위 얇은 선 */}
+                {visHrs.map(h=>(
+                  <div key={`h_${h}`} style={{
+                    position:"absolute",top:(h-startH)*ROW_H + ROW_H/2,
+                    left:0,right:0,height:1,
+                    borderBottom:`1px dashed ${T.border}`,
+                    opacity:0.5,pointerEvents:"none",
+                  }}/>
+                ))}
 
                 {/* 이벤트 블록 (분 단위 절대 위치) */}
                 {laid.map(({ev, top, height, left, width}, idx)=>{
@@ -613,6 +632,81 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
 // ─────────────────────────────────────────────────────
 
 
+// 건강 섹션: 날짜별로 체중+식단을 하나의 카드로 통합 표시
+function HealthDayCards({ evs, accentColor, onOpen }) {
+  // 날짜별 그룹핑
+  const byDate = {};
+  evs.forEach(e => {
+    if (!byDate[e.date]) byDate[e.date] = [];
+    byDate[e.date].push(e);
+  });
+  const dates = Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+      {dates.map(date => {
+        const dayEvs = byDate[date];
+        const weightEv = dayEvs.find(e=>e.sub_category==="weight");
+        const dietEv   = dayEvs.find(e=>e.sub_category==="diet");
+        const otherEvs = dayEvs.filter(e=>e.sub_category!=="weight"&&e.sub_category!=="diet");
+        const GOALS = { calories:1400, protein:100, sugar:25 };
+        return (
+          <div key={date} style={{
+            background:T.bgCard,borderRadius:12,padding:"12px 14px",
+            border:`1px solid ${T.border}`,
+          }}>
+            <div style={{fontSize:10,color:T.textMute,marginBottom:8}}>{date}</div>
+            {/* 체중 + 식단 한 줄 */}
+            {(weightEv||dietEv)&&(
+              <div style={{display:"flex",gap:16,alignItems:"flex-start",marginBottom:otherEvs.length>0?10:0}}>
+                {/* 체중 */}
+                {weightEv&&(
+                  <div onClick={()=>onOpen(weightEv)} style={{cursor:"pointer",flexShrink:0}}>
+                    <div style={{fontSize:10,color:T.textMute,marginBottom:2}}>체중</div>
+                    <div style={{fontSize:18,fontWeight:700,color:accentColor,lineHeight:1}}>
+                      {(weightEv.fields||{}).weight}
+                      <span style={{fontSize:11,fontWeight:400,marginLeft:2}}>kg</span>
+                    </div>
+                  </div>
+                )}
+                {weightEv&&dietEv&&(
+                  <div style={{width:1,background:T.border,alignSelf:"stretch",marginTop:4}}/>
+                )}
+                {/* 식단 */}
+                {dietEv&&(
+                  <div onClick={()=>onOpen(dietEv)} style={{cursor:"pointer",flex:1,minWidth:0}}>
+                    <div style={{fontSize:10,color:T.textMute,marginBottom:4}}>식단</div>
+                    {[["breakfast","아침"],["lunch","점심"],["dinner","저녁"],["snack","간식"]]
+                      .filter(([k])=>(dietEv.fields||{})[k])
+                      .map(([k,label])=>(
+                        <div key={k} style={{fontSize:11,color:T.text,marginBottom:2,display:"flex",gap:6}}>
+                          <span style={{color:T.textMute,fontSize:10,minWidth:20}}>{label}</span>
+                          <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(dietEv.fields||{})[k]}</span>
+                        </div>
+                      ))
+                    }
+                    {(()=>{const f=dietEv.fields||{};return (f.calories||f.protein||f.sugar)&&(
+                      <div style={{display:"flex",gap:10,fontSize:10,marginTop:4,paddingTop:4,borderTop:`1px dashed ${T.border}`}}>
+                        {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}</span></span>}
+                        {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
+                        {f.sugar&&<span>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar}g</span></span>}
+                      </div>
+                    );})()}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* 웨이트/카디오 등 나머지 기록 */}
+            {otherEvs.map(e=>(
+              <ArchiveEntryCard key={e.id} ev={e} accentColor={accentColor} onOpen={onOpen}/>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function ArchiveView({ events, onOpen, onAddFromArchive }) {
   const [activeSec, setActiveSec] = useState("health");
   const archiveEvs = events.filter(e => e.category === "archive");
@@ -666,6 +760,9 @@ function ArchiveView({ events, onOpen, onAddFromArchive }) {
             <div style={{fontSize:26,opacity:.2}}>○</div>
             <div style={{fontSize:13,color:T.textMute}}>기록이 없습니다</div>
           </div>
+        ) : activeSec === "health" ? (
+          // 건강 섹션: 같은 날짜의 체중+식단 통합 카드
+          <HealthDayCards evs={filtered} accentColor={activeDef?.color||T.accent} onOpen={onOpen}/>
         ):(
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
             {filtered.map(e=>(
