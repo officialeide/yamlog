@@ -46,7 +46,7 @@ async function callClaude(kstDateKR, attempt = 1) {
     },
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 2500,
+      max_tokens: 1500,
       system: SYSTEM_PROMPT,
       tools: [{ type: "web_search_20250305", name: "web_search" }],
       messages: [{
