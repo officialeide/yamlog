@@ -1226,12 +1226,12 @@ function BriefingSection({section}){
               background:T.bg,paddingLeft:4,paddingRight:8,flexWrap:"wrap",maxWidth:"90%",
             }}>
               <div style={{width:3,height:11,borderRadius:2,background:section.color,flexShrink:0}}/>
-              <span style={{fontSize:11,fontWeight:700,color:section.color,lineHeight:1,flexShrink:0}}>{section.title}</span>
-              {summary&&<span style={{fontSize:10,color:section.color,opacity:.75,lineHeight:1.3,fontWeight:500}}>{fmtNums(summary)}</span>}
+              <span style={{fontSize:12,fontWeight:700,color:section.color,lineHeight:1,flexShrink:0}}>{section.title}</span>
+              {summary&&<span style={{fontSize:11,color:section.color,opacity:.75,lineHeight:1.3,fontWeight:500}}>{fmtNums(summary)}</span>}
             </div>
             {/* 카드 본문: 나머지 세부 줄 */}
             <div style={{background:section.bg,borderRadius:12,border:`1px solid ${section.color}33`,overflow:"hidden"}}>
-              <div onClick={()=>setOpen(o=>!o)} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",padding:"10px 14px 6px",cursor:"pointer"}}>
+              <div onClick={()=>setOpen(o=>!o)} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",padding:"5px 14px 4px",cursor:"pointer"}}>
                 <span style={{fontSize:9,color:section.color,opacity:.6}}>{open?"▲":"▼"}</span>
               </div>
               {open&&rest.length>0&&(
