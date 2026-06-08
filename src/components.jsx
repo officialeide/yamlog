@@ -467,7 +467,28 @@ function EditModal({ ev, onClose, onSaved }) {
                 </div>
               ))}
             </div>
-            <textarea placeholder="특이사항" rows={2} style={{...inp,resize:"none"}} value={detail} onChange={e=>setDetail(e.target.value)}/>
+            {/* 특이사항 체크박스 */}
+            <div style={{marginBottom:8}}>
+              <div style={{fontSize:11,color:T.textSub,marginBottom:6}}>특이사항</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+                {["🍾","💩","🩸","💙"].map(emoji=>{
+                  const checked=(fields.checks||[]).includes(emoji);
+                  return (
+                    <button key={emoji} onClick={()=>setFields(prev=>{
+                      const cur=prev.checks||[];
+                      return {...prev,checks:checked?cur.filter(e=>e!==emoji):[...cur,emoji]};
+                    })} style={{
+                      fontSize:16,padding:"4px 8px",borderRadius:8,cursor:"pointer",
+                      background:checked?T.bgSub:"transparent",
+                      border:`1px solid ${checked?T.borderMid:T.border}`,
+                      opacity:checked?1:0.4,transition:"all .12s",
+                    }}>{emoji}</button>
+                  );
+                })}
+                <input placeholder="기타" style={{...inp,flex:1,marginBottom:0,fontSize:12,minWidth:60}}
+                  value={fields.checksEtc||""} onChange={e=>setField("checksEtc",e.target.value)}/>
+              </div>
+            </div>
           </>)}
 
           {isWeightTraining&&(<>
@@ -790,7 +811,28 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
                 </div>
               ))}
             </div>
-            <textarea placeholder="특이사항 (과식, 음주 등)" rows={2} style={{...inp,resize:"none",marginBottom:8}} value={detail} onChange={e=>setDetail(e.target.value)}/>
+            {/* 특이사항 체크박스 */}
+            <div style={{marginBottom:8}}>
+              <div style={{fontSize:11,color:T.textSub,marginBottom:6}}>특이사항</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+                {["🍾","💩","🩸","💙"].map(emoji=>{
+                  const checked=(fields.checks||[]).includes(emoji);
+                  return (
+                    <button key={emoji} onClick={()=>setFields(prev=>{
+                      const cur=prev.checks||[];
+                      return {...prev,checks:checked?cur.filter(e=>e!==emoji):[...cur,emoji]};
+                    })} style={{
+                      fontSize:16,padding:"4px 8px",borderRadius:8,cursor:"pointer",
+                      background:checked?T.bgSub:"transparent",
+                      border:`1px solid ${checked?T.borderMid:T.border}`,
+                      opacity:checked?1:0.4,transition:"all .12s",
+                    }}>{emoji}</button>
+                  );
+                })}
+                <input placeholder="기타" style={{...inp,flex:1,marginBottom:0,fontSize:12,minWidth:60}}
+                  value={fields.checksEtc||""} onChange={e=>setField("checksEtc",e.target.value)}/>
+              </div>
+            </div>
           </>)}
 
           {cat==="archive"&&archiveSub==="health"&&healthSub==="weight_training"&&(<>
@@ -1170,34 +1212,41 @@ function BriefingSection({section}){
   const [open,setOpen]=useState(true);
   return(
     <div style={{position:"relative",marginBottom:16,marginTop:8}}>
-      {/* floating 제목 레이블 */}
-      <div style={{
-        position:"absolute",top:-9,left:12,zIndex:1,
-        display:"flex",alignItems:"center",gap:5,
-        background:T.bg,paddingLeft:4,paddingRight:8,
-      }}>
-        <div style={{width:3,height:11,borderRadius:2,background:section.color,flexShrink:0}}/>
-        <span style={{fontSize:11,fontWeight:700,color:section.color,lineHeight:1}}>{section.title}</span>
-      </div>
-      {/* 카드 본문 */}
-      <div style={{background:section.bg,borderRadius:12,border:`1px solid ${section.color}33`,overflow:"hidden"}}>
-        <div onClick={()=>setOpen(o=>!o)} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",padding:"10px 14px 6px",cursor:"pointer"}}>
-          <span style={{fontSize:9,color:section.color,opacity:.6}}>{open?"▲":"▼"}</span>
-        </div>
-        {open&&(
-          <div style={{padding:"0 14px 12px"}}>
-            {(()=>{
-              const items=Array.isArray(section.content)&&section.content.length>0
-                ?section.content:[section.summary,...(section.lines||[])].filter(Boolean);
-              return items.filter(Boolean).map((line,i)=>(
-                <div key={i} style={{marginTop:i===0?0:3,paddingLeft:i===0?0:10,borderLeft:i===0?"none":`2px solid ${section.color}55`}}>
-                  <span style={{fontSize:12,color:i===0?section.color:T.text,lineHeight:1.7,fontWeight:i===0?700:400,fontFamily:"'KoPub Dotum',sans-serif"}}>{fmtNums(line)}</span>
+      {/* floating 제목 + 요약 첫 줄 */}
+      {(()=>{
+        const items=Array.isArray(section.content)&&section.content.length>0
+          ?section.content:[section.summary,...(section.lines||[])].filter(Boolean);
+        const summary = items[0]||"";
+        const rest = items.slice(1);
+        return (
+          <>
+            <div style={{
+              position:"absolute",top:-9,left:12,zIndex:1,
+              display:"flex",alignItems:"center",gap:6,
+              background:T.bg,paddingLeft:4,paddingRight:8,flexWrap:"wrap",maxWidth:"90%",
+            }}>
+              <div style={{width:3,height:11,borderRadius:2,background:section.color,flexShrink:0}}/>
+              <span style={{fontSize:11,fontWeight:700,color:section.color,lineHeight:1,flexShrink:0}}>{section.title}</span>
+              {summary&&<span style={{fontSize:10,color:section.color,opacity:.75,lineHeight:1.3,fontWeight:500}}>{fmtNums(summary)}</span>}
+            </div>
+            {/* 카드 본문: 나머지 세부 줄 */}
+            <div style={{background:section.bg,borderRadius:12,border:`1px solid ${section.color}33`,overflow:"hidden"}}>
+              <div onClick={()=>setOpen(o=>!o)} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",padding:"10px 14px 6px",cursor:"pointer"}}>
+                <span style={{fontSize:9,color:section.color,opacity:.6}}>{open?"▲":"▼"}</span>
+              </div>
+              {open&&rest.length>0&&(
+                <div style={{padding:"0 14px 12px"}}>
+                  {rest.map((line,i)=>(
+                    <div key={i} style={{marginTop:i===0?0:3,paddingLeft:10,borderLeft:`2px solid ${section.color}55`}}>
+                      <span style={{fontSize:12,color:T.text,lineHeight:1.7,fontWeight:400,fontFamily:"'KoPub Dotum',sans-serif"}}>{fmtNums(line)}</span>
+                    </div>
+                  ))}
                 </div>
-              ));
-            })()}
-          </div>
-        )}
-      </div>
+              )}
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }

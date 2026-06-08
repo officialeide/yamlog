@@ -104,8 +104,8 @@ function WeekView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
   const days = useMemo(() => getWeekDays(curDate), [curDate]);
   const [showNight, setShowNight] = useState(false);
   const [nowHour,   setNowHour]   = useState(() => new Date().getHours());
-  const [gridH,     setGridH]     = useState(0);
-  const gridRef = useRef(null);
+  const gridRef  = useRef(null);
+  const [gridH, setGridH] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setNowHour(new Date().getHours()), 60000);
     return () => clearInterval(id);
@@ -113,15 +113,16 @@ function WeekView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
   useEffect(() => {
     const el = gridRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(([entry]) => setGridH(entry.contentRect.height));
+    // 초기값 즉시 설정
+    setGridH(el.clientHeight);
+    const ro = new ResizeObserver(() => setGridH(el.clientHeight));
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [showNight]);
 
   const startH  = showNight ? 0 : 8;
   const visHrs  = HOURS.filter(h => h >= startH);
-  // 컨테이너 높이를 시간 수로 나눠 ROW_H 동적 계산, 최소 28
-  const ROW_H   = gridH > 0 ? Math.max(28, Math.floor(gridH / visHrs.length)) : 40;
+  const ROW_H   = gridH > 0 ? Math.max(24, Math.floor(gridH / visHrs.length)) : 40;
   const totalH  = visHrs.length * ROW_H;
   const COL_W   = 28;
 
@@ -156,11 +157,11 @@ function WeekView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
       </div>
 
       {/* 그리드 — 스크롤 없이 flex:1로 꽉 채움 */}
-      <div ref={gridRef} style={{flex:1,overflow:"hidden"}}>
-        <div style={{display:"flex",height:totalH}}>
+      <div ref={gridRef} style={{flex:1,overflow:"hidden",position:"relative"}}>
+        <div style={{display:"flex",height:"100%"}}>
 
           {/* 시간 레이블 열 */}
-          <div style={{width:COL_W,flexShrink:0,position:"relative",height:totalH}}>
+          <div style={{width:COL_W,flexShrink:0,position:"relative",height:"100%"}}>
             {visHrs.map(h=>(
               <div key={h} style={{
                 position:"absolute",
@@ -180,7 +181,7 @@ function WeekView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
 
             return (
               <div key={i} style={{flex:1,minWidth:0,borderLeft:`1px solid ${T.border}`,
-                position:"relative",height:totalH}}>
+                position:"relative",height:"100%"}}>
 
                 {/* 시간 배경 격자 */}
                 {visHrs.map(h=>{
@@ -685,21 +686,66 @@ function HealthDayCards({ evs, accentColor, onOpen }) {
                         </div>
                       ))
                     }
-                    {(()=>{const f=dietEv.fields||{};return (f.calories||f.protein||f.sugar)&&(
-                      <div style={{display:"flex",gap:10,fontSize:10,marginTop:4,paddingTop:4,borderTop:`1px dashed ${T.border}`}}>
-                        {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}</span></span>}
-                        {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
-                        {f.sugar&&<span>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar}g</span></span>}
+                    {(()=>{const f=dietEv.fields||{};return (f.calories||f.protein||f.sugar||f.checks?.length||f.checksEtc)&&(
+                      <div style={{display:"flex",alignItems:"center",gap:10,fontSize:10,marginTop:4,paddingTop:4,borderTop:`1px dashed ${T.border}`}}>
+                        <div style={{display:"flex",gap:10,flex:1}}>
+                          {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}</span></span>}
+                          {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
+                          {f.sugar&&<span>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar}g</span></span>}
+                        </div>
+                        {(f.checks?.length||f.checksEtc)&&(
+                          <div style={{display:"flex",gap:3,alignItems:"center",flexShrink:0}}>
+                            {(f.checks||[]).map(e=><span key={e} style={{fontSize:13}}>{e}</span>)}
+                            {f.checksEtc&&<span style={{fontSize:10,color:T.textMute}}>{f.checksEtc}</span>}
+                          </div>
+                        )}
                       </div>
                     );})()}
                   </div>
                 )}
               </div>
             )}
-            {/* 웨이트/카디오 등 나머지 기록 */}
-            {otherEvs.map(e=>(
-              <ArchiveEntryCard key={e.id} ev={e} accentColor={accentColor} onOpen={onOpen}/>
-            ))}
+            {/* 웨이트+카디오 반반 통합, 나머지는 기존 카드 */}
+            {(()=>{
+              const wtEv = otherEvs.find(e=>e.sub_category==="weight_training");
+              const cdEv = otherEvs.find(e=>e.sub_category==="cardio");
+              const restEvs = otherEvs.filter(e=>e.sub_category!=="weight_training"&&e.sub_category!=="cardio");
+              const hasWC = wtEv||cdEv;
+              return (
+                <>
+                  {hasWC&&(
+                    <div style={{display:"flex",gap:12,marginTop:(weightEv||dietEv)?10:0,alignItems:"flex-start"}}>
+                      {wtEv&&(
+                        <div onClick={()=>onOpen(wtEv)} style={{cursor:"pointer",flex:1,minWidth:0}}>
+                          <div style={{fontSize:10,color:T.textMute,marginBottom:3}}>웨이트</div>
+                          <div style={{fontSize:11,color:T.text,display:"flex",gap:8,flexWrap:"wrap"}}>
+                            {(wtEv.fields||{}).part&&<span style={{fontWeight:600}}>{wtEv.fields.part}</span>}
+                            {(wtEv.fields||{}).duration&&<span style={{color:T.textSub}}>{wtEv.fields.duration}분</span>}
+                            {(wtEv.fields||{}).condition&&<span>{"★".repeat(wtEv.fields.condition)}{"☆".repeat(5-wtEv.fields.condition)}</span>}
+                          </div>
+                          {wtEv.detail&&<div style={{fontSize:10,color:T.textSub,marginTop:3,whiteSpace:"pre-wrap"}}>{wtEv.detail}</div>}
+                        </div>
+                      )}
+                      {wtEv&&cdEv&&<div style={{width:1,background:T.border,alignSelf:"stretch"}}/>}
+                      {cdEv&&(
+                        <div onClick={()=>onOpen(cdEv)} style={{cursor:"pointer",flex:1,minWidth:0}}>
+                          <div style={{fontSize:10,color:T.textMute,marginBottom:3}}>카디오</div>
+                          <div style={{fontSize:11,color:T.text,display:"flex",gap:8,flexWrap:"wrap"}}>
+                            {(cdEv.fields||{}).type&&<span style={{fontWeight:600}}>{cdEv.fields.type}</span>}
+                            {(cdEv.fields||{}).distance&&<span>{cdEv.fields.distance}km</span>}
+                            {(cdEv.fields||{}).calories&&<span style={{color:T.textSub}}>{cdEv.fields.calories}kcal</span>}
+                          </div>
+                          {cdEv.detail&&<div style={{fontSize:10,color:T.textSub,marginTop:3,whiteSpace:"pre-wrap"}}>{cdEv.detail}</div>}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {restEvs.map(e=>(
+                    <ArchiveEntryCard key={e.id} ev={e} accentColor={accentColor} onOpen={onOpen}/>
+                  ))}
+                </>
+              );
+            })()}
           </div>
         );
       })}
