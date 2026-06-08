@@ -2,6 +2,7 @@
    API.JS — Supabase 클라이언트, 커스텀 훅, CRUD 함수
 ───────────────────────────────────────────────────── */
 import { useState, useEffect, useCallback } from "react";
+import { dateStr, WEIGHT_FETCH_DAYS } from "./constants.js";
 import { createClient } from "@supabase/supabase-js";
 
 // ── Supabase 클라이언트 ─────────────────────────────
@@ -54,11 +55,11 @@ export function useWeightLogs() {
   const fetchLogs = useCallback(async () => {
     try {
       const from = new Date();
-      from.setDate(from.getDate() - 89);
+      from.setDate(from.getDate() - (WEIGHT_FETCH_DAYS - 1));
       const { data, error } = await supabase
         .from("weight_logs")
         .select("*")
-        .gte("date", from.toISOString().slice(0, 10))
+        .gte("date", dateStr(from))   // KST 로컬 날짜 기준 (UTC 버그 수정)
         .order("date");
       if (error) throw error;
       setLogs(data || []);

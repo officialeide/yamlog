@@ -109,11 +109,11 @@ function WeekView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
     return () => clearInterval(id);
   }, []);
 
-  const ROW_H  = 52;
+  const ROW_H  = 40;
   const startH = showNight ? 0 : 8;
   const visHrs = HOURS.filter(h => h >= startH);
   const totalH = visHrs.length * ROW_H;
-  const COL_W  = 34;
+  const COL_W  = 28;
 
   return (
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
@@ -164,7 +164,7 @@ function WeekView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
           {days.map((d,i)=>{
             const ds=dateStr(d), isToday=ds===todayStr;
             const colEvs = events.filter(e=>
-              e.date===ds
+              e.date===ds && e.category !== "archive"
             );
             const laid = layoutDayEvents(colEvs, startH, ROW_H);
 
@@ -228,7 +228,7 @@ function MonthCell({ d, events, isToday, isMobile, onOpen, onAdd, todayStr }) {
   const [showPopup, setShowPopup] = useState(false);
   const ds = dateStr(d);
   const isWknd = d.getDay()===0||d.getDay()===6;
-  const allEvs = events.filter(e=>e.date===ds);
+  const allEvs = events.filter(e=>e.date===ds && e.category !== "archive");
   const todoEvs = allEvs.filter(e=>!e.done);
   const doneEvs = allEvs.filter(e=>e.done);
   const SHOW_MAX = 4;
@@ -465,6 +465,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
         );
       case "diet": {
         const meals=[["breakfast","아침"],["lunch","점심"],["dinner","저녁"],["snack","간식"]];
+        const GOALS = { calories:1400, protein:100, sugar:25 };
         return (
           <div>
             {meals.filter(([k])=>f[k]).map(([k,label])=>(
@@ -472,11 +473,14 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
                 <span style={{color:T.textMute,fontSize:10,minWidth:22}}>{label}</span><span>{f[k]}</span>
               </div>
             ))}
-            {(f.calories||f.protein||f.sugar)&&<div style={{fontSize:10,color:T.textMute,marginTop:5,display:"flex",gap:10,flexWrap:"wrap"}}>
-              {f.calories&&<span>🔥 {f.calories}</span>}
-              {f.protein&&<span>🍖 단백질 {f.protein}</span>}
-              {f.sugar&&<span>🧁 당류 {f.sugar}</span>}
-            </div>}
+            {(f.calories||f.protein||f.sugar)&&(
+              <div style={{fontSize:11,marginTop:5,display:"flex",gap:12,flexWrap:"wrap",paddingTop:5,borderTop:`1px dashed ${T.border}`}}>
+                {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories} kcal</span></span>}
+                {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein} g</span></span>}
+                {f.sugar&&<span>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar} g</span></span>}
+              </div>
+            )}
+            {ev.detail&&<div style={{fontSize:11,color:T.text,marginTop:5,whiteSpace:"pre-wrap",lineHeight:1.6}}>{ev.detail}</div>}
           </div>
         );
       }
@@ -488,7 +492,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
               {f.duration&&<span><span style={{color:T.textMute,fontSize:10}}>시간 </span>{f.duration}</span>}
               {f.condition&&<span><span style={{color:T.textMute,fontSize:10}}>컨디션 </span>{"★".repeat(f.condition)}{"☆".repeat(5-f.condition)}</span>}
             </div>
-            {ev.detail&&<pre style={{fontSize:11,color:T.textSub,whiteSpace:"pre-wrap",margin:0,lineHeight:1.7,fontFamily:"'KoPub Dotum',sans-serif"}}>{ev.detail}</pre>}
+            {ev.detail&&<pre style={{fontSize:11,color:T.text,whiteSpace:"pre-wrap",margin:0,lineHeight:1.7,fontFamily:"'KoPub Dotum',sans-serif"}}>{ev.detail}</pre>}
           </div>
         );
       case "cardio":
@@ -501,7 +505,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
               {f.avgHr&&<span><span style={{color:T.textMute,fontSize:10}}>심박 </span>{f.avgHr}</span>}
               {f.calories&&<span><span style={{color:T.textMute,fontSize:10}}>칼로리 </span>{f.calories}</span>}
             </div>
-            {ev.detail&&<div style={{fontSize:11,color:T.textSub}}>{ev.detail}</div>}
+            {ev.detail&&<div style={{fontSize:11,color:T.text,whiteSpace:"pre-wrap",lineHeight:1.6}}>{ev.detail}</div>}
           </div>
         );
       case "economy":
@@ -534,13 +538,13 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
             {f.record&&(
               <div style={{marginBottom:6}}>
                 <div style={{fontSize:10,color:T.textMute,fontWeight:600,letterSpacing:.4,marginBottom:3}}>인상깊은 문장</div>
-                <div style={{fontSize:12,color:T.textSub,fontStyle:"italic",padding:"7px 10px",background:T.bgSub,borderRadius:6,lineHeight:1.7,borderLeft:`2px solid ${accentColor}55`}}>{f.record}</div>
+                <div style={{fontSize:12,color:T.text,fontStyle:"italic",lineHeight:1.7,whiteSpace:"pre-wrap"}}>{f.record}</div>
               </div>
             )}
             {ev.detail&&(
               <div>
                 <div style={{fontSize:10,color:T.textMute,fontWeight:600,letterSpacing:.4,marginBottom:3}}>감상</div>
-                <div style={{fontSize:12,color:T.textSub,lineHeight:1.7}}>{ev.detail}</div>
+                <div style={{fontSize:12,color:T.text,lineHeight:1.7,padding:"7px 10px",background:T.bgSub,borderRadius:6,whiteSpace:"pre-wrap"}}>{ev.detail}</div>
               </div>
             )}
           </div>
@@ -569,7 +573,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
                 ))}
               </div>
             )}
-            {ev.detail&&<div style={{fontSize:12,color:T.textSub}}>{ev.detail}</div>}
+            {ev.detail&&<div style={{fontSize:12,color:T.text,whiteSpace:"pre-wrap",lineHeight:1.6}}>{ev.detail}</div>}
           </div>
         );
       case "coffee":
@@ -584,7 +588,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
         return (
           <div>
             {ev.title&&ev.title!=="기타"&&<div style={{fontSize:13,fontWeight:600,color:T.text,marginBottom:4}}>{ev.title}</div>}
-            {ev.detail&&<div style={{fontSize:12,color:T.textSub,lineHeight:1.75}}>{ev.detail}</div>}
+            {ev.detail&&<div style={{fontSize:12,color:T.text,lineHeight:1.75,whiteSpace:"pre-wrap"}}>{ev.detail}</div>}
           </div>
         );
     }

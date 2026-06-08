@@ -22,13 +22,6 @@ export const CATS = [
   { id:"archive",  label:"아카이브", icon:"o", color:"#4A8A5A", bg:"#EBF5EE", text:"#2E6640" },
 ];
 
-export const ARCHIVE_SUBS = [
-  { id:"health",  label:"건강", color:"#4A8A5A", bg:"#EBF5EE", text:"#2E6640" },
-  { id:"economy", label:"경제", color:"#2E6FA5", bg:"#E8F2FA", text:"#1A4E7A" },
-  { id:"review",  label:"리뷰", color:"#1A4080", bg:"#E5EAF5", text:"#0F2A60" },
-  { id:"etc",     label:"기타", color:"#7E4FA0", bg:"#F3EBF8", text:"#5A2E80" },
-];
-
 export const HEALTH_SUBS = [
   { id:"weight",          label:"체중" },
   { id:"diet",            label:"식단" },
@@ -41,6 +34,8 @@ export const REVIEW_SUBS = [
   { id:"wine",   label:"와인" },
   { id:"coffee", label:"커피" },
 ];
+
+export const WEIGHT_FETCH_DAYS = 90; // 체중 그래프 조회 일수
 
 // 아카이브 서브카테고리 ID 목록 — App.jsx, components.jsx 공통 참조용
 export const KNOWN_SUBS = [
@@ -87,10 +82,10 @@ const subsOf = (id) => ARCHIVE_SECTS.find(s => s.id === id)?.subs || [];
 export const catOf = (category, sub_category) => {
   if (category === "archive") {
     if (!sub_category) return CATS.find(c=>c.id==="archive") || CATS[0];
-    if (subsOf("health").includes(sub_category)) return ARCHIVE_SUBS.find(s=>s.id==="health")  || CATS[2];
-    if (subsOf("review").includes(sub_category)) return ARCHIVE_SUBS.find(s=>s.id==="review")  || CATS[2];
-    if (sub_category === "economy")              return ARCHIVE_SUBS.find(s=>s.id==="economy") || CATS[2];
-    return ARCHIVE_SUBS.find(s=>s.id===sub_category) || CATS.find(c=>c.id==="archive") || CATS[0];
+    if (subsOf("health").includes(sub_category)) return ARCHIVE_SECTS.find(s=>s.id==="health")  || CATS[2];
+    if (subsOf("review").includes(sub_category)) return ARCHIVE_SECTS.find(s=>s.id==="review")  || CATS[2];
+    if (sub_category === "economy")              return ARCHIVE_SECTS.find(s=>s.id==="economy") || CATS[2];
+    return ARCHIVE_SECTS.find(s=>s.id===sub_category) || CATS.find(c=>c.id==="archive") || CATS[0];
   }
   return CATS.find(c=>c.id===category) || CATS[0];
 };

@@ -7,7 +7,7 @@ import {
   Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
 import {
-  T, CATS, ARCHIVE_SUBS, HEALTH_SUBS, REVIEW_SUBS,
+  T, CATS, ARCHIVE_SECTS, HEALTH_SUBS, REVIEW_SUBS,
   TOEIC_WORDS, catOf, dateStr, KNOWN_SUBS, TAB_ITEMS,
 } from "./constants.js";
 import { supabase, updateEvent, upsertWeight, deleteEvent, deleteWeight } from "./api.js";
@@ -105,11 +105,12 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight }) {
           );
         });
       if (f.calories||f.protein||f.sugar) {
+        const GOALS = { calories:1400, protein:100, sugar:25 };
         rows.push(
-          <div key="stats" style={{marginTop:6,display:"flex",gap:14,fontSize:11,color:T.textMute,paddingTop:6,borderTop:`1px dashed ${T.border}`}}>
-            {f.calories&&<span>🔥 {f.calories}</span>}
-            {f.protein&&<span>🍖 단백질 {f.protein}</span>}
-            {f.sugar&&<span>🧁 당류 {f.sugar}</span>}
+          <div key="stats" style={{marginTop:6,display:"flex",gap:14,fontSize:11,paddingTop:6,borderTop:`1px dashed ${T.border}`}}>
+            {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories} kcal</span></span>}
+            {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein} g</span></span>}
+            {f.sugar&&<span>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar} g</span></span>}
           </div>
         );
       }
@@ -166,7 +167,7 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight }) {
       if (f.genre||f.period) rows.push(<div key="bmeta" style={{fontSize:10,color:T.textMute,marginBottom:5}}>{f.genre}{f.genre&&f.period&&" · "}{f.period}</div>);
       if (f.score) rows.push(<div key="bscore" style={{fontSize:15,color:"#7E4FA0",marginBottom:6}}>{"★".repeat(f.score)}{"☆".repeat(5-f.score)}</div>);
       if (f.record) rows.push(
-        <div key="brec" style={{fontSize:12,color:T.textSub,fontStyle:"italic",padding:"8px 10px",background:T.bgSub,borderRadius:7,marginBottom:6,lineHeight:1.7}}>{f.record}</div>
+        <div key="brec" style={{fontSize:12,color:T.text,fontStyle:"italic",lineHeight:1.7,marginBottom:6,whiteSpace:"pre-wrap"}}>{f.record}</div>
       );
     }
 
@@ -440,13 +441,26 @@ function EditModal({ ev, onClose, onSaved }) {
 
           {isDiet&&(<>
             {[["breakfast","아침"],["lunch","점심"],["dinner","저녁"],["snack","간식"]].map(([k,label])=>(
-              <div key={k} style={{marginBottom:8}}>
-                <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label}</div>
-                <input style={{...inp}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
+              <div key={k} style={{display:"flex",alignItems:"center",gap:6,marginBottom:7}}>
+                <span style={{fontSize:11,color:T.textMute,minWidth:22,flexShrink:0}}>{label}</span>
+                <input placeholder="메뉴" style={{...inp,flex:2,marginBottom:0}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
+                <input type="number" placeholder="kcal" style={{...inp,flex:1,marginBottom:0,textAlign:"right"}}
+                  value={fields[k+"_kcal"]||""} onChange={e=>{
+                    const val = e.target.value;
+                    setFields(prev=>{
+                      const next = {...prev, [k+"_kcal"]: val};
+                      const total = ["breakfast","lunch","dinner","snack"]
+                        .reduce((sum,mk)=>sum+(parseFloat(next[mk+"_kcal"])||0),0);
+                      return {...next, calories: total||undefined};
+                    });
+                  }}/>
               </div>
             ))}
+            <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8,fontSize:11,color:T.textMute}}>
+              총 칼로리 <span style={{color:T.text,fontWeight:700,marginLeft:6}}>{fields.calories||0}</span> kcal
+            </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:8}}>
-              {[["calories","총 칼로리"],["protein","총 단백질"],["sugar","총 당류"]].map(([k,label])=>(
+              {[["protein","총 단백질"],["sugar","총 당류"]].map(([k,label])=>(
                 <div key={k}>
                   <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label}</div>
                   <input style={{...inp}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
@@ -617,7 +631,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
   const setField = (k, v) => setFields(f => ({...f, [k]: v}));
 
   const currentColor = () => {
-    if (cat === "archive") return ARCHIVE_SUBS.find(s=>s.id===archiveSub) || ARCHIVE_SUBS[0];
+    if (cat === "archive") return ARCHIVE_SECTS.find(s=>s.id===archiveSub) || ARCHIVE_SECTS[0];
     return CATS.find(c=>c.id===cat) || CATS[0];
   };
   const c = currentColor();
@@ -668,7 +682,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
       };
       await addEventFn({
         category: cat, sub_category: sub, title: finalTitle,
-        date, hour: sh,
+        date, hour: cat === "archive" ? null : sh,
         done: false, detail: detail || null, fields: finalFields,
       });
       onSaved?.();
@@ -707,7 +721,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
           </div>
           {cat==="archive"&&(<>
             <div style={{display:"flex",gap:5}}>
-              {ARCHIVE_SUBS.map(s=>(
+              {ARCHIVE_SECTS.map(s=>(
                 <button key={s.id} onClick={()=>setArchiveSub(s.id)} style={{
                   flex:1,padding:"5px 4px",borderRadius:7,cursor:"pointer",fontSize:11,
                   background:archiveSub===s.id?s.bg:T.bgSub,border:`1px solid ${archiveSub===s.id?s.color+"88":T.border}`,
@@ -750,13 +764,26 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
 
           {cat==="archive"&&archiveSub==="health"&&healthSub==="diet"&&(<>
             {[["breakfast","아침"],["lunch","점심"],["dinner","저녁"],["snack","간식"]].map(([k,label])=>(
-              <div key={k} style={{marginBottom:8}}>
-                <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label}</div>
-                <input placeholder="메뉴 입력" style={{...inp}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
+              <div key={k} style={{display:"flex",alignItems:"center",gap:6,marginBottom:7}}>
+                <span style={{fontSize:11,color:T.textMute,minWidth:22,flexShrink:0}}>{label}</span>
+                <input placeholder="메뉴" style={{...inp,flex:2,marginBottom:0}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
+                <input type="number" placeholder="kcal" style={{...inp,flex:1,marginBottom:0,textAlign:"right"}}
+                  value={fields[k+"_kcal"]||""} onChange={e=>{
+                    const val = e.target.value;
+                    setFields(prev=>{
+                      const next = {...prev, [k+"_kcal"]: val};
+                      const total = ["breakfast","lunch","dinner","snack"]
+                        .reduce((sum,mk)=>sum+(parseFloat(next[mk+"_kcal"])||0),0);
+                      return {...next, calories: total||undefined};
+                    });
+                  }}/>
               </div>
             ))}
+            <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8,fontSize:11,color:T.textMute}}>
+              총 칼로리 <span style={{color:T.text,fontWeight:700,marginLeft:6}}>{fields.calories||0}</span> kcal
+            </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:8}}>
-              {[["calories","총 칼로리","예) 2100kcal"],["protein","총 단백질","예) 170g"],["sugar","총 당류","예) 45g"]].map(([k,label,ph])=>(
+              {[["protein","총 단백질","예) 170g"],["sugar","총 당류","예) 45g"]].map(([k,label,ph])=>(
                 <div key={k}>
                   <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label}</div>
                   <input placeholder={ph} style={{...inp}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
@@ -903,7 +930,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
           </>)}
 
           <input type="date" style={{...inp,marginTop:8}} value={date} onChange={e=>setDate(e.target.value)}/>
-          {!(cat==="archive"&&archiveSub==="health"&&healthSub==="weight")&&(
+          {cat !== "archive" && !(cat==="archive"&&archiveSub==="health"&&healthSub==="weight")&&(
             <div style={{display:"flex",gap:7,marginTop:7}}>
               <div style={{flex:1}}>
                 <div style={{fontSize:10,color:T.textSub,marginBottom:3}}>시작</div>
@@ -1152,7 +1179,7 @@ function BriefingSection({section}){
             const items=Array.isArray(section.content)&&section.content.length>0
               ?section.content:[section.summary,...(section.lines||[])].filter(Boolean);
             return items.filter(Boolean).map((line,i)=>(
-              <div key={i} style={{marginTop:i===0?10:7,paddingLeft:i===0?0:10,borderLeft:i===0?"none":`2px solid ${section.color}55`}}>
+              <div key={i} style={{marginTop:i===0?8:3,paddingLeft:i===0?0:10,borderLeft:i===0?"none":`2px solid ${section.color}55`}}>
                 <span style={{fontSize:12,color:i===0?section.color:T.text,lineHeight:1.7,fontWeight:i===0?700:400,fontFamily:"'KoPub Dotum',sans-serif"}}>{fmtNums(line)}</span>
               </div>
             ));
@@ -1190,6 +1217,7 @@ export function BriefingView(){
   const headline=useFallback?BRIEFING_FALLBACK.headline:briefing.headline;
   const sections=useFallback?BRIEFING_FALLBACK.sections:briefing.sections;
   const dateLabel=useFallback?"브리핑 대기 중":new Date(briefing.date).toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",timeZone:"Asia/Seoul"});
+  const dowLabel=(()=>{if(useFallback)return null;const d=new Date(briefing.date+"T00:00:00");const dow=d.getDay();const labels=["일","월","화","수","목","금","토"];const col=dow===0?"#C0443A":dow===6?"#2E6FA5":T.textSub;return{text:labels[dow],color:col};})();
   const isStale=!useFallback&&!briefing.isToday;
   const COLORS={
     "세계정세":{color:"#C0443A",bg:"#FDECEA"},"한국증시":{color:"#C96A2A",bg:"#FDF1E8"},
@@ -1202,7 +1230,7 @@ export function BriefingView(){
   return(
     <div style={{overflowY:"auto",maxHeight:"calc(100vh - 155px)",paddingRight:4}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-        <div style={{fontFamily:"'Libre Baskerville',serif",fontSize:17,color:T.text,fontWeight:700}}>{dateLabel}</div>
+        <div style={{fontFamily:"'Libre Baskerville',serif",fontSize:17,color:T.text,fontWeight:700,display:"flex",alignItems:"baseline",gap:7}}>{dateLabel}{dowLabel&&<span style={{fontSize:13,fontWeight:600,color:dowLabel.color,fontFamily:"'KoPub Dotum',sans-serif"}}>{dowLabel.text}</span>}</div>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           {isStale&&<span style={{fontSize:9,padding:"2px 8px",borderRadius:10,background:"#B07D2E22",color:"#B07D2E",border:"1px solid #B07D2E44"}}>{briefing.diffDays}일 전</span>}
           {!useFallback&&briefing.isToday&&<span style={{fontSize:9,padding:"2px 8px",borderRadius:10,background:"#6B7C3A22",color:"#6B7C3A",border:"1px solid #6B7C3A44"}}>오늘</span>}
