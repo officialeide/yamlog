@@ -13,14 +13,32 @@ import {
   BriefingView, HabitView, BottomTabBar,
 } from "./components.jsx";
 
+// ── expandEvents: endDate 기간 일정을 날짜별로 확장 ──
+function expandEvents(events) {
+  const result = [];
+  for (const ev of events) {
+    if ((ev.category === "schedule" || ev.category === "event") && ev.fields?.endDate && ev.fields.endDate > ev.date) {
+      const start = new Date(ev.date + "T00:00:00");
+      const end   = new Date(ev.fields.endDate + "T00:00:00");
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1)) {
+        const ds = d.toLocaleDateString("sv-SE", {timeZone:"Asia/Seoul"});
+        result.push({ ...ev, date: ds, hour: 8, _expanded: true });
+      }
+    } else {
+      result.push(ev);
+    }
+  }
+  return result;
+}
+
 // ── useIsMobile: 디바운스 적용으로 리사이즈 과부하 방지 ──
 function useIsMobile() {
-  const [m, setM] = useState(typeof window !== "undefined" ? window.innerWidth < 768 : false);
+  const [m, setM] = useState(typeof window !== "undefined" ? window.innerWidth < 1024 : false);
   useEffect(() => {
     let timer;
     const fn = () => {
       clearTimeout(timer);
-      timer = setTimeout(() => setM(window.innerWidth < 768), 50);
+      timer = setTimeout(() => setM(window.innerWidth < 1024), 50);
     };
     window.addEventListener("resize", fn);
     return () => { window.removeEventListener("resize", fn); clearTimeout(timer); };
@@ -884,7 +902,8 @@ export default function Yamlog() {
   const eventsFilterCat = (!showBriefing && view === "년")
     ? null
     : (showBriefing ? null : filterCat === "all" ? null : filterCat);
-  const { events, loading, refetch } = useEvents(eventsFilterCat, dateRange);
+  const { events: rawEvents, loading, refetch } = useEvents(eventsFilterCat, dateRange);
+  const events = useMemo(() => expandEvents(rawEvents), [rawEvents]);
 
   const nav = (dir) => {
     const d = new Date(curDate);
@@ -957,23 +976,23 @@ export default function Yamlog() {
         {/* 전체 */}
         <button onClick={()=>{setFilterCat("all");setShowBriefing(false);setShowHabit(false);}} style={{
           width:"100%",textAlign:"left",padding:"8px 10px",borderRadius:8,cursor:"pointer",marginBottom:2,
-          background:filterCat==="all"&&!showBriefing?T.bgSub:"transparent",border:"none",
+          background:filterCat==="all"&&!showBriefing&&!showHabit?"#B0952022":"transparent",border:"none",
           display:"flex",alignItems:"center",gap:8,
-          color:filterCat==="all"&&!showBriefing?T.text:T.textSub,
-          fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:filterCat==="all"&&!showBriefing?600:400,
+          color:filterCat==="all"&&!showBriefing&&!showHabit?"#B09520":T.textSub,
+          fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:filterCat==="all"&&!showBriefing&&!showHabit?600:400,
         }}>
-          <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:filterCat==="all"&&!showBriefing?T.accent:T.borderMid}}/>
+          <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:filterCat==="all"&&!showBriefing&&!showHabit?"#B09520":T.borderMid}}/>
           홈
         </button>
         {/* 브리핑 */}
         <button onClick={()=>{setShowBriefing(true);setFilterCat("all");setShowHabit(false);}} style={{
           width:"100%",textAlign:"left",padding:"8px 10px",borderRadius:8,cursor:"pointer",marginBottom:2,
-          background:showBriefing?"#6B7C3A22":"transparent",border:"none",
+          background:showBriefing&&!showHabit?"#6B7C3A22":"transparent",border:"none",
           display:"flex",alignItems:"center",gap:8,
-          color:showBriefing?"#6B7C3A":T.textSub,
-          fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:showBriefing?600:400,
+          color:showBriefing&&!showHabit?"#6B7C3A":T.textSub,
+          fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:showBriefing&&!showHabit?600:400,
         }}>
-          <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:showBriefing?"#6B7C3A":T.borderMid}}/>
+          <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:showBriefing&&!showHabit?"#6B7C3A":T.borderMid}}/>
           브리핑
         </button>
         {/* 습관 */}
@@ -987,19 +1006,17 @@ export default function Yamlog() {
           <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:showHabit?"#7E4FA0":T.borderMid}}/>
           습관
         </button>
-        {/* 카테고리들 (라벨 없이, 간격 동일) */}
-        {CATS.map(cat=>(
-          <button key={cat.id} onClick={()=>{setFilterCat(cat.id);setShowBriefing(false);setShowHabit(false);}} style={{
-            width:"100%",textAlign:"left",padding:"8px 10px",borderRadius:8,cursor:"pointer",marginBottom:2,
-            background:filterCat===cat.id&&!showBriefing?cat.bg:"transparent",border:"none",
-            display:"flex",alignItems:"center",gap:8,
-            color:filterCat===cat.id&&!showBriefing?cat.text:T.textSub,
-            fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:filterCat===cat.id&&!showBriefing?600:400,
-          }}>
-            <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:filterCat===cat.id&&!showBriefing?cat.color:T.borderMid}}/>
-            {cat.label}
-          </button>
-        ))}
+        {/* 아카이브 */}
+        <button onClick={()=>{setFilterCat("archive");setShowBriefing(false);setShowHabit(false);}} style={{
+          width:"100%",textAlign:"left",padding:"8px 10px",borderRadius:8,cursor:"pointer",marginBottom:2,
+          background:filterCat==="archive"&&!showBriefing&&!showHabit?"#7E4FA022":"transparent",border:"none",
+          display:"flex",alignItems:"center",gap:8,
+          color:filterCat==="archive"&&!showBriefing&&!showHabit?"#7E4FA0":T.textSub,
+          fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:filterCat==="archive"&&!showBriefing&&!showHabit?600:400,
+        }}>
+          <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:filterCat==="archive"&&!showBriefing&&!showHabit?"#7E4FA0":T.borderMid}}/>
+          아카이브
+        </button>
       </div>
 
       {/* 위젯 */}

@@ -58,10 +58,10 @@ export const ARCHIVE_SECTS = [
 
 // 하단 탭바 아이콘/색상 — BottomTabBar 전용
 export const TAB_ITEMS = [
-  { id:"all",      label:"홈",      icon:"🏠", color:"#8C8077" },
+  { id:"all",      label:"홈",      icon:"🏠", color:"#B09520" },
   { id:"briefing", label:"브리핑",  icon:"📋", color:"#6B7C3A" },
-  { id:"habit",    label:"습관",    icon:"✨", color:"#7E4FA0" },
-  { id:"archive",  label:"아카이브", icon:"🗂",  color:"#4A8A5A" },
+  { id:"habit",    label:"습관",    icon:"✨", color:"#2E6FA5" },
+  { id:"archive",  label:"아카이브", icon:"🗂",  color:"#7E4FA0" },
 ];
 
 // ── View constants ──────────────────────────────────

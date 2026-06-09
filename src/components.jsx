@@ -647,6 +647,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
   const [date,       setDate]       = useState(presetDate || dateStr(new Date()));
   const [startTime,  setStartTime]  = useState(`${String(presetHour||9).padStart(2,'0')}:00`);
   const [endTime,    setEndTime]    = useState('');
+  const [endDate,     setEndDate]    = useState('');
   const [saving,     setSaving]     = useState(false);
 
   const setField = (k, v) => setFields(f => ({...f, [k]: v}));
@@ -704,7 +705,8 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
       await addEventFn({
         category: cat, sub_category: sub, title: finalTitle,
         date, hour: cat === "archive" ? null : sh,
-        done: false, detail: detail || null, fields: finalFields,
+        done: false, detail: detail || null,
+        fields: { ...finalFields, ...(endDate && (cat==="schedule"||cat==="event") ? {endDate} : {}) },
       });
       onSaved?.();
       onClose();
@@ -972,6 +974,14 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
           </>)}
 
           <input type="date" style={{...inp,marginTop:8}} value={date} onChange={e=>setDate(e.target.value)}/>
+          {(cat==="schedule"||cat==="event")&&(
+            <div style={{display:"flex",gap:7,marginTop:7,alignItems:"flex-end"}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:10,color:T.textSub,marginBottom:3}}>종료 날짜 (기간 일정)</div>
+                <input type="date" style={{...inp}} value={endDate} onChange={e=>setEndDate(e.target.value)}/>
+              </div>
+            </div>
+          )}
           {cat !== "archive" && !(cat==="archive"&&archiveSub==="health"&&healthSub==="weight")&&(
             <div style={{display:"flex",gap:7,marginTop:7}}>
               <div style={{flex:1}}>
@@ -980,7 +990,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
               </div>
               {(cat==="schedule"||cat==="event")&&(
                 <div style={{flex:1}}>
-                  <div style={{fontSize:10,color:T.textSub,marginBottom:3}}>종료</div>
+                  <div style={{fontSize:10,color:T.textSub,marginBottom:3}}>종료 시간</div>
                   <input type="time" style={{...inp}} value={endTime} onChange={e=>setEndTime(e.target.value)}/>
                 </div>
               )}
@@ -1244,13 +1254,13 @@ function BriefingSection({section}){
 // HABIT VIEW — 습관 체크박스 + 해빗트래커
 // ─────────────────────────────────────────────────────
 const DEFAULT_HABITS = [
-  { id:"weight",    label:"무게 체크", color:"#E53935" },
-  { id:"vitamin",   label:"영양제",    color:"#F4511E" },
-  { id:"ledger",    label:"가계부 기록", color:"#F9A825" },
-  { id:"stretch",   label:"스트레칭",   color:"#43A047" },
-  { id:"exercise",  label:"운동",      color:"#1E88E5" },
-  { id:"meditate",  label:"명상",      color:"#3949AB" },
-  { id:"review",    label:"리뷰",      color:"#8E24AA" },
+  { id:"weight",    label:"무게 체크", color:"#C0443A" },
+  { id:"vitamin",   label:"영양제",    color:"#C96A2A" },
+  { id:"ledger",    label:"가계부 기록", color:"#B09520" },
+  { id:"stretch",   label:"스트레칭",   color:"#4A8A5A" },
+  { id:"exercise",  label:"운동",      color:"#2E6FA5" },
+  { id:"meditate",  label:"명상",      color:"#1A4080" },
+  { id:"review",    label:"리뷰",      color:"#7E4FA0" },
 ];
 
 export function HabitView() {
@@ -1459,10 +1469,11 @@ export function BottomTabBar({ filterCat, showBriefing, showHabit, setFilterCat,
               display:"flex",alignItems:"center",justifyContent:"center",
               fontSize:16,transition:"all .12s",
               filter:isActive?"none":"grayscale(80%) opacity(0.5)",
+              boxShadow:isActive?`0 0 0 1px ${tab.color}44`:"none",
             }}>{tab.icon}</div>
             <span style={{
               fontSize:9,color:isActive?tab.color:T.textMute,
-              fontWeight:isActive?600:400,fontFamily:"'KoPub Dotum',sans-serif",
+              fontWeight:isActive?700:400,fontFamily:"'KoPub Dotum',sans-serif",
             }}>{tab.label}</span>
           </button>
         );
