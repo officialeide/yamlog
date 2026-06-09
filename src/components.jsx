@@ -167,7 +167,7 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight }) {
       if (f.genre||f.period) rows.push(<div key="bmeta" style={{fontSize:10,color:T.textMute,marginBottom:5}}>{f.genre}{f.genre&&f.period&&" · "}{f.period}</div>);
       if (f.score) rows.push(<div key="bscore" style={{fontSize:15,color:"#7E4FA0",marginBottom:6}}>{"★".repeat(f.score)}{"☆".repeat(5-f.score)}</div>);
       if (f.record) rows.push(
-        <div key="brec" style={{fontSize:12,color:T.text,fontStyle:"italic",lineHeight:1.7,marginBottom:6,whiteSpace:"pre-wrap"}}>{f.record}</div>
+        <div key="brec" style={{fontSize:12,color:T.text,lineHeight:1.7,marginBottom:6,whiteSpace:"pre-wrap"}}>{f.record}</div>
       );
     }
 
@@ -1210,43 +1210,163 @@ const fmtNums = (str) =>
 
 function BriefingSection({section}){
   const [open,setOpen]=useState(true);
+  const items=Array.isArray(section.content)&&section.content.length>0
+    ?section.content:[section.summary,...(section.lines||[])].filter(Boolean);
+  const summary=items[0]||"";
+  const rest=items.slice(1);
   return(
-    <div style={{position:"relative",marginBottom:16,marginTop:8}}>
-      {/* floating 제목 + 요약 첫 줄 */}
-      {(()=>{
-        const items=Array.isArray(section.content)&&section.content.length>0
-          ?section.content:[section.summary,...(section.lines||[])].filter(Boolean);
-        const summary = items[0]||"";
-        const rest = items.slice(1);
-        return (
-          <>
-            <div style={{
-              position:"absolute",top:-9,left:12,zIndex:1,
-              display:"flex",alignItems:"center",gap:6,
-              background:T.bg,paddingLeft:4,paddingRight:8,flexWrap:"wrap",maxWidth:"90%",
-            }}>
-              <div style={{width:3,height:11,borderRadius:2,background:section.color,flexShrink:0}}/>
-              <span style={{fontSize:12,fontWeight:700,color:section.color,lineHeight:1,flexShrink:0}}>{section.title}</span>
-              {summary&&<span style={{fontSize:11,color:section.color,opacity:.75,lineHeight:1.3,fontWeight:500}}>{fmtNums(summary)}</span>}
-            </div>
-            {/* 카드 본문: 나머지 세부 줄 */}
-            <div style={{background:section.bg,borderRadius:12,border:`1px solid ${section.color}33`,overflow:"hidden"}}>
-              <div onClick={()=>setOpen(o=>!o)} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",padding:"5px 14px 4px",cursor:"pointer"}}>
-                <span style={{fontSize:9,color:section.color,opacity:.6}}>{open?"▲":"▼"}</span>
+    <div style={{marginBottom:10}}>
+      <div style={{background:section.bg,borderRadius:12,border:`1px solid ${section.color}33`,overflow:"hidden"}}>
+        {/* 헤더: 타이틀 + 요약 + 토글 */}
+        <div onClick={()=>setOpen(o=>!o)} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 14px 7px",cursor:"pointer",borderBottom:open&&rest.length>0?`1px solid ${section.color}22`:"none"}}>
+          <div style={{width:3,height:13,borderRadius:2,background:section.color,flexShrink:0}}/>
+          <span style={{fontSize:13,fontWeight:700,color:section.color,lineHeight:1,flexShrink:0}}>{section.title}</span>
+          {summary&&<span style={{fontSize:13,fontWeight:400,color:section.color,opacity:.85,lineHeight:1.3,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fmtNums(summary)}</span>}
+          <span style={{fontSize:9,color:section.color,opacity:.6,flexShrink:0}}>{open?"▲":"▼"}</span>
+        </div>
+        {/* 본문 */}
+        {open&&rest.length>0&&(
+          <div style={{padding:"8px 14px 12px"}}>
+            {rest.map((line,i)=>(
+              <div key={i} style={{marginTop:i===0?0:4,paddingLeft:10,borderLeft:`2px solid ${section.color}55`}}>
+                <span style={{fontSize:12,color:T.text,lineHeight:1.5,fontWeight:400,fontFamily:"'KoPub Dotum',sans-serif"}}>{fmtNums(line)}</span>
               </div>
-              {open&&rest.length>0&&(
-                <div style={{padding:"0 14px 12px"}}>
-                  {rest.map((line,i)=>(
-                    <div key={i} style={{marginTop:i===0?0:3,paddingLeft:10,borderLeft:`2px solid ${section.color}55`}}>
-                      <span style={{fontSize:12,color:T.text,lineHeight:1.7,fontWeight:400,fontFamily:"'KoPub Dotum',sans-serif"}}>{fmtNums(line)}</span>
-                    </div>
-                  ))}
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// ─────────────────────────────────────────────────────
+// HABIT VIEW — 습관 체크박스 + 해빗트래커
+// ─────────────────────────────────────────────────────
+const DEFAULT_HABITS = [
+  { id:"weight",    label:"무게 체크", color:"#E53935" },
+  { id:"vitamin",   label:"영양제",    color:"#F4511E" },
+  { id:"ledger",    label:"가계부 기록", color:"#F9A825" },
+  { id:"stretch",   label:"스트레칭",   color:"#43A047" },
+  { id:"exercise",  label:"운동",      color:"#1E88E5" },
+  { id:"meditate",  label:"명상",      color:"#3949AB" },
+  { id:"review",    label:"리뷰",      color:"#8E24AA" },
+];
+
+export function HabitView() {
+  const today = new Date();
+  const todayStr = today.toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});
+  const year  = today.getFullYear();
+  const month = today.getMonth();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+
+  // 로컬스토리지 기반 저장
+  const storageKey = `yamlog_habits_${year}_${String(month+1).padStart(2,"0")}`;
+  const [logs, setLogs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(storageKey)||"{}"); }
+    catch { return {}; }
+  });
+  const [habits] = useState(DEFAULT_HABITS);
+
+  const toggle = (habitId, dayStr) => {
+    setLogs(prev => {
+      const key = `${habitId}_${dayStr}`;
+      const next = {...prev, [key]: !prev[key]};
+      localStorage.setItem(storageKey, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const isChecked = (habitId, dayStr) => !!logs[`${habitId}_${dayStr}`];
+
+  const MONTHS_KR = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+
+  return (
+    <div style={{overflowY:"auto",height:"100%",paddingRight:4}}>
+      {/* 헤더 */}
+      <div style={{marginBottom:16}}>
+        <div style={{fontFamily:"'Libre Baskerville',serif",fontSize:17,fontWeight:700,color:T.text}}>
+          {year}년 {MONTHS_KR[month]}
+        </div>
+      </div>
+
+      {/* 오늘 체크박스 */}
+      <div style={{background:T.bgCard,borderRadius:14,padding:"14px 16px",marginBottom:16,border:`1px solid ${T.border}`}}>
+        <div style={{fontSize:11,color:T.textMute,fontWeight:600,letterSpacing:.5,marginBottom:10}}>오늘의 습관</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {habits.map(h => {
+            const checked = isChecked(h.id, todayStr);
+            return (
+              <div key={h.id} onClick={()=>toggle(h.id, todayStr)}
+                style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",userSelect:"none"}}>
+                <div style={{
+                  width:20,height:20,borderRadius:6,flexShrink:0,
+                  border:`2px solid ${checked?h.color:T.border}`,
+                  background:checked?h.color:"transparent",
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  transition:"all .12s",
+                }}>
+                  {checked&&<span style={{color:"white",fontSize:12,lineHeight:1}}>✓</span>}
                 </div>
-              )}
-            </div>
-          </>
-        );
-      })()}
+                <span style={{fontSize:13,color:checked?T.text:T.textSub,fontWeight:checked?600:400,
+                  textDecoration:checked?"none":"none",transition:"all .12s"}}>{h.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 해빗트래커 */}
+      <div style={{background:T.bgCard,borderRadius:14,padding:"14px 16px",border:`1px solid ${T.border}`}}>
+        <div style={{fontSize:11,color:T.textMute,fontWeight:600,letterSpacing:.5,marginBottom:12}}>이번 달 트래커</div>
+        <div style={{overflowX:"auto"}}>
+          <table style={{borderCollapse:"collapse",minWidth:"100%"}}>
+            <thead>
+              <tr>
+                <th style={{width:70,textAlign:"left",fontSize:10,color:T.textMute,fontWeight:400,paddingBottom:6,paddingRight:8}}></th>
+                {Array.from({length:daysInMonth},(_,i)=>{
+                  const d = new Date(year,month,i+1);
+                  const ds = d.toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});
+                  const isToday = ds===todayStr;
+                  const dow = d.getDay();
+                  const isSun = dow===0, isSat = dow===6;
+                  return (
+                    <th key={i} style={{
+                      width:22,minWidth:22,textAlign:"center",fontSize:9,fontWeight:isToday?700:400,
+                      color:isToday?T.accent:isSun?"#C0443A":isSat?"#2E6FA5":T.textMute,
+                      paddingBottom:4,
+                    }}>{i+1}</th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {habits.map(h => (
+                <tr key={h.id}>
+                  <td style={{fontSize:10,color:T.textSub,paddingRight:8,paddingTop:3,paddingBottom:3,whiteSpace:"nowrap"}}>{h.label}</td>
+                  {Array.from({length:daysInMonth},(_,i)=>{
+                    const d = new Date(year,month,i+1);
+                    const ds = d.toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});
+                    const checked = isChecked(h.id, ds);
+                    const isFuture = ds > todayStr;
+                    return (
+                      <td key={i} onClick={()=>!isFuture&&toggle(h.id,ds)}
+                        style={{textAlign:"center",padding:"2px 1px",cursor:isFuture?"default":"pointer"}}>
+                        <div style={{
+                          width:18,height:18,borderRadius:4,margin:"0 auto",
+                          background:checked?h.color:isFuture?"transparent":T.bgSub,
+                          border:isFuture?"none":`1px solid ${checked?h.color:T.border}`,
+                          transition:"all .1s",
+                        }}/>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1313,7 +1433,7 @@ export function BriefingView(){
 // ─────────────────────────────────────────────────────
 // BOTTOM TAB BAR — 사이드바와 동일 구성 (전체/브리핑/일정/이벤트/아카이브)
 // ─────────────────────────────────────────────────────
-export function BottomTabBar({ filterCat, showBriefing, setFilterCat, setShowBriefing }) {
+export function BottomTabBar({ filterCat, showBriefing, showHabit, setFilterCat, setShowBriefing, setShowHabit }) {
   const tabs = TAB_ITEMS;
   return (
     <div style={{
@@ -1323,11 +1443,12 @@ export function BottomTabBar({ filterCat, showBriefing, setFilterCat, setShowBri
       boxShadow:"0 -2px 12px rgba(44,40,37,0.08)",
     }}>
       {tabs.map(tab=>{
-        const isActive = tab.id==="briefing" ? showBriefing : filterCat===tab.id&&!showBriefing;
+        const isActive = tab.id==="briefing" ? showBriefing&&!showHabit : tab.id==="habit" ? showHabit : filterCat===tab.id&&!showBriefing&&!showHabit;
         return (
           <button key={tab.id} onClick={()=>{
-            if(tab.id==="briefing"){ setShowBriefing(true); setFilterCat("all"); }
-            else { setShowBriefing(false); setFilterCat(tab.id); }
+            if(tab.id==="briefing"){ setShowBriefing(true); setShowHabit(false); setFilterCat("all"); }
+            else if(tab.id==="habit"){ setShowHabit(true); setShowBriefing(false); setFilterCat("all"); }
+            else { setShowBriefing(false); setShowHabit(false); setFilterCat(tab.id); }
           }} style={{
             flex:1,padding:"10px 4px 8px",border:"none",cursor:"pointer",
             background:"transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:3,

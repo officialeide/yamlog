@@ -35,7 +35,7 @@ export const REVIEW_SUBS = [
   { id:"coffee", label:"커피" },
 ];
 
-export const WEIGHT_FETCH_DAYS = 90; // 체중 그래프 조회 일수
+export const WEIGHT_FETCH_DAYS = 30; // 체중 그래프 조회 일수
 
 // 아카이브 서브카테고리 ID 목록 — App.jsx, components.jsx 공통 참조용
 export const KNOWN_SUBS = [
@@ -60,8 +60,7 @@ export const ARCHIVE_SECTS = [
 export const TAB_ITEMS = [
   { id:"all",      label:"홈",      icon:"🏠", color:"#8C8077" },
   { id:"briefing", label:"브리핑",  icon:"📋", color:"#6B7C3A" },
-  { id:"schedule", label:"일정",    icon:"✅",  color:"#C0443A" },
-  { id:"event",    label:"이벤트",  icon:"🎞",  color:"#B09520" },
+  { id:"habit",    label:"습관",    icon:"✨", color:"#7E4FA0" },
   { id:"archive",  label:"아카이브", icon:"🗂",  color:"#4A8A5A" },
 ];
 

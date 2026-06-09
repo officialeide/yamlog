@@ -10,7 +10,7 @@ import { useEvents, addEvent, useWeightLogs } from "./api.js";
 import {
   LiveClock, DetailModal, AddModal,
   WeightSection, WordSection,
-  BriefingView, BottomTabBar,
+  BriefingView, HabitView, BottomTabBar,
 } from "./components.jsx";
 
 // ── useIsMobile: 디바운스 적용으로 리사이즈 과부하 방지 ──
@@ -263,11 +263,23 @@ function MonthCell({ d, events, isToday, isMobile, onOpen, onAdd, todayStr }) {
     }}
     onMouseEnter={e=>{if(!isToday)e.currentTarget.style.borderColor=T.accent+"55";}}
     onMouseLeave={e=>{if(!isToday)e.currentTarget.style.borderColor=T.border;}}>
-      {/* 날짜 숫자 + +N 버튼 */}
+      {/* 날짜 숫자 + 특이사항 이모지 + +N 버튼 */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
-        <div style={{fontSize:isMobile?8:11,fontWeight:isToday?700:400,
-          color:isToday?T.accent:isWknd?d.getDay()===0?"#C0443A":"#2E6FA5":T.text}}>
-          {d.getDate()}
+        <div style={{display:"flex",alignItems:"center",gap:2,flexWrap:"wrap",flex:1,minWidth:0}}>
+          <div style={{fontSize:isMobile?8:11,fontWeight:isToday?700:400,flexShrink:0,
+            color:isToday?T.accent:isWknd?d.getDay()===0?"#C0443A":"#2E6FA5":T.text}}>
+            {d.getDate()}
+          </div>
+          {(()=>{
+            const CHECK_ORDER=["🍾","💩","🩸","💙"];
+            const dietEv=events.find(e=>e.date===ds&&e.category==="archive"&&e.sub_category==="diet");
+            if(!dietEv||!dietEv.fields) return null;
+            const checks=Array.isArray(dietEv.fields.checks)?dietEv.fields.checks:[];
+            const etc=dietEv.fields.checksEtc||"";
+            const emojis=CHECK_ORDER.filter(c=>checks.includes(c));
+            if(emojis.length===0&&!etc) return null;
+            return <span style={{fontSize:isMobile?7:9,lineHeight:1,color:T.text}}>{emojis.join("")}{etc?` ${etc}`:""}</span>;
+          })()}
         </div>
         {overflow>0&&(
           <div onClick={e=>{e.stopPropagation();setShowPopup(true);}} style={{
@@ -836,6 +848,7 @@ export default function Yamlog() {
   const [view,         setView]         = useState("주");
   const [curDate,      setCurDate]      = useState(() => new Date());
   const [showBriefing, setShowBriefing] = useState(false);
+  const [showHabit,    setShowHabit]    = useState(false);
 
   const [showDetail,    setShowDetail]    = useState(null);
   const [showAdd,       setShowAdd]       = useState(false);
@@ -844,8 +857,9 @@ export default function Yamlog() {
   const [addPresetCat,  setAddPresetCat]  = useState(null);
   const [addPresetSub,  setAddPresetSub]  = useState(null);
 
-  const isArchiveView = filterCat === "archive" && !showBriefing;
-  const isSpecialView = showBriefing || isArchiveView;
+  const isArchiveView = filterCat === "archive" && !showBriefing && !showHabit;
+  const isHabitView   = showHabit;
+  const isSpecialView = showBriefing || isArchiveView || isHabitView;
 
   // 뷰에 맞는 날짜 범위 계산 (아카이브/브리핑은 null → 전체 조회)
   const dateRange = useMemo(() => {
@@ -941,7 +955,7 @@ export default function Yamlog() {
       {/* 네비게이션 — "카테고리" 라벨 없음 */}
       <div style={{padding:"14px 12px 0"}}>
         {/* 전체 */}
-        <button onClick={()=>{setFilterCat("all");setShowBriefing(false);}} style={{
+        <button onClick={()=>{setFilterCat("all");setShowBriefing(false);setShowHabit(false);}} style={{
           width:"100%",textAlign:"left",padding:"8px 10px",borderRadius:8,cursor:"pointer",marginBottom:2,
           background:filterCat==="all"&&!showBriefing?T.bgSub:"transparent",border:"none",
           display:"flex",alignItems:"center",gap:8,
@@ -952,7 +966,7 @@ export default function Yamlog() {
           홈
         </button>
         {/* 브리핑 */}
-        <button onClick={()=>{setShowBriefing(true);setFilterCat("all");}} style={{
+        <button onClick={()=>{setShowBriefing(true);setFilterCat("all");setShowHabit(false);}} style={{
           width:"100%",textAlign:"left",padding:"8px 10px",borderRadius:8,cursor:"pointer",marginBottom:2,
           background:showBriefing?"#6B7C3A22":"transparent",border:"none",
           display:"flex",alignItems:"center",gap:8,
@@ -962,9 +976,20 @@ export default function Yamlog() {
           <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:showBriefing?"#6B7C3A":T.borderMid}}/>
           브리핑
         </button>
+        {/* 습관 */}
+        <button onClick={()=>{setShowHabit(true);setShowBriefing(false);setFilterCat("all");}} style={{
+          width:"100%",textAlign:"left",padding:"8px 10px",borderRadius:8,cursor:"pointer",marginBottom:2,
+          background:showHabit?"#7E4FA022":"transparent",border:"none",
+          display:"flex",alignItems:"center",gap:8,
+          color:showHabit?"#7E4FA0":T.textSub,
+          fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:showHabit?600:400,
+        }}>
+          <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:showHabit?"#7E4FA0":T.borderMid}}/>
+          습관
+        </button>
         {/* 카테고리들 (라벨 없이, 간격 동일) */}
         {CATS.map(cat=>(
-          <button key={cat.id} onClick={()=>{setFilterCat(cat.id);setShowBriefing(false);}} style={{
+          <button key={cat.id} onClick={()=>{setFilterCat(cat.id);setShowBriefing(false);setShowHabit(false);}} style={{
             width:"100%",textAlign:"left",padding:"8px 10px",borderRadius:8,cursor:"pointer",marginBottom:2,
             background:filterCat===cat.id&&!showBriefing?cat.bg:"transparent",border:"none",
             display:"flex",alignItems:"center",gap:8,
@@ -994,6 +1019,8 @@ export default function Yamlog() {
     }}>
       {showBriefing ? (
         <BriefingView/>
+      ) : isHabitView ? (
+        <HabitView/>
       ) : isArchiveView ? (
         <ArchiveView events={events} onOpen={setShowDetail} onAddFromArchive={handleAddFromArchive}/>
       ) : (
@@ -1076,7 +1103,7 @@ export default function Yamlog() {
           <div style={{padding:"10px 12px 8px",background:T.bgCard,borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
             {isSpecialView?(
               <div style={{fontSize:15,fontWeight:700,color:T.text,fontFamily:"'Libre Baskerville',serif"}}>
-                {showBriefing?"브리핑":"아카이브"}
+                {showBriefing?"브리핑":isHabitView?"습관":"아카이브"}
               </div>
             ):(
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -1111,8 +1138,8 @@ export default function Yamlog() {
       {/* 모바일 하단 탭 — 사이드바와 동일 5개 */}
       {isMobile&&(
         <BottomTabBar
-          filterCat={filterCat} showBriefing={showBriefing}
-          setFilterCat={setFilterCat} setShowBriefing={setShowBriefing}
+          filterCat={filterCat} showBriefing={showBriefing} showHabit={showHabit}
+          setFilterCat={setFilterCat} setShowBriefing={setShowBriefing} setShowHabit={setShowHabit}
         />
       )}
 
