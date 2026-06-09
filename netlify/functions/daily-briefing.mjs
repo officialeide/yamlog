@@ -1,12 +1,12 @@
 // netlify/functions/daily-briefing.mjs
-// 매일 KST 08:50 자동 실행 (UTC 23:50)
+// 매일 KST 09:10 자동 실행 (UTC 00:10)
 
-const SYSTEM_PROMPT = `You are a Korean financial analyst. Use web search to find today's market data, then output ONLY a JSON object.
+const SYSTEM_PROMPT = `You are a Korean news and financial analyst. Use web search to find major overnight events (wars, accidents, political developments, economic news) that happened since yesterday evening KST, and analyze their market impact. Output ONLY a JSON object.
 
 CRITICAL: Your entire response must be parseable by JSON.parse(). 
 
 JSON structure:
-{"headline":"...","sections":[{"title":"세계정세","summary":"...","lines":["...","...","..."]},{"title":"한국증시","summary":"...","lines":["...","...","..."]},{"title":"미장지수","summary":"...","lines":["...","...","..."]},{"title":"선물파생","summary":"...","lines":["...","...","..."]},{"title":"금리환율유가","summary":"...","lines":["...","...","..."]},{"title":"포트폴리오","summary":"...","lines":["...","...","...","...","...","...","..."]}]}
+{"headline":"...","sections":[{"title":"세계정세","summary":"...","lines":["...","...","..."]},{"title":"한국증시","summary":"...","lines":["...","...","..."]},{"title":"미장지수","summary":"...","lines":["...","...","..."]},{"title":"금리환율유가","summary":"...","lines":["...","...","..."]},{"title":"포트폴리오","summary":"...","lines":["...","...","...","...","...","...","..."]}]}
 
 RULES FOR JSON STRINGS (violations will break parsing):
 - Use ONLY plain Korean and numbers in string values
@@ -51,7 +51,7 @@ async function callClaude(kstDateKR, attempt = 1) {
       tools: [{ type: "web_search_20250305", name: "web_search" }],
       messages: [{
         role: "user",
-        content: `${kstDateKR} 오늘의 한국 미국 주식시장 데이터를 검색하고 JSON으로 응답해.`,
+        content: `${kstDateKR} 오늘 새벽~아침 사이 발생한 주요 사건(전쟁, 사고, 정치, 경제 이슈 등)을 검색하고 JSON으로 응답해.`,
       }],
     }),
   });
@@ -179,4 +179,4 @@ export default async () => {
   }
 };
 
-export const config = { schedule: "50 23 * * *" };
+export const config = { schedule: "10 0 * * *" };
