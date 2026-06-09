@@ -13,24 +13,6 @@ import {
   BriefingView, HabitView, BottomTabBar,
 } from "./components.jsx";
 
-// ── expandEvents: endDate 기간 일정을 날짜별로 확장 ──
-function expandEvents(events) {
-  const result = [];
-  for (const ev of events) {
-    if ((ev.category === "schedule" || ev.category === "event") && ev.fields?.endDate && ev.fields.endDate > ev.date) {
-      const start = new Date(ev.date + "T00:00:00");
-      const end   = new Date(ev.fields.endDate + "T00:00:00");
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1)) {
-        const ds = d.toLocaleDateString("sv-SE", {timeZone:"Asia/Seoul"});
-        result.push({ ...ev, date: ds, hour: 8, _expanded: true });
-      }
-    } else {
-      result.push(ev);
-    }
-  }
-  return result;
-}
-
 // ── useIsMobile: 디바운스 적용으로 리사이즈 과부하 방지 ──
 function useIsMobile() {
   const [m, setM] = useState(typeof window !== "undefined" ? window.innerWidth < 1024 : false);
@@ -903,7 +885,26 @@ export default function Yamlog() {
     ? null
     : (showBriefing ? null : filterCat === "all" ? null : filterCat);
   const { events: rawEvents, loading, refetch } = useEvents(eventsFilterCat, dateRange);
-  const events = useMemo(() => expandEvents(rawEvents), [rawEvents]);
+
+  // endDate 있는 이벤트를 날짜별로 전개 (오전 8시 고정)
+  const events = useMemo(() => {
+    const result = [];
+    for (const ev of rawEvents) {
+      const endDate = ev.fields?.endDate;
+      if ((ev.category === "schedule" || ev.category === "event") && endDate && endDate > ev.date) {
+        const cur = new Date(ev.date + "T00:00:00");
+        const end = new Date(endDate + "T00:00:00");
+        while (cur <= end) {
+          const ds = cur.toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+          result.push({ ...ev, date: ds, hour: 8, fields: { ...ev.fields, startMinute: 0 } });
+          cur.setDate(cur.getDate() + 1);
+        }
+      } else {
+        result.push(ev);
+      }
+    }
+    return result;
+  }, [rawEvents]);
 
   const nav = (dir) => {
     const d = new Date(curDate);
@@ -987,23 +988,23 @@ export default function Yamlog() {
         {/* 브리핑 */}
         <button onClick={()=>{setShowBriefing(true);setFilterCat("all");setShowHabit(false);}} style={{
           width:"100%",textAlign:"left",padding:"8px 10px",borderRadius:8,cursor:"pointer",marginBottom:2,
-          background:showBriefing&&!showHabit?"#6B7C3A22":"transparent",border:"none",
+          background:showBriefing?"#6B7C3A22":"transparent",border:"none",
           display:"flex",alignItems:"center",gap:8,
-          color:showBriefing&&!showHabit?"#6B7C3A":T.textSub,
-          fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:showBriefing&&!showHabit?600:400,
+          color:showBriefing?"#6B7C3A":T.textSub,
+          fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:showBriefing?600:400,
         }}>
-          <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:showBriefing&&!showHabit?"#6B7C3A":T.borderMid}}/>
+          <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:showBriefing?"#6B7C3A":T.borderMid}}/>
           브리핑
         </button>
         {/* 습관 */}
         <button onClick={()=>{setShowHabit(true);setShowBriefing(false);setFilterCat("all");}} style={{
           width:"100%",textAlign:"left",padding:"8px 10px",borderRadius:8,cursor:"pointer",marginBottom:2,
-          background:showHabit?"#7E4FA022":"transparent",border:"none",
+          background:showHabit?"#2E6FA522":"transparent",border:"none",
           display:"flex",alignItems:"center",gap:8,
-          color:showHabit?"#7E4FA0":T.textSub,
+          color:showHabit?"#2E6FA5":T.textSub,
           fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:showHabit?600:400,
         }}>
-          <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:showHabit?"#7E4FA0":T.borderMid}}/>
+          <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:showHabit?"#2E6FA5":T.borderMid}}/>
           습관
         </button>
         {/* 아카이브 */}

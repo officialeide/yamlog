@@ -647,7 +647,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
   const [date,       setDate]       = useState(presetDate || dateStr(new Date()));
   const [startTime,  setStartTime]  = useState(`${String(presetHour||9).padStart(2,'0')}:00`);
   const [endTime,    setEndTime]    = useState('');
-  const [endDate,     setEndDate]    = useState('');
+  const [endDate,    setEndDate]    = useState('');
   const [saving,     setSaving]     = useState(false);
 
   const setField = (k, v) => setFields(f => ({...f, [k]: v}));
@@ -706,7 +706,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
         category: cat, sub_category: sub, title: finalTitle,
         date, hour: cat === "archive" ? null : sh,
         done: false, detail: detail || null,
-        fields: { ...finalFields, ...(endDate && (cat==="schedule"||cat==="event") ? {endDate} : {}) },
+        fields: { ...finalFields, ...(endDate && cat !== "archive" ? { endDate } : {}) },
       });
       onSaved?.();
       onClose();
@@ -973,14 +973,19 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
             <textarea placeholder="상세 내용" rows={4} style={{...inp,resize:"vertical",marginBottom:8}} value={detail} onChange={e=>setDetail(e.target.value)}/>
           </>)}
 
-          <input type="date" style={{...inp,marginTop:8}} value={date} onChange={e=>setDate(e.target.value)}/>
-          {(cat==="schedule"||cat==="event")&&(
-            <div style={{display:"flex",gap:7,marginTop:7,alignItems:"flex-end"}}>
+          {(cat==="schedule"||cat==="event") ? (
+            <div style={{display:"flex",gap:7,marginTop:8,alignItems:"flex-end"}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:10,color:T.textSub,marginBottom:3}}>시작 날짜</div>
+                <input type="date" style={{...inp}} value={date} onChange={e=>setDate(e.target.value)}/>
+              </div>
               <div style={{flex:1}}>
                 <div style={{fontSize:10,color:T.textSub,marginBottom:3}}>종료 날짜 (기간 일정)</div>
-                <input type="date" style={{...inp}} value={endDate} onChange={e=>setEndDate(e.target.value)}/>
+                <input type="date" style={{...inp}} value={endDate} min={date} onChange={e=>setEndDate(e.target.value)}/>
               </div>
             </div>
+          ) : (
+            <input type="date" style={{...inp,marginTop:8}} value={date} onChange={e=>setDate(e.target.value)}/>
           )}
           {cat !== "archive" && !(cat==="archive"&&archiveSub==="health"&&healthSub==="weight")&&(
             <div style={{display:"flex",gap:7,marginTop:7}}>
@@ -990,7 +995,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
               </div>
               {(cat==="schedule"||cat==="event")&&(
                 <div style={{flex:1}}>
-                  <div style={{fontSize:10,color:T.textSub,marginBottom:3}}>종료 시간</div>
+                  <div style={{fontSize:10,color:T.textSub,marginBottom:3}}>종료</div>
                   <input type="time" style={{...inp}} value={endTime} onChange={e=>setEndTime(e.target.value)}/>
                 </div>
               )}
@@ -1469,11 +1474,10 @@ export function BottomTabBar({ filterCat, showBriefing, showHabit, setFilterCat,
               display:"flex",alignItems:"center",justifyContent:"center",
               fontSize:16,transition:"all .12s",
               filter:isActive?"none":"grayscale(80%) opacity(0.5)",
-              boxShadow:isActive?`0 0 0 1px ${tab.color}44`:"none",
             }}>{tab.icon}</div>
             <span style={{
               fontSize:9,color:isActive?tab.color:T.textMute,
-              fontWeight:isActive?700:400,fontFamily:"'KoPub Dotum',sans-serif",
+              fontWeight:isActive?600:400,fontFamily:"'KoPub Dotum',sans-serif",
             }}>{tab.label}</span>
           </button>
         );
