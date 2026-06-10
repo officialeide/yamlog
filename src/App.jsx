@@ -13,17 +13,46 @@ import {
   BriefingView, HabitView, BottomTabBar,
 } from "./components.jsx";
 
+// ── 한국 공휴일 (2025~2027) ─────────────────────────
+const KR_HOLIDAYS = new Set([
+  // 2025
+  "2025-01-01","2025-01-28","2025-01-29","2025-01-30",
+  "2025-03-01","2025-05-05","2025-05-06","2025-06-06",
+  "2025-08-15","2025-10-03","2025-10-06","2025-10-07","2025-10-08","2025-10-09",
+  "2025-12-25",
+  // 2026
+  "2026-01-01","2026-02-17","2026-02-18","2026-02-19",
+  "2026-03-01","2026-03-02","2026-05-05","2026-05-25","2026-06-06",
+  "2026-08-15","2026-08-17",
+  "2026-09-24","2026-09-25","2026-09-26",
+  "2026-10-03","2026-10-09","2026-12-25",
+  // 2027
+  "2027-01-01","2027-02-08","2027-02-09","2027-02-10",
+  "2027-03-01","2027-05-05","2027-05-13","2027-06-06",
+  "2027-08-15","2027-08-16",
+  "2027-09-14","2027-09-15","2027-09-16",
+  "2027-10-03","2027-10-04","2027-10-09","2027-12-25",
+]);
+const isHoliday = (ds) => KR_HOLIDAYS.has(ds);
+
 // ── useIsMobile: 디바운스 적용으로 리사이즈 과부하 방지 ──
 function useIsMobile() {
-  const [m, setM] = useState(typeof window !== "undefined" ? window.innerWidth < 1024 : false);
+  const getVal = () => typeof window !== "undefined" ? window.innerWidth < 1024 : false;
+  const [m, setM] = useState(getVal);
   useEffect(() => {
     let timer;
     const fn = () => {
       clearTimeout(timer);
-      timer = setTimeout(() => setM(window.innerWidth < 1024), 50);
+      // orientationchange 후 실제 크기 반영까지 300ms 대기
+      timer = setTimeout(() => setM(window.innerWidth < 1024), 300);
     };
     window.addEventListener("resize", fn);
-    return () => { window.removeEventListener("resize", fn); clearTimeout(timer); };
+    window.addEventListener("orientationchange", fn);
+    return () => {
+      window.removeEventListener("resize", fn);
+      window.removeEventListener("orientationchange", fn);
+      clearTimeout(timer);
+    };
   }, []);
   return m;
 }
@@ -135,7 +164,8 @@ function WeekView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
         {days.map((d,i)=>{
           const ds=dateStr(d), isToday=ds===todayStr;
           const dow=d.getDay();
-          const wknd=dow===0?"#C0443A":dow===6?"#2E6FA5":null;
+          const holi=isHoliday(ds);
+          const wknd=dow===0||holi?"#C0443A":dow===6?"#2E6FA5":null;
           return (
             <div key={i} style={{flex:1,textAlign:"center",padding:"3px 2px"}}>
               <div style={{display:"inline-flex",flexDirection:"column",alignItems:"center",
@@ -248,6 +278,7 @@ function MonthCell({ d, events, isToday, isMobile, onOpen, onAdd, todayStr }) {
   const [showPopup, setShowPopup] = useState(false);
   const ds = dateStr(d);
   const isWknd = d.getDay()===0||d.getDay()===6;
+  const isHoli = isHoliday(ds);
   const allEvs = events.filter(e=>e.date===ds && e.category !== "archive");
   const todoEvs = allEvs.filter(e=>!e.done);
   const doneEvs = allEvs.filter(e=>e.done);
@@ -267,7 +298,7 @@ function MonthCell({ d, events, isToday, isMobile, onOpen, onAdd, todayStr }) {
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
         <div style={{display:"flex",alignItems:"center",gap:2,flexWrap:"wrap",flex:1,minWidth:0}}>
           <div style={{fontSize:isMobile?8:11,fontWeight:isToday?700:400,flexShrink:0,
-            color:isToday?T.accent:isWknd?d.getDay()===0?"#C0443A":"#2E6FA5":T.text}}>
+            color:isToday?T.accent:(isWknd||isHoli)?d.getDay()===0||isHoli?"#C0443A":"#2E6FA5":T.text}}>
             {d.getDate()}
           </div>
           {(()=>{
@@ -454,7 +485,8 @@ function YearView({ curDate, events, onOpen, isMobile, todayStr }) {
                   const isSelected=clickedDay===ds;
                   const isTod=ds===todayStr;
                   const ydow=d.getDay();
-                  const ywknd=ydow===0?"#C0443A":ydow===6?"#2E6FA5":null;
+                  const yHoli=isHoliday(yds);
+                  const ywknd=ydow===0||yHoli?"#C0443A":ydow===6?"#2E6FA5":null;
                   const circleBg=isSelected?"#B09520DD":isTod?T.accent:hasEv?"#B0952070":"transparent";
                   const circleColor=isTod?"#fff":hasEv?"#4A3800":ywknd||T.textMute;
                   const circleSize=isMobile?16:22;

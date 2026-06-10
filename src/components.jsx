@@ -107,17 +107,18 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight }) {
       if (f.calories||f.protein||f.sugar||f.carbs||f.fat) {
         const GOALS = { calories:1500, protein:90, sugar:25, carbs:160, fat:60 };
         rows.push(
-          <div key="stats" style={{marginTop:6,display:"flex",gap:10,fontSize:11,paddingTop:6,borderTop:`1px dashed ${T.border}`,flexWrap:"wrap"}}>
-            {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories} kcal</span></span>}
-            {f.carbs&&<span>🌾 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs} g</span></span>}
-            {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein} g</span></span>}
-            {f.fat&&<span>🫒 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat} g</span></span>}
-            {f.sugar&&<span>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar} g</span></span>}
+          <div key="stats-macro" style={{marginTop:6,paddingTop:6,borderTop:`1px dashed ${T.border}`}}>
+            <div style={{display:"flex",gap:10,fontSize:11,flexWrap:"wrap",alignItems:"center"}}>
+              {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}kcal</span></span>}
+              {f.carbs&&<span>🌾 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs}g</span></span>}
+              {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
+              {f.fat&&<span>🫒 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat}g</span></span>}
+              {f.sugar&&<span>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar}g</span></span>}
+              <MacroBar inline carbs={parseFloat(f.carbs)||0} protein={parseFloat(f.protein)||0} fat={parseFloat(f.fat)||0}/>
+            </div>
           </div>
         );
       }
-      // 탄단지 비율 바 그래프
-      rows.push(<MacroBar key="macrobar" carbs={parseFloat(f.carbs)||0} protein={parseFloat(f.protein)||0} fat={parseFloat(f.fat)||0}/>);
     }
 
     if (sub === "weight_training") {
@@ -1230,7 +1231,7 @@ const fmtNums = (str) =>
 // ─────────────────────────────────────────────────────
 // MACRO BAR — 탄단지 비율 바 그래프
 // ─────────────────────────────────────────────────────
-function MacroBar({ carbs, protein, fat }) {
+function MacroBar({ carbs, protein, fat, inline=false }) {
   const [tooltip, setTooltip] = useState(null);
   const total = carbs + protein + fat;
   if (total === 0) return null;
@@ -1242,6 +1243,29 @@ function MacroBar({ carbs, protein, fat }) {
     { key:"protein", pct:pp, g:protein, color:"#C96A2A", label:"단" },
     { key:"fat",     pct:fp, g:fat,     color:"#B09520", label:"지" },
   ];
+  if (inline) {
+    // 인라인 모드: stats 옆에 좁은 바만
+    return (
+      <div style={{display:"flex",alignItems:"center",gap:4,flex:1,minWidth:80,maxWidth:140}}>
+        <div style={{display:"flex",height:10,borderRadius:4,overflow:"hidden",flex:1,position:"relative"}}>
+          {segments.map(s => s.pct > 0 && (
+            <div key={s.key}
+              onClick={e=>{e.stopPropagation(); setTooltip(t=>t===s.key?null:s.key);}}
+              style={{width:`${s.pct}%`,background:s.color,cursor:"pointer",position:"relative",
+                opacity:tooltip&&tooltip!==s.key?0.6:1,transition:"opacity .1s"}}>
+              {tooltip===s.key&&(
+                <div style={{position:"absolute",bottom:"calc(100% + 4px)",left:"50%",transform:"translateX(-50%)",
+                  background:T.text,color:"white",borderRadius:5,padding:"3px 7px",
+                  fontSize:10,whiteSpace:"nowrap",zIndex:10,pointerEvents:"none"}}>
+                  {s.pct}%, {s.g}g
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={{marginTop:8,marginBottom:4}}>
       <div style={{display:"flex",height:14,borderRadius:6,overflow:"hidden"}}>
@@ -1447,12 +1471,13 @@ export function HabitView() {
                       const checked   = isChecked(h.id, ds);
                       const isFuture  = ds > todayStr;
                       return (
-                        <td key={i} onClick={()=>!isFuture&&toggle(h.id,ds)}
-                          style={{textAlign:"center",padding:"2px 1px",cursor:isFuture?"default":"pointer"}}>
+                        <td key={i} onClick={()=>toggle(h.id,ds)}
+                          style={{textAlign:"center",padding:"2px 1px",cursor:"pointer"}}>
                           <div style={{
                             width:18,height:18,borderRadius:4,margin:"0 auto",
-                            background:checked?h.color:isFuture?"transparent":T.bgSub,
-                            border:isFuture?"none":`1px solid ${checked?h.color:T.border}`,
+                            background:checked?h.color:T.bgSub,
+                            border:`1px solid ${checked?h.color:isFuture?T.borderMid:T.border}`,
+                            opacity:isFuture?0.4:1,
                             transition:"all .1s",
                           }}/>
                         </td>
@@ -1507,7 +1532,7 @@ export function BriefingView(){
     "포트폴리오 영향":{color:"#3A52A0",bg:"#EAECF8"},
   };
   return(
-    <div style={{overflowY:"auto",maxHeight:"calc(100vh - 155px)",paddingRight:4}}>
+    <div style={{paddingRight:4}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
         <div style={{fontFamily:"'Libre Baskerville',serif",fontSize:17,color:T.text,fontWeight:700,display:"flex",alignItems:"baseline",gap:7}}>{dateLabel}{dowLabel&&<span style={{fontSize:13,fontWeight:600,color:dowLabel.color,fontFamily:"'KoPub Dotum',sans-serif"}}>{dowLabel.text}</span>}</div>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
