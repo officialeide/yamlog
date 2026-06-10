@@ -1230,7 +1230,7 @@ const fmtNums = (str) =>
 // ─────────────────────────────────────────────────────
 // MACRO BAR — 탄단지 비율 바 그래프
 // ─────────────────────────────────────────────────────
-function MacroBar({ carbs, protein, fat, inline=false }) {
+export function MacroBar({ carbs, protein, fat, inline=false }) {
   const [tooltip, setTooltip] = useState(null);
   const total = carbs + protein + fat;
   if (total === 0) return null;
@@ -1328,13 +1328,13 @@ function BriefingSection({section}){
 // HABIT VIEW — 습관 체크박스 + 해빗트래커
 // ─────────────────────────────────────────────────────
 const DEFAULT_HABITS = [
-  { id:"weight",    label:"무게 체크",  color:"#C0443A", sort_order:0 },
-  { id:"vitamin",   label:"영양제",     color:"#C96A2A", sort_order:1 },
-  { id:"ledger",    label:"가계부 기록", color:"#B09520", sort_order:2 },
-  { id:"stretch",   label:"스트레칭",   color:"#4A8A5A", sort_order:3 },
-  { id:"exercise",  label:"운동",       color:"#2E6FA5", sort_order:4 },
-  { id:"meditate",  label:"명상",       color:"#1A4080", sort_order:5 },
-  { id:"review",    label:"리뷰",       color:"#7E4FA0", sort_order:6 },
+  { id:"weight",    label:"무게 체크",  color:"#C0443A", bg:"#FDECEA", sort_order:0 },
+  { id:"vitamin",   label:"영양제",     color:"#C96A2A", bg:"#FDF1E8", sort_order:1 },
+  { id:"ledger",    label:"가계부 기록", color:"#B09520", bg:"#FBF8E3", sort_order:2 },
+  { id:"stretch",   label:"스트레칭",   color:"#4A8A5A", bg:"#EBF5EE", sort_order:3 },
+  { id:"exercise",  label:"운동",       color:"#2E6FA5", bg:"#E8F2FA", sort_order:4 },
+  { id:"meditate",  label:"명상",       color:"#1A4080", bg:"#E6EBF5", sort_order:5 },
+  { id:"review",    label:"리뷰",       color:"#7E4FA0", bg:"#F2EBF8", sort_order:6 },
 ];
 
 const WEEKDAYS_KR = ["일","월","화","수","목","금","토"];
@@ -1393,13 +1393,11 @@ export function HabitView() {
 
   return (
     <div style={{overflowY:"auto",height:"100%",paddingRight:4}}>
-      {/* 헤더: 날짜 + 요일 */}
+      {/* 헤더: 날짜 브리핑 동일 서식 */}
       <div style={{marginBottom:16}}>
-        <div style={{fontFamily:"'KoPub Batang',Georgia,serif",fontSize:17,fontWeight:700,color:T.text}}>
-          {year}년 {MONTHS_KR_H[month]}
-        </div>
-        <div style={{fontSize:12,color:T.textSub,marginTop:4}}>
-          오늘 {todayDate}일 {WEEKDAYS_KR[todayDow]}요일
+        <div style={{fontFamily:"'KoPub Batang',Georgia,serif",fontSize:17,fontWeight:700,color:T.text,letterSpacing:-.3}}>
+          {year}년 {MONTHS_KR_H[month]} {todayDate}일&nbsp;
+          <span style={{fontSize:13,fontWeight:400,color:T.textSub}}>{WEEKDAYS_KR[todayDow]}</span>
         </div>
       </div>
 
@@ -1418,11 +1416,11 @@ export function HabitView() {
                   <div style={{
                     width:20,height:20,borderRadius:6,flexShrink:0,
                     border:`2px solid ${checked?h.color:T.border}`,
-                    background:checked?h.color:"transparent",
+                    background:checked?(h.bg||h.color+"22"):"transparent",
                     display:"flex",alignItems:"center",justifyContent:"center",
                     transition:"all .12s",
                   }}>
-                    {checked&&<span style={{color:"white",fontSize:12,lineHeight:1}}>✓</span>}
+                    {checked&&<span style={{color:h.color,fontSize:12,lineHeight:1,fontWeight:700}}>✓</span>}
                   </div>
                   <span style={{fontSize:13,color:checked?T.text:T.textSub,fontWeight:checked?600:400,transition:"all .12s"}}>{h.label}</span>
                 </div>
@@ -1474,7 +1472,7 @@ export function HabitView() {
                           style={{textAlign:"center",padding:"2px 1px",cursor:"pointer"}}>
                           <div style={{
                             width:18,height:18,borderRadius:4,margin:"0 auto",
-                            background:checked?h.color:T.bgSub,
+                            background:checked?(h.bg||h.color+"22"):T.bgSub,
                             border:`1px solid ${checked?h.color:isFuture?T.borderMid:T.border}`,
                             opacity:isFuture?0.4:1,
                             transition:"all .1s",

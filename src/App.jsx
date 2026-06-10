@@ -10,7 +10,7 @@ import { useEvents, addEvent, useWeightLogs } from "./api.js";
 import {
   LiveClock, DetailModal, AddModal,
   WeightSection, WordSection,
-  BriefingView, HabitView, BottomTabBar,
+  BriefingView, HabitView, BottomTabBar, MacroBar,
 } from "./components.jsx";
 
 // ── 한국 공휴일 (2025~2027) ─────────────────────────
@@ -37,21 +37,52 @@ const isHoliday = (ds) => ds in KR_HOLIDAYS;
 const holidayName = (ds) => KR_HOLIDAYS[ds] || null;
 
 // ── useIsMobile: 디바운스 적용으로 리사이즈 과부하 방지 ──
+function useIsTablet() {
+  const getVal = () => {
+    if (typeof window === "undefined") return false;
+    const w = window.innerWidth || screen.width;
+    return w >= 1024 && navigator.maxTouchPoints > 0;
+  };
+  const [t, setT] = useState(getVal);
+  useEffect(() => {
+    let timer;
+    const fn = () => { clearTimeout(timer); timer = setTimeout(() => setT(getVal()), 500); };
+    window.addEventListener("resize", fn);
+    window.addEventListener("orientationchange", fn);
+    if (screen.orientation) screen.orientation.addEventListener("change", fn);
+    return () => {
+      window.removeEventListener("resize", fn);
+      window.removeEventListener("orientationchange", fn);
+      if (screen.orientation) screen.orientation.removeEventListener("change", fn);
+      clearTimeout(timer);
+    };
+  }, []);
+  return t;
+}
+
 function useIsMobile() {
-  const getVal = () => typeof window !== "undefined" ? window.innerWidth < 1024 : false;
+  const getVal = () => {
+    if (typeof window === "undefined") return false;
+    const w = window.innerWidth || screen.width;
+    return w < 1024;
+  };
   const [m, setM] = useState(getVal);
   useEffect(() => {
     let timer;
     const fn = () => {
       clearTimeout(timer);
-      // orientationchange 후 실제 크기 반영까지 300ms 대기
-      timer = setTimeout(() => setM(window.innerWidth < 1024), 300);
+      timer = setTimeout(() => setM(getVal()), 500);
     };
     window.addEventListener("resize", fn);
     window.addEventListener("orientationchange", fn);
+    // 안드로이드 웨일/크롬: screen.orientation API
+    if (screen.orientation) {
+      screen.orientation.addEventListener("change", fn);
+    }
     return () => {
       window.removeEventListener("resize", fn);
       window.removeEventListener("orientationchange", fn);
+      if (screen.orientation) screen.orientation.removeEventListener("change", fn);
       clearTimeout(timer);
     };
   }, []);
@@ -490,7 +521,7 @@ function YearView({ curDate, events, onOpen, isMobile, todayStr }) {
                   const isSelected=clickedDay===ds;
                   const isTod=ds===todayStr;
                   const ydow=d.getDay();
-                  const yHoli=isHoliday(yds);
+                  const yHoli=isHoliday(ds);
                   const ywknd=ydow===0||yHoli?"#C0443A":ydow===6?"#2E6FA5":null;
                   const circleBg=isSelected?"#B09520DD":isTod?T.accent:hasEv?"#B0952070":"transparent";
                   const circleColor=isTod?"#fff":hasEv?"#4A3800":ywknd||T.textMute;
@@ -739,12 +770,13 @@ function HealthDayCards({ evs, accentColor, onOpen }) {
                     }
                     {(()=>{const f=dietEv.fields||{};return (f.calories||f.protein||f.sugar||f.checks?.length||f.checksEtc)&&(
                       <div style={{display:"flex",alignItems:"center",gap:10,fontSize:10,marginTop:4,paddingTop:4,borderTop:`1px dashed ${T.border}`}}>
-                        <div style={{display:"flex",gap:10,flex:1}}>
+                        <div style={{display:"flex",gap:10,flex:1,flexWrap:"wrap",alignItems:"center"}}>
                           {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}kcal</span></span>}
                           {f.carbs&&<span>🌾 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs}g</span></span>}
                           {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
                           {f.fat&&<span>🫒 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat}g</span></span>}
                           {f.sugar&&<span>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar}g</span></span>}
+                          <MacroBar inline carbs={parseFloat(f.carbs)||0} protein={parseFloat(f.protein)||0} fat={parseFloat(f.fat)||0}/>
                         </div>
                         {(f.checks?.length||f.checksEtc)&&(
                           <div style={{display:"flex",gap:3,alignItems:"center",flexShrink:0}}>
@@ -879,6 +911,7 @@ function ArchiveView({ events, onOpen, onAddFromArchive }) {
 // ─────────────────────────────────────────────────────
 export default function Yamlog() {
   const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const today    = useToday();
   const { logs: weightLogs, refetch: refetchWeight } = useWeightLogs();
   // 자정에 today가 바뀌면 체중 그래프도 재조회
@@ -1140,7 +1173,8 @@ export default function Yamlog() {
     <div style={{
       display:"flex",flexDirection:isMobile?"column":"row",
       minHeight:"100vh",background:T.bg,
-      fontFamily:"'KoPub Dotum',sans-serif",color:T.text,
+      fontFamily:isTablet?"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans KR',sans-serif":"'KoPub Dotum',sans-serif",
+      color:T.text,
     }}>
       <style>{`
         @font-face{font-family:'KoPub Dotum';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2021@1.1/KoPubWorld-Dotum-Light.woff2') format('woff2');font-weight:300 400;}
@@ -1152,7 +1186,7 @@ export default function Yamlog() {
         ::-webkit-scrollbar{width:4px;height:4px;}
         ::-webkit-scrollbar-track{background:#F0EDE7;}
         ::-webkit-scrollbar-thumb{background:#CEC5B8;border-radius:2px;}
-        input,textarea,button{font-family:'KoPub Dotum',sans-serif;}
+        ${isTablet?'':`input,textarea,button{font-family:'KoPub Dotum',sans-serif;}`}
         input[type=date]::-webkit-calendar-picker-indicator,
         input[type=time]::-webkit-calendar-picker-indicator{opacity:.4;cursor:pointer;}
         button:focus{outline:none;}
