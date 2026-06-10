@@ -640,7 +640,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
             {f.record&&(
               <div style={{marginBottom:6}}>
                 <div style={{fontSize:10,color:T.textMute,fontWeight:600,letterSpacing:.4,marginBottom:3}}>인상깊은 문장</div>
-                <div style={{fontSize:12,color:T.text,fontStyle:"italic",lineHeight:1.7,whiteSpace:"pre-wrap"}}>{f.record}</div>
+                <div style={{fontSize:12,color:T.text,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{f.record}</div>
               </div>
             )}
             {ev.detail&&(

@@ -1413,7 +1413,7 @@ export function HabitView() {
                   style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",userSelect:"none"}}>
                   <div style={{
                     width:20,height:20,borderRadius:6,flexShrink:0,
-                    border:`1.5px solid ${checked?h.color:T.border}`,
+                    border:`1.5px solid ${checked?"transparent":T.border}`,
                     background:checked?(h.bg||h.color+"22"):"transparent",
                     display:"flex",alignItems:"center",justifyContent:"center",
                     transition:"all .12s",
@@ -1470,11 +1470,14 @@ export function HabitView() {
                           style={{textAlign:"center",padding:"2px 1px",cursor:"pointer"}}>
                           <div style={{
                             width:18,height:18,borderRadius:4,margin:"0 auto",
-                            background:checked?(h.bg||h.color+"22"):isFuture?"transparent":T.bgSub,
+                            background:checked?(h.bg||h.color+"22"):T.bgSub,
                             border:"none",
                             opacity:isFuture?0.35:1,
                             transition:"all .1s",
-                          }}/>
+                            display:"flex",alignItems:"center",justifyContent:"center",
+                          }}>
+                            {checked&&<span style={{fontSize:10,color:h.color,fontWeight:700,lineHeight:1}}>✓</span>}
+                          </div>
                         </td>
                       );
                     })}
