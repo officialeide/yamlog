@@ -104,3 +104,80 @@ export async function deleteWeight(date) {
     .eq("date", date);
   if (error) throw error;
 }
+// ── 습관 목록 훅 ────────────────────────────────────
+export function useHabits() {
+  const [habits, setHabits] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchHabits = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("habits")
+        .select("*")
+        .order("sort_order");
+      if (error) throw error;
+      setHabits(data || []);
+    } catch (e) {
+      console.error("habits 로드 실패:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchHabits(); }, [fetchHabits]);
+  return { habits, loading, refetch: fetchHabits };
+}
+
+// ── 습관 로그 훅 (해당 월) ──────────────────────────
+export function useHabitLogs(yearMonth) {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchLogs = useCallback(async () => {
+    if (!yearMonth) return;
+    try {
+      const from = `${yearMonth}-01`;
+      const to   = `${yearMonth}-31`;
+      const { data, error } = await supabase
+        .from("habit_logs")
+        .select("*")
+        .gte("date", from)
+        .lte("date", to);
+      if (error) throw error;
+      setLogs(data || []);
+    } catch (e) {
+      console.error("habit_logs 로드 실패:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [yearMonth]);
+
+  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  return { logs, loading, refetch: fetchLogs };
+}
+
+// ── 습관 로그 토글 ──────────────────────────────────
+export async function toggleHabitLog(habitId, date, currentlyChecked) {
+  if (currentlyChecked) {
+    const { error } = await supabase
+      .from("habit_logs")
+      .delete()
+      .eq("habit_id", habitId)
+      .eq("date", date);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from("habit_logs")
+      .upsert([{ habit_id: habitId, date }], { onConflict: "habit_id,date" });
+    if (error) throw error;
+  }
+}
+
+// ── 습관 초기 데이터 upsert ─────────────────────────
+export async function initDefaultHabits(defaults) {
+  const { error } = await supabase
+    .from("habits")
+    .upsert(defaults, { onConflict: "id", ignoreDuplicates: true });
+  if (error) throw error;
+}
+

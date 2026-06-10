@@ -10,7 +10,7 @@ import {
   T, CATS, ARCHIVE_SECTS, HEALTH_SUBS, REVIEW_SUBS,
   TOEIC_WORDS, catOf, dateStr, KNOWN_SUBS, TAB_ITEMS,
 } from "./constants.js";
-import { supabase, updateEvent, upsertWeight, deleteEvent, deleteWeight } from "./api.js";
+import { supabase, updateEvent, upsertWeight, deleteEvent, deleteWeight, useHabits, useHabitLogs, toggleHabitLog, initDefaultHabits } from "./api.js";
 
 // ─────────────────────────────────────────────────────
 // LIVE CLOCK
@@ -104,16 +104,20 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight }) {
             </div>
           );
         });
-      if (f.calories||f.protein||f.sugar) {
-        const GOALS = { calories:1400, protein:100, sugar:25 };
+      if (f.calories||f.protein||f.sugar||f.carbs||f.fat) {
+        const GOALS = { calories:1500, protein:90, sugar:25, carbs:160, fat:60 };
         rows.push(
-          <div key="stats" style={{marginTop:6,display:"flex",gap:14,fontSize:11,paddingTop:6,borderTop:`1px dashed ${T.border}`}}>
+          <div key="stats" style={{marginTop:6,display:"flex",gap:10,fontSize:11,paddingTop:6,borderTop:`1px dashed ${T.border}`,flexWrap:"wrap"}}>
             {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories} kcal</span></span>}
+            {f.carbs&&<span>🌾 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs} g</span></span>}
             {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein} g</span></span>}
+            {f.fat&&<span>🫒 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat} g</span></span>}
             {f.sugar&&<span>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar} g</span></span>}
           </div>
         );
       }
+      // 탄단지 비율 바 그래프
+      rows.push(<MacroBar key="macrobar" carbs={parseFloat(f.carbs)||0} protein={parseFloat(f.protein)||0} fat={parseFloat(f.fat)||0}/>);
     }
 
     if (sub === "weight_training") {
@@ -460,7 +464,7 @@ function EditModal({ ev, onClose, onSaved }) {
               총 칼로리 <span style={{color:T.text,fontWeight:700,marginLeft:6}}>{fields.calories||0}</span> kcal
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:8}}>
-              {[["protein","총 단백질"],["sugar","총 당류"]].map(([k,label])=>(
+              {[["carbs","총 탄수화물"],["protein","총 단백질"],["fat","총 지방"],["sugar","총 당류"]].map(([k,label])=>(
                 <div key={k}>
                   <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label}</div>
                   <input style={{...inp}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
@@ -806,7 +810,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
               총 칼로리 <span style={{color:T.text,fontWeight:700,marginLeft:6}}>{fields.calories||0}</span> kcal
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:8}}>
-              {[["protein","총 단백질","예) 170g"],["sugar","총 당류","예) 45g"]].map(([k,label,ph])=>(
+              {[["carbs","총 탄수화물","예) 160g"],["protein","총 단백질","예) 90g"],["fat","총 지방","예) 60g"],["sugar","총 당류","예) 25g"]].map(([k,label,ph])=>(
                 <div key={k}>
                   <div style={{fontSize:11,color:T.textSub,marginBottom:4}}>{label}</div>
                   <input placeholder={ph} style={{...inp}} value={fields[k]||""} onChange={e=>setField(k,e.target.value)}/>
@@ -1223,6 +1227,48 @@ const fmtNums = (str) =>
     return m;
   });
 
+// ─────────────────────────────────────────────────────
+// MACRO BAR — 탄단지 비율 바 그래프
+// ─────────────────────────────────────────────────────
+function MacroBar({ carbs, protein, fat }) {
+  const [tooltip, setTooltip] = useState(null);
+  const total = carbs + protein + fat;
+  if (total === 0) return null;
+  const cp = Math.round(carbs   / total * 100);
+  const pp = Math.round(protein / total * 100);
+  const fp = 100 - cp - pp;
+  const segments = [
+    { key:"carbs",   pct:cp, g:carbs,   color:"#C0443A", label:"탄" },
+    { key:"protein", pct:pp, g:protein, color:"#C96A2A", label:"단" },
+    { key:"fat",     pct:fp, g:fat,     color:"#B09520", label:"지" },
+  ];
+  return (
+    <div style={{marginTop:8,marginBottom:4}}>
+      <div style={{display:"flex",height:14,borderRadius:6,overflow:"hidden"}}>
+        {segments.map(s => s.pct > 0 && (
+          <div key={s.key}
+            onClick={e=>{e.stopPropagation(); setTooltip(t=>t===s.key?null:s.key);}}
+            style={{width:`${s.pct}%`,background:s.color,cursor:"pointer",position:"relative",
+              opacity:tooltip&&tooltip!==s.key?0.6:1,transition:"opacity .1s"}}>
+            {tooltip===s.key&&(
+              <div style={{position:"absolute",bottom:"calc(100% + 4px)",left:"50%",transform:"translateX(-50%)",
+                background:T.text,color:"white",borderRadius:5,padding:"3px 7px",
+                fontSize:10,whiteSpace:"nowrap",zIndex:10,pointerEvents:"none"}}>
+                {s.pct}%, {s.g}g
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:8,marginTop:4}}>
+        {segments.map(s=>(
+          <span key={s.key} style={{fontSize:10,color:s.color,fontWeight:600}}>{s.label} {s.pct}%</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function BriefingSection({section}){
   const [open,setOpen]=useState(true);
   const items=Array.isArray(section.content)&&section.content.length>0
@@ -1259,129 +1305,166 @@ function BriefingSection({section}){
 // HABIT VIEW — 습관 체크박스 + 해빗트래커
 // ─────────────────────────────────────────────────────
 const DEFAULT_HABITS = [
-  { id:"weight",    label:"무게 체크", color:"#C0443A" },
-  { id:"vitamin",   label:"영양제",    color:"#C96A2A" },
-  { id:"ledger",    label:"가계부 기록", color:"#B09520" },
-  { id:"stretch",   label:"스트레칭",   color:"#4A8A5A" },
-  { id:"exercise",  label:"운동",      color:"#2E6FA5" },
-  { id:"meditate",  label:"명상",      color:"#1A4080" },
-  { id:"review",    label:"리뷰",      color:"#7E4FA0" },
+  { id:"weight",    label:"무게 체크",  color:"#C0443A", sort_order:0 },
+  { id:"vitamin",   label:"영양제",     color:"#C96A2A", sort_order:1 },
+  { id:"ledger",    label:"가계부 기록", color:"#B09520", sort_order:2 },
+  { id:"stretch",   label:"스트레칭",   color:"#4A8A5A", sort_order:3 },
+  { id:"exercise",  label:"운동",       color:"#2E6FA5", sort_order:4 },
+  { id:"meditate",  label:"명상",       color:"#1A4080", sort_order:5 },
+  { id:"review",    label:"리뷰",       color:"#7E4FA0", sort_order:6 },
 ];
 
+const WEEKDAYS_KR = ["일","월","화","수","목","금","토"];
+const MONTHS_KR_H = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+
 export function HabitView() {
-  const today = new Date();
+  const today    = new Date();
   const todayStr = today.toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});
-  const year  = today.getFullYear();
-  const month = today.getMonth();
+  const year     = today.getFullYear();
+  const month    = today.getMonth();
+  const yearMonth = `${year}-${String(month+1).padStart(2,"0")}`;
   const daysInMonth = new Date(year, month+1, 0).getDate();
 
-  // 로컬스토리지 기반 저장
-  const storageKey = `yamlog_habits_${year}_${String(month+1).padStart(2,"0")}`;
-  const [logs, setLogs] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(storageKey)||"{}"); }
-    catch { return {}; }
-  });
-  const [habits] = useState(DEFAULT_HABITS);
+  const todayDow  = today.getDay();
+  const todayDate = today.getDate();
 
-  const toggle = (habitId, dayStr) => {
-    setLogs(prev => {
-      const key = `${habitId}_${dayStr}`;
-      const next = {...prev, [key]: !prev[key]};
-      localStorage.setItem(storageKey, JSON.stringify(next));
-      return next;
-    });
+  // Supabase 훅
+  const { habits: dbHabits, loading: habitsLoading, refetch: refetchHabits } = useHabits();
+  const { logs: dbLogs,   loading: logsLoading,   refetch: refetchLogs   } = useHabitLogs(yearMonth);
+
+  // DB에 기본 습관 없으면 초기화
+  useEffect(() => {
+    if (!habitsLoading && dbHabits.length === 0) {
+      initDefaultHabits(DEFAULT_HABITS).then(refetchHabits).catch(console.error);
+    }
+  }, [habitsLoading, dbHabits.length]); // eslint-disable-line
+
+  // 로컬 낙관적 업데이트용 오버레이
+  const [optimistic, setOptimistic] = useState({});
+
+  const habits = dbHabits.length > 0 ? dbHabits : DEFAULT_HABITS;
+
+  const isChecked = (habitId, dayStr) => {
+    const key = `${habitId}_${dayStr}`;
+    if (optimistic[key] !== undefined) return optimistic[key];
+    return dbLogs.some(l => l.habit_id === habitId && l.date === dayStr);
   };
 
-  const isChecked = (habitId, dayStr) => !!logs[`${habitId}_${dayStr}`];
+  const toggle = async (habitId, dayStr) => {
+    const key = `${habitId}_${dayStr}`;
+    const current = isChecked(habitId, dayStr);
+    // 낙관적 업데이트
+    setOptimistic(p => ({...p, [key]: !current}));
+    try {
+      await toggleHabitLog(habitId, dayStr, current);
+      await refetchLogs();
+    } catch(e) {
+      console.error("습관 토글 실패:", e);
+      setOptimistic(p => ({...p, [key]: current})); // 롤백
+    } finally {
+      setOptimistic(p => { const n={...p}; delete n[key]; return n; });
+    }
+  };
 
-  const MONTHS_KR = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+  const loading = habitsLoading || logsLoading;
 
   return (
     <div style={{overflowY:"auto",height:"100%",paddingRight:4}}>
-      {/* 헤더 */}
+      {/* 헤더: 날짜 + 요일 */}
       <div style={{marginBottom:16}}>
-        <div style={{fontFamily:"'Libre Baskerville',serif",fontSize:17,fontWeight:700,color:T.text}}>
-          {year}년 {MONTHS_KR[month]}
+        <div style={{fontFamily:"'KoPub Batang',Georgia,serif",fontSize:17,fontWeight:700,color:T.text}}>
+          {year}년 {MONTHS_KR_H[month]}
+        </div>
+        <div style={{fontSize:12,color:T.textSub,marginTop:4}}>
+          오늘 {todayDate}일 {WEEKDAYS_KR[todayDow]}요일
         </div>
       </div>
 
-      {/* 오늘 체크박스 */}
-      <div style={{background:T.bgCard,borderRadius:14,padding:"14px 16px",marginBottom:16,border:`1px solid ${T.border}`}}>
-        <div style={{fontSize:11,color:T.textMute,fontWeight:600,letterSpacing:.5,marginBottom:10}}>오늘의 습관</div>
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {habits.map(h => {
-            const checked = isChecked(h.id, todayStr);
-            return (
-              <div key={h.id} onClick={()=>toggle(h.id, todayStr)}
-                style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",userSelect:"none"}}>
-                <div style={{
-                  width:20,height:20,borderRadius:6,flexShrink:0,
-                  border:`2px solid ${checked?h.color:T.border}`,
-                  background:checked?h.color:"transparent",
-                  display:"flex",alignItems:"center",justifyContent:"center",
-                  transition:"all .12s",
-                }}>
-                  {checked&&<span style={{color:"white",fontSize:12,lineHeight:1}}>✓</span>}
+      {loading ? (
+        <div style={{textAlign:"center",color:T.textMute,fontSize:13,padding:40}}>불러오는 중...</div>
+      ) : (<>
+        {/* 오늘 체크박스 */}
+        <div style={{background:T.bgCard,borderRadius:14,padding:"14px 16px",marginBottom:16,border:`1px solid ${T.border}`}}>
+          <div style={{fontSize:11,color:T.textMute,fontWeight:600,letterSpacing:.5,marginBottom:10}}>오늘의 습관</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {habits.map(h => {
+              const checked = isChecked(h.id, todayStr);
+              return (
+                <div key={h.id} onClick={()=>toggle(h.id, todayStr)}
+                  style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",userSelect:"none"}}>
+                  <div style={{
+                    width:20,height:20,borderRadius:6,flexShrink:0,
+                    border:`2px solid ${checked?h.color:T.border}`,
+                    background:checked?h.color:"transparent",
+                    display:"flex",alignItems:"center",justifyContent:"center",
+                    transition:"all .12s",
+                  }}>
+                    {checked&&<span style={{color:"white",fontSize:12,lineHeight:1}}>✓</span>}
+                  </div>
+                  <span style={{fontSize:13,color:checked?T.text:T.textSub,fontWeight:checked?600:400,transition:"all .12s"}}>{h.label}</span>
                 </div>
-                <span style={{fontSize:13,color:checked?T.text:T.textSub,fontWeight:checked?600:400,
-                  textDecoration:checked?"none":"none",transition:"all .12s"}}>{h.label}</span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      {/* 해빗트래커 */}
-      <div style={{background:T.bgCard,borderRadius:14,padding:"14px 16px",border:`1px solid ${T.border}`}}>
-        <div style={{fontSize:11,color:T.textMute,fontWeight:600,letterSpacing:.5,marginBottom:12}}>이번 달 트래커</div>
-        <div style={{overflowX:"auto"}}>
-          <table style={{borderCollapse:"collapse",minWidth:"100%"}}>
-            <thead>
-              <tr>
-                <th style={{width:70,textAlign:"left",fontSize:10,color:T.textMute,fontWeight:400,paddingBottom:6,paddingRight:8}}></th>
-                {Array.from({length:daysInMonth},(_,i)=>{
-                  const d = new Date(year,month,i+1);
-                  const ds = d.toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});
-                  const isToday = ds===todayStr;
-                  const dow = d.getDay();
-                  const isSun = dow===0, isSat = dow===6;
-                  return (
-                    <th key={i} style={{
-                      width:22,minWidth:22,textAlign:"center",fontSize:9,fontWeight:isToday?700:400,
-                      color:isToday?T.accent:isSun?"#C0443A":isSat?"#2E6FA5":T.textMute,
-                      paddingBottom:4,
-                    }}>{i+1}</th>
-                  );
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {habits.map(h => (
-                <tr key={h.id}>
-                  <td style={{fontSize:10,color:T.textSub,paddingRight:8,paddingTop:3,paddingBottom:3,whiteSpace:"nowrap"}}>{h.label}</td>
+        {/* 해빗트래커 */}
+        <div style={{background:T.bgCard,borderRadius:14,padding:"14px 16px",border:`1px solid ${T.border}`}}>
+          <div style={{fontSize:11,color:T.textMute,fontWeight:600,letterSpacing:.5,marginBottom:12}}>이번 달 트래커</div>
+          <div style={{overflowX:"auto"}}>
+            <table style={{borderCollapse:"collapse",minWidth:"100%"}}>
+              <thead>
+                <tr>
+                  <th style={{width:70,textAlign:"left",fontSize:10,color:T.textMute,fontWeight:400,paddingBottom:2,paddingRight:8}}></th>
                   {Array.from({length:daysInMonth},(_,i)=>{
-                    const d = new Date(year,month,i+1);
-                    const ds = d.toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});
-                    const checked = isChecked(h.id, ds);
-                    const isFuture = ds > todayStr;
+                    const d   = new Date(year,month,i+1);
+                    const ds  = d.toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});
+                    const isToday = ds===todayStr;
+                    const dow = d.getDay();
+                    const isSun=dow===0, isSat=dow===6;
                     return (
-                      <td key={i} onClick={()=>!isFuture&&toggle(h.id,ds)}
-                        style={{textAlign:"center",padding:"2px 1px",cursor:isFuture?"default":"pointer"}}>
-                        <div style={{
-                          width:18,height:18,borderRadius:4,margin:"0 auto",
-                          background:checked?h.color:isFuture?"transparent":T.bgSub,
-                          border:isFuture?"none":`1px solid ${checked?h.color:T.border}`,
-                          transition:"all .1s",
-                        }}/>
-                      </td>
+                      <th key={i} style={{
+                        width:22,minWidth:22,textAlign:"center",paddingBottom:2,
+                      }}>
+                        <div style={{fontSize:8,color:isToday?T.accent:isSun?"#C0443A":isSat?"#2E6FA5":T.textMute,fontWeight:isToday?700:400}}>
+                          {WEEKDAYS_KR[dow]}
+                        </div>
+                        <div style={{fontSize:9,color:isToday?T.accent:isSun?"#C0443A":isSat?"#2E6FA5":T.textMute,fontWeight:isToday?700:400}}>
+                          {i+1}
+                        </div>
+                      </th>
                     );
                   })}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {habits.map(h => (
+                  <tr key={h.id}>
+                    <td style={{fontSize:10,color:T.textSub,paddingRight:8,paddingTop:3,paddingBottom:3,whiteSpace:"nowrap"}}>{h.label}</td>
+                    {Array.from({length:daysInMonth},(_,i)=>{
+                      const d  = new Date(year,month,i+1);
+                      const ds = d.toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});
+                      const checked   = isChecked(h.id, ds);
+                      const isFuture  = ds > todayStr;
+                      return (
+                        <td key={i} onClick={()=>!isFuture&&toggle(h.id,ds)}
+                          style={{textAlign:"center",padding:"2px 1px",cursor:isFuture?"default":"pointer"}}>
+                          <div style={{
+                            width:18,height:18,borderRadius:4,margin:"0 auto",
+                            background:checked?h.color:isFuture?"transparent":T.bgSub,
+                            border:isFuture?"none":`1px solid ${checked?h.color:T.border}`,
+                            transition:"all .1s",
+                          }}/>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      </>)}
     </div>
   );
 }

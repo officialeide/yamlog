@@ -497,7 +497,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
         );
       case "diet": {
         const meals=[["breakfast","아침"],["lunch","점심"],["dinner","저녁"],["snack","간식"]];
-        const GOALS = { calories:1400, protein:100, sugar:25 };
+        const GOALS = { calories:1500, protein:90, sugar:25, carbs:160, fat:60 };
         return (
           <div>
             {meals.filter(([k])=>f[k]).map(([k,label])=>(
@@ -505,10 +505,12 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
                 <span style={{color:T.textMute,fontSize:10,minWidth:22}}>{label}</span><span>{f[k]}</span>
               </div>
             ))}
-            {(f.calories||f.protein||f.sugar)&&(
+            {(f.calories||f.carbs||f.protein||f.fat||f.sugar)&&(
               <div style={{fontSize:11,marginTop:5,display:"flex",gap:12,flexWrap:"wrap",paddingTop:5,borderTop:`1px dashed ${T.border}`}}>
                 {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories} kcal</span></span>}
+                {f.carbs&&<span>🌾 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs} g</span></span>}
                 {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein} g</span></span>}
+                {f.fat&&<span>🫒 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat} g</span></span>}
                 {f.sugar&&<span>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar} g</span></span>}
               </div>
             )}
@@ -662,7 +664,7 @@ function HealthDayCards({ evs, accentColor, onOpen }) {
         const weightEv = dayEvs.find(e=>e.sub_category==="weight");
         const dietEv   = dayEvs.find(e=>e.sub_category==="diet");
         const otherEvs = dayEvs.filter(e=>e.sub_category!=="weight"&&e.sub_category!=="diet");
-        const GOALS = { calories:1400, protein:100, sugar:25 };
+        const GOALS = { calories:1500, protein:90, sugar:25, carbs:160, fat:60 };
         return (
           <div key={date} style={{
             background:T.bgCard,borderRadius:12,padding:"12px 14px",
@@ -702,7 +704,9 @@ function HealthDayCards({ evs, accentColor, onOpen }) {
                       <div style={{display:"flex",alignItems:"center",gap:10,fontSize:10,marginTop:4,paddingTop:4,borderTop:`1px dashed ${T.border}`}}>
                         <div style={{display:"flex",gap:10,flex:1}}>
                           {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}</span></span>}
+                          {f.carbs&&<span>🌾 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs}g</span></span>}
                           {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
+                          {f.fat&&<span>🫒 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat}g</span></span>}
                           {f.sugar&&<span>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar}g</span></span>}
                         </div>
                         {(f.checks?.length||f.checksEtc)&&(
@@ -866,7 +870,10 @@ export default function Yamlog() {
     if (isSpecialView) return null;
     if (view === "주") {
       const days = getWeekDays(curDate);
-      return { from: dateStr(days[0]), to: dateStr(days[6]) };
+      // 버퍼 하루씩 추가 (타임존 경계 문제 방지)
+      const from = new Date(days[0]); from.setDate(from.getDate() - 1);
+      const to   = new Date(days[6]); to.setDate(to.getDate() + 1);
+      return { from: dateStr(from), to: dateStr(to) };
     }
     if (view === "월") {
       const y = curDate.getFullYear(), mo = curDate.getMonth();
