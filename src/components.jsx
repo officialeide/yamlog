@@ -110,9 +110,9 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight }) {
           <div key="stats-macro" style={{marginTop:6,paddingTop:6,borderTop:`1px dashed ${T.border}`}}>
             <div style={{display:"flex",gap:10,fontSize:11,flexWrap:"wrap",alignItems:"center"}}>
               {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}kcal</span></span>}
-              {f.carbs&&<span>🌾 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs}g</span></span>}
+              {f.carbs&&<span>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs}g</span></span>}
               {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
-              {f.fat&&<span>🫒 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat}g</span></span>}
+              {f.fat&&<span>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat}g</span></span>}
               {f.sugar&&<span>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar}g</span></span>}
             </div>
           </div>
@@ -1243,25 +1243,23 @@ export function MacroBar({ carbs, protein, fat, inline=false }) {
     { key:"fat",     pct:fp, g:fat,     color:"#B09520", label:"지" },
   ];
   if (inline) {
-    // 인라인 모드: stats 옆에 좁은 바만
     return (
-      <div style={{display:"flex",alignItems:"center",gap:4,flex:1,minWidth:80,maxWidth:140}}>
-        <div style={{display:"flex",height:10,borderRadius:4,overflow:"hidden",flex:1,position:"relative"}}>
+      <div style={{display:"flex",alignItems:"center",gap:4,flex:1,minWidth:80,maxWidth:140,position:"relative"}}>
+        <div style={{display:"flex",height:10,borderRadius:4,flex:1,overflow:"hidden"}}>
           {segments.map(s => s.pct > 0 && (
             <div key={s.key}
               onClick={e=>{e.stopPropagation(); setTooltip(t=>t===s.key?null:s.key);}}
-              style={{width:`${s.pct}%`,background:s.color,cursor:"pointer",position:"relative",
-                opacity:tooltip&&tooltip!==s.key?0.6:1,transition:"opacity .1s"}}>
-              {tooltip===s.key&&(
-                <div style={{position:"absolute",bottom:"calc(100% + 4px)",left:"50%",transform:"translateX(-50%)",
-                  background:T.text,color:"white",borderRadius:5,padding:"3px 7px",
-                  fontSize:10,whiteSpace:"nowrap",zIndex:10,pointerEvents:"none"}}>
-                  {s.pct}%, {s.g}g
-                </div>
-              )}
-            </div>
+              style={{width:`${s.pct}%`,background:s.color,cursor:"pointer",
+                opacity:tooltip&&tooltip!==s.key?0.6:1,transition:"opacity .1s"}}/>
           ))}
         </div>
+        {tooltip&&(
+          <div style={{position:"absolute",bottom:"calc(100% + 6px)",left:"50%",transform:"translateX(-50%)",
+            background:T.text,color:"white",borderRadius:5,padding:"3px 8px",
+            fontSize:10,whiteSpace:"nowrap",zIndex:50,pointerEvents:"none",boxShadow:"0 2px 8px rgba(0,0,0,0.2)"}}>
+            {segments.find(s=>s.key===tooltip)?.pct}%, {segments.find(s=>s.key===tooltip)?.g}g
+          </div>
+        )}
       </div>
     );
   }
@@ -1415,7 +1413,7 @@ export function HabitView() {
                   style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",userSelect:"none"}}>
                   <div style={{
                     width:20,height:20,borderRadius:6,flexShrink:0,
-                    border:`2px solid ${checked?h.color:T.border}`,
+                    border:`1.5px solid ${checked?h.color:T.border}`,
                     background:checked?(h.bg||h.color+"22"):"transparent",
                     display:"flex",alignItems:"center",justifyContent:"center",
                     transition:"all .12s",
@@ -1472,9 +1470,9 @@ export function HabitView() {
                           style={{textAlign:"center",padding:"2px 1px",cursor:"pointer"}}>
                           <div style={{
                             width:18,height:18,borderRadius:4,margin:"0 auto",
-                            background:checked?(h.bg||h.color+"22"):T.bgSub,
-                            border:`1px solid ${checked?h.color:isFuture?T.borderMid:T.border}`,
-                            opacity:isFuture?0.4:1,
+                            background:checked?(h.bg||h.color+"22"):isFuture?"transparent":T.bgSub,
+                            border:"none",
+                            opacity:isFuture?0.35:1,
                             transition:"all .1s",
                           }}/>
                         </td>
