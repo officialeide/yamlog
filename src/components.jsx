@@ -114,7 +114,6 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight }) {
               {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
               {f.fat&&<span>🫒 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat}g</span></span>}
               {f.sugar&&<span>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar}g</span></span>}
-              <MacroBar inline carbs={parseFloat(f.carbs)||0} protein={parseFloat(f.protein)||0} fat={parseFloat(f.fat)||0}/>
             </div>
           </div>
         );

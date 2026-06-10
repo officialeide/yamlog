@@ -14,26 +14,27 @@ import {
 } from "./components.jsx";
 
 // ── 한국 공휴일 (2025~2027) ─────────────────────────
-const KR_HOLIDAYS = new Set([
+const KR_HOLIDAYS = {
   // 2025
-  "2025-01-01","2025-01-28","2025-01-29","2025-01-30",
-  "2025-03-01","2025-05-05","2025-05-06","2025-06-06",
-  "2025-08-15","2025-10-03","2025-10-06","2025-10-07","2025-10-08","2025-10-09",
-  "2025-12-25",
+  "2025-01-01":"신정","2025-01-28":"설날 연휴","2025-01-29":"설날","2025-01-30":"설날 연휴",
+  "2025-03-01":"삼일절","2025-05-05":"어린이날","2025-05-06":"대체공휴일","2025-06-06":"현충일",
+  "2025-08-15":"광복절","2025-10-03":"개천절","2025-10-06":"추석 연휴","2025-10-07":"추석","2025-10-08":"추석 연휴","2025-10-09":"한글날",
+  "2025-12-25":"성탄절",
   // 2026
-  "2026-01-01","2026-02-17","2026-02-18","2026-02-19",
-  "2026-03-01","2026-03-02","2026-05-05","2026-05-25","2026-06-06",
-  "2026-08-15","2026-08-17",
-  "2026-09-24","2026-09-25","2026-09-26",
-  "2026-10-03","2026-10-09","2026-12-25",
+  "2026-01-01":"신정","2026-02-17":"설날 연휴","2026-02-18":"설날","2026-02-19":"설날 연휴",
+  "2026-03-01":"삼일절","2026-03-02":"대체공휴일","2026-05-05":"어린이날","2026-05-25":"부처님오신날","2026-06-06":"현충일",
+  "2026-08-15":"광복절","2026-08-17":"대체공휴일",
+  "2026-09-24":"추석 연휴","2026-09-25":"추석","2026-09-26":"추석 연휴",
+  "2026-10-03":"개천절","2026-10-09":"한글날","2026-12-25":"성탄절",
   // 2027
-  "2027-01-01","2027-02-08","2027-02-09","2027-02-10",
-  "2027-03-01","2027-05-05","2027-05-13","2027-06-06",
-  "2027-08-15","2027-08-16",
-  "2027-09-14","2027-09-15","2027-09-16",
-  "2027-10-03","2027-10-04","2027-10-09","2027-12-25",
-]);
-const isHoliday = (ds) => KR_HOLIDAYS.has(ds);
+  "2027-01-01":"신정","2027-02-08":"설날 연휴","2027-02-09":"설날","2027-02-10":"설날 연휴",
+  "2027-03-01":"삼일절","2027-05-05":"어린이날","2027-05-13":"부처님오신날","2027-06-06":"현충일",
+  "2027-08-15":"광복절","2027-08-16":"대체공휴일",
+  "2027-09-14":"추석 연휴","2027-09-15":"추석","2027-09-16":"추석 연휴",
+  "2027-10-03":"개천절","2027-10-04":"대체공휴일","2027-10-09":"한글날","2027-12-25":"성탄절",
+};
+const isHoliday = (ds) => ds in KR_HOLIDAYS;
+const holidayName = (ds) => KR_HOLIDAYS[ds] || null;
 
 // ── useIsMobile: 디바운스 적용으로 리사이즈 과부하 방지 ──
 function useIsMobile() {
@@ -165,6 +166,7 @@ function WeekView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
           const ds=dateStr(d), isToday=ds===todayStr;
           const dow=d.getDay();
           const holi=isHoliday(ds);
+          const holiNm=holidayName(ds);
           const wknd=dow===0||holi?"#C0443A":dow===6?"#2E6FA5":null;
           return (
             <div key={i} style={{flex:1,textAlign:"center",padding:"3px 2px"}}>
@@ -172,6 +174,7 @@ function WeekView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
                 background:isToday?T.accent:"transparent",borderRadius:8,padding:"3px 5px",minWidth:28}}>
                 <div style={{fontSize:9,color:isToday?"#fff":wknd||T.textMute}}>{WEEKDAYS[dow]}</div>
                 <div style={{fontSize:13,fontWeight:isToday?700:400,color:isToday?"#fff":wknd||T.text}}>{d.getDate()}</div>
+                {holiNm&&<div style={{fontSize:7,color:isToday?"#fff":"#C0443A",lineHeight:1.2,marginTop:1,maxWidth:36,wordBreak:"keep-all",textAlign:"center"}}>{holiNm}</div>}
               </div>
             </div>
           );
@@ -279,6 +282,7 @@ function MonthCell({ d, events, isToday, isMobile, onOpen, onAdd, todayStr }) {
   const ds = dateStr(d);
   const isWknd = d.getDay()===0||d.getDay()===6;
   const isHoli = isHoliday(ds);
+  const holiNm = holidayName(ds);
   const allEvs = events.filter(e=>e.date===ds && e.category !== "archive");
   const todoEvs = allEvs.filter(e=>!e.done);
   const doneEvs = allEvs.filter(e=>e.done);
@@ -301,6 +305,7 @@ function MonthCell({ d, events, isToday, isMobile, onOpen, onAdd, todayStr }) {
             color:isToday?T.accent:(isWknd||isHoli)?d.getDay()===0||isHoli?"#C0443A":"#2E6FA5":T.text}}>
             {d.getDate()}
           </div>
+          {holiNm&&<div style={{fontSize:isMobile?6:8,color:"#C0443A",lineHeight:1.1,flexShrink:0,maxWidth:isMobile?28:44,wordBreak:"keep-all"}}>{holiNm}</div>}
           {(()=>{
             const CHECK_ORDER=["🍾","💩","🩸","💙"];
             const dietEv=events.find(e=>e.date===ds&&e.category==="archive"&&e.sub_category==="diet");
@@ -735,7 +740,7 @@ function HealthDayCards({ evs, accentColor, onOpen }) {
                     {(()=>{const f=dietEv.fields||{};return (f.calories||f.protein||f.sugar||f.checks?.length||f.checksEtc)&&(
                       <div style={{display:"flex",alignItems:"center",gap:10,fontSize:10,marginTop:4,paddingTop:4,borderTop:`1px dashed ${T.border}`}}>
                         <div style={{display:"flex",gap:10,flex:1}}>
-                          {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}</span></span>}
+                          {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}kcal</span></span>}
                           {f.carbs&&<span>🌾 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs}g</span></span>}
                           {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
                           {f.fat&&<span>🫒 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat}g</span></span>}
