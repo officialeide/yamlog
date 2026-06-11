@@ -341,8 +341,8 @@ function EditModal({ ev, onClose, onSaved }) {
   const isBook           = sub === "book";
   const isWine           = sub === "wine";
   const isCoffee         = sub === "coffee";
-  const isBasic = ev.category === "schedule" || ev.category === "event"
-    || (ev.category === "archive" && !KNOWN_SUBS.includes(sub));
+  const isEtc            = ev.category === "archive" && !KNOWN_SUBS.includes(sub);
+  const isBasic = ev.category === "schedule" || ev.category === "event" || isEtc;
 
   const [title,      setTitle]      = useState(ev.title  || "");
   const [detail,     setDetail]     = useState(ev.detail || "");
@@ -621,6 +621,19 @@ function EditModal({ ev, onClose, onSaved }) {
 
           {isBasic&&(<>
             <input placeholder="제목" style={{...inp,marginBottom:8}} value={title} onChange={e=>setTitle(e.target.value)}/>
+            {isEtc&&(
+              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+                {["업무","지식","취미","요리","베이킹","참고"].map(tag=>(
+                  <button key={tag} type="button" onClick={()=>setField("tag", fields.tag===tag?"":tag)} style={{
+                    padding:"4px 12px",borderRadius:20,fontSize:11,cursor:"pointer",
+                    background:fields.tag===tag?"#7E4FA0":"transparent",
+                    color:fields.tag===tag?"white":T.textSub,
+                    border:`1px solid ${fields.tag===tag?"#7E4FA0":T.border}`,
+                    transition:"all .12s",
+                  }}>{tag}</button>
+                ))}
+              </div>
+            )}
             <textarea placeholder="상세 내용" rows={4} style={{...inp,resize:"vertical",marginBottom:8}} value={detail} onChange={e=>setDetail(e.target.value)}/>
           </>)}
         </div>
@@ -969,6 +982,17 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
 
           {cat==="archive"&&archiveSub==="etc"&&(<>
             <input placeholder="제목 입력..." style={{...inp,marginBottom:8}} value={title} onChange={e=>setTitle(e.target.value)}/>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+              {["업무","지식","취미","요리","베이킹","참고"].map(tag=>(
+                <button key={tag} type="button" onClick={()=>setField("tag", fields.tag===tag?"":tag)} style={{
+                  padding:"4px 12px",borderRadius:20,fontSize:11,cursor:"pointer",
+                  background:fields.tag===tag?"#7E4FA0":"transparent",
+                  color:fields.tag===tag?"white":T.textSub,
+                  border:`1px solid ${fields.tag===tag?"#7E4FA0":T.border}`,
+                  transition:"all .12s",
+                }}>{tag}</button>
+              ))}
+            </div>
             <textarea placeholder="상세 내용" rows={4} style={{...inp,resize:"vertical",marginBottom:8}} value={detail} onChange={e=>setDetail(e.target.value)}/>
           </>)}
 

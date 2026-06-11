@@ -620,7 +620,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
                 <span key={i} style={{display:"inline-block",marginRight:4,padding:"2px 7px",borderRadius:10,fontSize:10,background:accentColor+"18",color:accentColor,border:`1px solid ${accentColor}33`}}>{kw}</span>
               ))}
             </div>}
-            {ev.detail&&<div style={{marginBottom:4}}><span style={{fontSize:10,color:T.textMute}}>요약 </span><span style={{fontSize:12,color:T.text,lineHeight:1.75}}>{ev.detail}</span></div>}
+            {ev.detail&&<div style={{marginBottom:4}}><span style={{fontSize:10,color:T.textMute,display:"block",marginBottom:2}}>요약</span><div style={{fontSize:12,color:T.text,lineHeight:1.75,whiteSpace:"pre-wrap"}}>{ev.detail}</div></div>}
             {f.watchlist&&<div style={{fontSize:11,color:T.text,marginTop:4}}>✔️ {f.watchlist}</div>}
           </div>
         );
@@ -689,6 +689,12 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
       default:
         return (
           <div>
+            {ev.fields?.tag&&(
+              <span style={{display:"inline-block",marginBottom:6,padding:"2px 10px",borderRadius:20,
+                fontSize:10,background:"#7E4FA022",color:"#7E4FA0",border:"1px solid #7E4FA033",fontWeight:600}}>
+                {ev.fields.tag}
+              </span>
+            )}
             {ev.title&&ev.title!=="기타"&&<div style={{fontSize:13,fontWeight:600,color:T.text,marginBottom:4}}>{ev.title}</div>}
             {ev.detail&&<div style={{fontSize:12,color:T.text,lineHeight:1.75,whiteSpace:"pre-wrap"}}>{ev.detail}</div>}
           </div>
@@ -838,14 +844,23 @@ function HealthDayCards({ evs, accentColor, onOpen }) {
   );
 }
 
+const ETC_TAGS = ["업무","지식","취미","요리","베이킹","참고"];
+
 function ArchiveView({ events, onOpen, onAddFromArchive }) {
   const [activeSec, setActiveSec] = useState("health");
+  const [activeTag, setActiveTag] = useState(null);
   const archiveEvs = events.filter(e => e.category === "archive");
 
   const filtered = archiveEvs.filter(e=>{
     const sec=ARCHIVE_SECTS.find(s=>s.id===activeSec);
     if(!sec) return false;
-    if(sec.subs===null) return !KNOWN_SUBS.includes(e.sub_category);
+    if(sec.subs===null) {
+      if(!KNOWN_SUBS.includes(e.sub_category)){
+        if(activeTag && e.fields?.tag !== activeTag) return false;
+        return true;
+      }
+      return false;
+    }
     return sec.subs.includes(e.sub_category);
   }).sort((a,b)=>b.date.localeCompare(a.date));
 
@@ -860,7 +875,7 @@ function ArchiveView({ events, onOpen, onAddFromArchive }) {
           const count=archiveEvs.filter(e=>sec.subs===null?!KNOWN_SUBS.includes(e.sub_category):sec.subs.includes(e.sub_category)).length;
           const active=activeSec===sec.id;
           return (
-            <button key={sec.id} onClick={()=>setActiveSec(sec.id)} style={{
+            <button key={sec.id} onClick={()=>{setActiveSec(sec.id);setActiveTag(null);}} style={{
               padding:"14px 6px",borderRadius:12,cursor:"pointer",
               background:active?sec.color:T.bgCard,
               border:`1px solid ${active?sec.color:T.border}`,
@@ -883,6 +898,21 @@ function ArchiveView({ events, onOpen, onAddFromArchive }) {
         boxShadow:`0 4px 14px ${activeDef?.color||T.accent}44`,
       }}>+</button>
       </div>
+
+      {/* 기타 섹션 태그 필터 */}
+      {activeSec==="etc"&&(
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12,flexShrink:0}}>
+          {ETC_TAGS.map(tag=>(
+            <button key={tag} onClick={()=>setActiveTag(activeTag===tag?null:tag)} style={{
+              padding:"4px 12px",borderRadius:20,fontSize:11,cursor:"pointer",
+              background:activeTag===tag?"#7E4FA0":"transparent",
+              color:activeTag===tag?"white":T.textSub,
+              border:`1px solid ${activeTag===tag?"#7E4FA0":T.border}`,
+              transition:"all .12s",
+            }}>{tag}</button>
+          ))}
+        </div>
+      )}
 
       {/* 메모 목록 */}
       <div style={{flex:1,overflowY:"auto"}}>
