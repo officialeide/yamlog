@@ -119,7 +119,6 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight, onCopy })
               {f.fat&&<span style={{whiteSpace:"nowrap"}}>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat}g</span></span>}
               {f.sugar&&<span style={{whiteSpace:"nowrap"}}>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar}g</span></span>}
             </div>
-            {/* 바 그래프 줄 */}
             {(carbsN||protN||fatN)&&<MacroBar carbs={carbsN} protein={protN} fat={fatN}/>}
           </div>
         );
@@ -1419,27 +1418,30 @@ export function MacroBar({ carbs, protein, fat, inline=false }) {
     );
   }
   return (
-    <div style={{marginTop:8,marginBottom:4}}>
-      <div style={{display:"flex",height:14,borderRadius:6,overflow:"hidden"}}>
-        {segments.map(s => s.pct > 0 && (
-          <div key={s.key}
-            onClick={e=>{e.stopPropagation(); setTooltip(t=>t===s.key?null:s.key);}}
-            style={{width:`${s.pct}%`,background:s.color,cursor:"pointer",position:"relative",
-              opacity:tooltip&&tooltip!==s.key?0.6:1,transition:"opacity .1s"}}>
-            {tooltip===s.key&&(
-              <div style={{position:"absolute",bottom:"calc(100% + 4px)",left:"50%",transform:"translateX(-50%)",
-                background:T.text,color:"white",borderRadius:5,padding:"3px 7px",
-                fontSize:10,whiteSpace:"nowrap",zIndex:10,pointerEvents:"none"}}>
-                {s.pct}%, {s.g}g
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-      <div style={{display:"flex",gap:8,marginTop:4}}>
+    <div style={{display:"flex",alignItems:"center",gap:8,marginTop:4,marginBottom:2}}>
+      {/* 탄단지 퍼센트 텍스트 — 왼쪽 */}
+      <div style={{display:"flex",gap:6,flexShrink:0}}>
         {segments.map(s=>(
           <span key={s.key} style={{fontSize:10,color:s.color,fontWeight:600}}>{s.label} {s.pct}%</span>
         ))}
+      </div>
+      {/* 막대 그래프 — 오른쪽 */}
+      <div style={{position:"relative",flex:1}}>
+        <div style={{display:"flex",height:10,borderRadius:4,overflow:"hidden"}}>
+          {segments.map(s => s.pct > 0 && (
+            <div key={s.key}
+              onClick={e=>{e.stopPropagation(); setTooltip(t=>t===s.key?null:s.key);}}
+              style={{width:`${s.pct}%`,background:s.color,cursor:"pointer",
+                opacity:tooltip&&tooltip!==s.key?0.6:1,transition:"opacity .1s"}}/>
+          ))}
+        </div>
+        {tooltip&&(
+          <div style={{position:"absolute",bottom:"calc(100% + 4px)",left:"50%",transform:"translateX(-50%)",
+            background:T.text,color:"white",borderRadius:5,padding:"3px 7px",
+            fontSize:10,whiteSpace:"nowrap",zIndex:10,pointerEvents:"none"}}>
+            {segments.find(s=>s.key===tooltip)?.pct}%, {segments.find(s=>s.key===tooltip)?.g}g
+          </div>
+        )}
       </div>
     </div>
   );

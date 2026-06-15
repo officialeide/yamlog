@@ -785,7 +785,7 @@ function HealthDayCards({ evs, accentColor, onOpen }) {
                           )}
                         </div>
                         {/* 바 그래프 줄 */}
-                        {(carbsN||protN||fatN)&&<div style={{marginTop:4}}><MacroBar carbs={carbsN} protein={protN} fat={fatN}/></div>}
+                        {(carbsN||protN||fatN)&&<MacroBar carbs={carbsN} protein={protN} fat={fatN}/>}
                       </div>
                     );})()}
                   </div>
@@ -1053,7 +1053,7 @@ export default function Yamlog() {
       <div style={{padding:"20px 18px 14px",borderBottom:`1px solid ${T.border}`}}>
         <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
           <div style={{fontFamily:"'KoPub Batang',Georgia,serif",fontSize:22,fontWeight:700,color:T.text,letterSpacing:-.5,lineHeight:1,marginBottom:10}}>Yamlog</div>
-          <div style={{fontSize:28,lineHeight:1,userSelect:"none"}}>🌼</div>
+          <div style={{fontSize:28,lineHeight:1,userSelect:"none"}}>🐳</div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6,fontFamily:"'KoPub Dotum',sans-serif",fontSize:10}}>
           <span style={{color:T.accent,fontWeight:600}}>
