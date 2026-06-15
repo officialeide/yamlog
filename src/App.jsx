@@ -287,7 +287,7 @@ function WeekView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
                         opacity:ev.done?0.55:1,
                         boxShadow:"0 1px 3px rgba(44,40,37,0.08)",
                       }}>
-                      <div style={{fontSize:isMobile?8:11,color:ev.done?T.textMute:cat.text,
+                      <div style={{fontSize:isMobile?9:13,color:ev.done?T.textMute:cat.text,
                         lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
                         fontWeight:500}}>
                         {ev.title}
@@ -361,7 +361,7 @@ function MonthCell({ d, events, isToday, isMobile, onOpen, onAdd, todayStr }) {
         const cat=catOf(ev.category,ev.sub_category);
         return (
           <div key={ev.id} onClick={e=>{e.stopPropagation();onOpen(ev);}} style={{
-            fontSize:isMobile?8:11,marginBottom:2,padding:"1px 3px",borderRadius:4,cursor:"pointer",
+            fontSize:isMobile?9:12,marginBottom:2,padding:"1px 3px",borderRadius:4,cursor:"pointer",
             background:cat.bg,color:cat.text,border:`1px solid ${cat.color}33`,
             whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
           }}>{ev.title}</div>
@@ -586,7 +586,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
               {f.duration&&<span><span style={{color:T.textMute,fontSize:10}}>시간 </span>{f.duration}</span>}
               {f.condition&&<span><span style={{color:T.textMute,fontSize:10}}>컨디션 </span>{"★".repeat(f.condition)}{"☆".repeat(5-f.condition)}</span>}
             </div>
-            {ev.detail&&<pre style={{fontSize:11,color:T.text,whiteSpace:"pre-wrap",margin:0,lineHeight:1.7,fontFamily:"'KoPub Dotum',sans-serif"}}>{ev.detail}</pre>}
+            {ev.detail&&<pre style={{fontSize:11,color:T.text,whiteSpace:"pre-wrap",margin:0,lineHeight:1.7,fontFamily:"'Noto Sans KR',sans-serif"}}>{ev.detail}</pre>}
           </div>
         );
       case "cardio":
@@ -876,7 +876,7 @@ function ArchiveView({ events, onOpen, onAddFromArchive, isMobile }) {
               background:active?sec.color:T.bgCard,
               border:`1px solid ${active?sec.color:T.border}`,
               color:active?"white":T.textSub,fontWeight:active?700:400,
-              fontSize:14,fontFamily:"'KoPub Dotum',sans-serif",
+              fontSize:14,fontFamily:"'Noto Sans KR',sans-serif",
               display:"flex",flexDirection:"column",alignItems:"center",gap:4,
               boxShadow:active?`0 4px 18px ${sec.color}44`:"none",transition:"all .15s",
             }}>
@@ -1052,10 +1052,10 @@ export default function Yamlog() {
       {/* 로고 */}
       <div style={{padding:"20px 18px 14px",borderBottom:`1px solid ${T.border}`}}>
         <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
-          <div style={{fontFamily:"'KoPub Batang',Georgia,serif",fontSize:22,fontWeight:700,color:T.text,letterSpacing:-.5,lineHeight:1,marginBottom:10}}>Yamlog</div>
+          <div style={{fontFamily:"'Noto Serif KR',Georgia,serif",fontSize:22,fontWeight:700,color:T.text,letterSpacing:-.5,lineHeight:1,marginBottom:10}}>Yamlog</div>
           <div style={{fontSize:28,lineHeight:1,userSelect:"none"}}>🐳</div>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:6,fontFamily:"'KoPub Dotum',sans-serif",fontSize:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,fontFamily:"'Noto Sans KR',sans-serif",fontSize:10}}>
           <span style={{color:T.accent,fontWeight:600}}>
             {today.toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"short"})}
           </span>
@@ -1066,13 +1066,13 @@ export default function Yamlog() {
 
       {/* 인용문 — 각 문장 끝 줄바꿈, 문단 사이 빈줄 없음 */}
       <div style={{padding:"16px 18px 14px",borderBottom:`1px solid ${T.border}`}}>
-        <div style={{fontSize:12,color:T.textSub,lineHeight:1.5,fontFamily:"'KoPub Dotum',sans-serif",fontWeight:700}}>
+        <div style={{fontSize:12,color:T.textSub,lineHeight:1.5,fontFamily:"'Noto Sans KR',sans-serif",fontWeight:700}}>
           탁월함은 일시적 행위가 아니라<br/>
           우리를 정의하는 습관이다.<br/>
           이는 곧 중용의 태도이자<br/>
           행복이다.
         </div>
-        <div style={{fontSize:9.5,color:T.textMute,lineHeight:1.85,fontFamily:"'KoPub Batang',Georgia,serif",fontStyle:"italic",marginTop:10,opacity:.8}}>
+        <div style={{fontSize:9.5,color:T.textMute,lineHeight:1.85,fontFamily:"'Noto Serif KR',Georgia,serif",fontStyle:"italic",marginTop:10,opacity:.8}}>
           Arete is no fleeting act,<br/>
           but our defining habit.<br/>
           It is the stance of Mesotes,<br/>
@@ -1088,7 +1088,7 @@ export default function Yamlog() {
           background:filterCat==="all"&&!showBriefing&&!showHabit?"#B0952022":"transparent",border:"none",
           display:"flex",alignItems:"center",gap:8,
           color:filterCat==="all"&&!showBriefing&&!showHabit?"#B09520":T.textSub,
-          fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:filterCat==="all"&&!showBriefing&&!showHabit?600:400,
+          fontFamily:"'Noto Sans KR',sans-serif",fontSize:13,fontWeight:filterCat==="all"&&!showBriefing&&!showHabit?600:400,
         }}>
           <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:filterCat==="all"&&!showBriefing&&!showHabit?"#B09520":T.borderMid}}/>
           홈
@@ -1099,7 +1099,7 @@ export default function Yamlog() {
           background:showBriefing?"#6B7C3A22":"transparent",border:"none",
           display:"flex",alignItems:"center",gap:8,
           color:showBriefing?"#6B7C3A":T.textSub,
-          fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:showBriefing?600:400,
+          fontFamily:"'Noto Sans KR',sans-serif",fontSize:13,fontWeight:showBriefing?600:400,
         }}>
           <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:showBriefing?"#6B7C3A":T.borderMid}}/>
           브리핑
@@ -1110,7 +1110,7 @@ export default function Yamlog() {
           background:showHabit?"#2E6FA522":"transparent",border:"none",
           display:"flex",alignItems:"center",gap:8,
           color:showHabit?"#2E6FA5":T.textSub,
-          fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:showHabit?600:400,
+          fontFamily:"'Noto Sans KR',sans-serif",fontSize:13,fontWeight:showHabit?600:400,
         }}>
           <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:showHabit?"#2E6FA5":T.borderMid}}/>
           습관
@@ -1121,7 +1121,7 @@ export default function Yamlog() {
           background:filterCat==="archive"&&!showBriefing&&!showHabit?"#7E4FA022":"transparent",border:"none",
           display:"flex",alignItems:"center",gap:8,
           color:filterCat==="archive"&&!showBriefing&&!showHabit?"#7E4FA0":T.textSub,
-          fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,fontWeight:filterCat==="archive"&&!showBriefing&&!showHabit?600:400,
+          fontFamily:"'Noto Sans KR',sans-serif",fontSize:13,fontWeight:filterCat==="archive"&&!showBriefing&&!showHabit?600:400,
         }}>
           <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:filterCat==="archive"&&!showBriefing&&!showHabit?"#7E4FA0":T.borderMid}}/>
           아카이브
@@ -1167,14 +1167,14 @@ export default function Yamlog() {
                     background:view===v?T.bgCard:"transparent",border:view===v?`1px solid ${T.border}`:"none",
                     color:view===v?T.text:T.textSub,fontWeight:view===v?600:400,
                     boxShadow:view===v?"0 1px 3px rgba(44,40,37,0.08)":"none",
-                    fontFamily:"'KoPub Dotum',sans-serif",
+                    fontFamily:"'Noto Sans KR',sans-serif",
                   }}>{v}</button>
                 ))}
               </div>
               <button onClick={()=>handleAdd(null,null)} style={{
                 background:T.accent,border:"none",borderRadius:9,padding:"7px 14px",
                 cursor:"pointer",fontSize:12,color:"white",fontWeight:600,
-                boxShadow:`0 2px 10px ${T.accent}44`,fontFamily:"'KoPub Dotum',sans-serif",
+                boxShadow:`0 2px 10px ${T.accent}44`,fontFamily:"'Noto Sans KR',sans-serif",
               }}>+ 추가</button>
             </div>
           </div>}
@@ -1204,20 +1204,17 @@ export default function Yamlog() {
     <div style={{
       display:"flex",flexDirection:isMobile?"column":"row",
       minHeight:"100vh",background:T.bg,
-      fontFamily:isTablet?"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans KR',sans-serif":"'KoPub Dotum',sans-serif",
+      fontFamily:isTablet?"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans KR',sans-serif":"'Noto Sans KR',sans-serif",
       color:T.text,
     }}>
       <style>{`
-        @font-face{font-family:'KoPub Dotum';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2102@1.4/KoPubWorldDotum_Pro-Light.woff2') format('woff2');font-weight:300 400;}
-        @font-face{font-family:'KoPub Dotum';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2102@1.4/KoPubWorldDotum_Pro-Medium.woff2') format('woff2');font-weight:600 700 800;}
-        @font-face{font-family:'KoPub Batang';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2102@1.4/KoPubWorldBatang_Pro-Light.woff2') format('woff2');font-weight:300 400;}
-        @font-face{font-family:'KoPub Batang';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2102@1.4/KoPubWorldBatang_Pro-Medium.woff2') format('woff2');font-weight:600 700 800;}
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@300;400;700&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
         body{background:#F7F4EF;}
         ::-webkit-scrollbar{width:4px;height:4px;}
         ::-webkit-scrollbar-track{background:#F0EDE7;}
         ::-webkit-scrollbar-thumb{background:#CEC5B8;border-radius:2px;}
-        ${isTablet?'':`input,textarea,button{font-family:'KoPub Dotum',sans-serif;}`}
+        ${isTablet?'':`input,textarea,button{font-family:'Noto Sans KR',sans-serif;}`}
         input[type=date]::-webkit-calendar-picker-indicator,
         input[type=time]::-webkit-calendar-picker-indicator{opacity:.4;cursor:pointer;}
         button:focus{outline:none;}
@@ -1245,7 +1242,7 @@ export default function Yamlog() {
                       <button key={v} onClick={()=>setView(v)} style={{
                         padding:"3px 8px",borderRadius:5,cursor:"pointer",fontSize:11,
                         background:view===v?T.bgCard:"transparent",border:view===v?`1px solid ${T.border}`:"none",
-                        color:view===v?T.text:T.textSub,fontFamily:"'KoPub Dotum',sans-serif",
+                        color:view===v?T.text:T.textSub,fontFamily:"'Noto Sans KR',sans-serif",
                       }}>{v}</button>
                     ))}
                   </div>

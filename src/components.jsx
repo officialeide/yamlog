@@ -35,7 +35,7 @@ export function LiveClock() {
     return () => clearTimeout(timerRef.current);
   }, []);
   return (
-    <span style={{fontSize:10,color:T.textMute,fontFamily:"'KoPub Dotum',sans-serif",fontWeight:400,letterSpacing:.3}}>
+    <span style={{fontSize:10,color:T.textMute,fontFamily:"'Noto Sans KR',sans-serif",fontWeight:400,letterSpacing:.3}}>
       {time}
     </span>
   );
@@ -170,7 +170,7 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight, onCopy })
     if (sub === "book") {
       if (f.bookTitle) rows.push(
         <div key="bt" style={{fontFamily:"'Libre Baskerville',serif",fontSize:15,fontWeight:700,color:T.text,marginBottom:3}}>
-          {f.bookTitle}{f.author&&<span style={{fontSize:12,fontWeight:400,color:T.textSub,fontFamily:"'KoPub Dotum',sans-serif"}}> · {f.author}</span>}
+          {f.bookTitle}{f.author&&<span style={{fontSize:12,fontWeight:400,color:T.textSub,fontFamily:"'Noto Sans KR',sans-serif"}}> · {f.author}</span>}
         </div>
       );
       if (f.genre||f.period) rows.push(<div key="bmeta" style={{fontSize:10,color:T.textMute,marginBottom:5}}>{f.genre}{f.genre&&f.period&&" · "}{f.period}</div>);
@@ -183,7 +183,7 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight, onCopy })
     if (sub === "wine") {
       if (f.wineName) rows.push(
         <div key="wn" style={{fontFamily:"'Libre Baskerville',serif",fontSize:15,fontWeight:700,color:T.text,marginBottom:3}}>
-          {f.wineName}{f.vintage&&<span style={{fontSize:11,fontWeight:400,color:T.textSub,fontFamily:"'KoPub Dotum',sans-serif"}}> {f.vintage}</span>}
+          {f.wineName}{f.vintage&&<span style={{fontSize:11,fontWeight:400,color:T.textSub,fontFamily:"'Noto Sans KR',sans-serif"}}> {f.vintage}</span>}
         </div>
       );
       if (f.origin||f.grape) rows.push(<div key="wmeta" style={{fontSize:10,color:T.textMute,marginBottom:5}}>{f.origin}{f.origin&&f.grape&&" · "}{f.grape}</div>);
@@ -267,7 +267,7 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight, onCopy })
           {renderFields()}
           {/* 텍스트 상세 */}
           {ev.detail ? (
-            <pre style={{fontFamily:"'KoPub Dotum',sans-serif",fontSize:13,
+            <pre style={{fontFamily:"'Noto Sans KR',sans-serif",fontSize:13,
               color:T.text,lineHeight:1.85,whiteSpace:"pre-wrap",margin:0}}>
               {ev.detail}
             </pre>
@@ -409,7 +409,7 @@ function EditModal({ ev, onClose, onSaved }) {
   const inp = {
     width:"100%",background:T.bgSub,border:`1px solid ${T.border}`,borderRadius:8,
     padding:"10px 12px",color:T.text,fontSize:13,outline:"none",
-    boxSizing:"border-box",fontFamily:"'KoPub Dotum',sans-serif",
+    boxSizing:"border-box",fontFamily:"'Noto Sans KR',sans-serif",
   };
 
   return (
@@ -817,7 +817,7 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
   const inp = {
     width:"100%",background:T.bgSub,border:`1px solid ${T.border}`,borderRadius:8,
     padding:"10px 12px",color:T.text,fontSize:13,outline:"none",
-    boxSizing:"border-box",fontFamily:"'KoPub Dotum',sans-serif",
+    boxSizing:"border-box",fontFamily:"'Noto Sans KR',sans-serif",
   };
 
   return (
@@ -1333,7 +1333,7 @@ export function WordSection() {
       </div>
       {/* 단어 + 발음 병기 */}
       <div style={{display:"flex",alignItems:"baseline",gap:6,flexWrap:"wrap",marginBottom:4}}>
-        <span style={{fontFamily:"'KoPub Batang',Georgia,serif",fontSize:15,color:"#0F3058",fontWeight:700}}>{current.word}</span>
+        <span style={{fontFamily:"'Noto Serif KR',Georgia,serif",fontSize:15,color:"#0F3058",fontWeight:700}}>{current.word}</span>
         {current.pronunciation&&(
           <span style={{fontSize:10,color:"#2E6FA5",letterSpacing:.3,fontFamily:"Georgia,serif"}}>{current.pronunciation}</span>
         )}
@@ -1468,7 +1468,7 @@ function BriefingSection({section}){
           <div style={{padding:"8px 14px 12px"}}>
             {rest.map((line,i)=>(
               <div key={i} style={{marginTop:i===0?0:4,paddingLeft:10,borderLeft:`2px solid ${section.color}55`}}>
-                <span style={{fontSize:12,color:T.text,lineHeight:1.5,fontWeight:400,fontFamily:"'KoPub Dotum',sans-serif"}}>{fmtNums(line)}</span>
+                <span style={{fontSize:12,color:T.text,lineHeight:1.5,fontWeight:400,fontFamily:"'Noto Sans KR',sans-serif"}}>{fmtNums(line)}</span>
               </div>
             ))}
           </div>
@@ -1550,7 +1550,7 @@ export function HabitView() {
     <div style={{overflowY:"auto",height:"100%",paddingRight:4}}>
       {/* 헤더: 날짜 브리핑 동일 서식 */}
       <div style={{marginBottom:16}}>
-        <div style={{fontFamily:"'KoPub Batang',Georgia,serif",fontSize:17,fontWeight:700,color:T.text,letterSpacing:-.3}}>
+        <div style={{fontFamily:"'Noto Serif KR',Georgia,serif",fontSize:17,fontWeight:700,color:T.text,letterSpacing:-.3}}>
           {year}년 {MONTHS_KR_H[month]} {todayDate}일&nbsp;
           <span style={{fontSize:13,fontWeight:400,color:T.textSub}}>{WEEKDAYS_KR[todayDow]}</span>
         </div>
@@ -1700,7 +1700,7 @@ export function BriefingView(){
   return(
     <div style={{paddingRight:4}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-        <div style={{fontFamily:"'Libre Baskerville',serif",fontSize:17,color:T.text,fontWeight:700,display:"flex",alignItems:"baseline",gap:7}}>{dateLabel}{dowLabel&&<span style={{fontSize:13,fontWeight:600,color:dowLabel.color,fontFamily:"'KoPub Dotum',sans-serif"}}>{dowLabel.text}</span>}</div>
+        <div style={{fontFamily:"'Libre Baskerville',serif",fontSize:17,color:T.text,fontWeight:700,display:"flex",alignItems:"baseline",gap:7}}>{dateLabel}{dowLabel&&<span style={{fontSize:13,fontWeight:600,color:dowLabel.color,fontFamily:"'Noto Sans KR',sans-serif"}}>{dowLabel.text}</span>}</div>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           {isStale&&<span style={{fontSize:9,padding:"2px 8px",borderRadius:10,background:"#B07D2E22",color:"#B07D2E",border:"1px solid #B07D2E44"}}>{briefing.diffDays}일 전</span>}
           {!useFallback&&briefing.isToday&&<span style={{fontSize:9,padding:"2px 8px",borderRadius:10,background:"#6B7C3A22",color:"#6B7C3A",border:"1px solid #6B7C3A44"}}>오늘</span>}
@@ -1709,7 +1709,7 @@ export function BriefingView(){
       </div>
       <div style={{background:"#3A3228",borderRadius:12,padding:"13px 16px",marginBottom:14,border:"1px solid #5a4e44"}}>
         <div style={{fontSize:10,color:"#6B7C3A",fontWeight:700,letterSpacing:.8,textTransform:"uppercase",marginBottom:7}}>핵심 한 줄</div>
-        <div style={{fontSize:13,color:"#EDE6DC",lineHeight:1.75,fontFamily:"'KoPub Dotum',sans-serif",fontStyle:"italic"}}>{headline}</div>
+        <div style={{fontSize:13,color:"#EDE6DC",lineHeight:1.75,fontFamily:"'Noto Sans KR',sans-serif",fontStyle:"italic"}}>{headline}</div>
       </div>
       {sections.map((s,i)=>{
         const c=COLORS[s.title]||{color:"#6B7B8D",bg:"#EFF1F4"};
@@ -1751,7 +1751,7 @@ export function BottomTabBar({ filterCat, showBriefing, showHabit, setFilterCat,
             }}>{tab.icon}</div>
             <span style={{
               fontSize:9,color:isActive?tab.color:T.textMute,
-              fontWeight:isActive?600:400,fontFamily:"'KoPub Dotum',sans-serif",
+              fontWeight:isActive?600:400,fontFamily:"'Noto Sans KR',sans-serif",
             }}>{tab.label}</span>
           </button>
         );
