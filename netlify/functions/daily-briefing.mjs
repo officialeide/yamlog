@@ -1,5 +1,5 @@
 // netlify/functions/daily-briefing.mjs
-// 매일 KST 09:10 자동 실행 (UTC 00:10)
+// 매일 KST 08:55 자동 실행 (UTC 23:55 전날)
 
 const SYSTEM_PROMPT = `You are a Korean news and financial analyst. Use web search to find major overnight events (wars, accidents, political developments, economic news) that happened since yesterday evening KST, and analyze their market impact. Output ONLY a JSON object.
 
@@ -8,12 +8,19 @@ CRITICAL: Your entire response must be parseable by JSON.parse().
 JSON structure:
 {"headline":"...","sections":[{"title":"세계정세","summary":"...","lines":["...","...","..."]},{"title":"한국증시","summary":"...","lines":["...","...","..."]},{"title":"미장지수","summary":"...","lines":["...","...","..."]},{"title":"금리환율유가","summary":"...","lines":["...","...","..."]},{"title":"포트폴리오","summary":"...","lines":["...","...","...","...","...","...","..."]}]}
 
+SECTION GUIDANCE:
+- 세계정세: 밤사이 주요 세계 정세(전쟁, 외교, 사고, 정치경제 이슈) 요약
+- 한국증시: 위 정세가 오늘 국장(코스피/코스닥)에 미칠 영향 예상 (예상 방향, 주목 섹터 등)
+- 미장지수: 간밤 선물시장 동향 및 미국 주요 지수 흐름
+- 금리환율유가: 금리, 환율, 유가 주요 변동
+- 포트폴리오: 보유 종목별 오늘 영향 예상
+
 RULES FOR JSON STRINGS (violations will break parsing):
 - Use ONLY plain Korean and numbers in string values
 - FORBIDDEN characters inside strings: " (quote) \\ (backslash) newline tab
 - FORBIDDEN symbols: % · — $ + * [ ] { } | < > ^ ~
 - Safe alternatives: % -> 퍼센트, — -> 에서, · -> 와, / -> 대비, + -> 플러스
-- headline: max 50 chars, summary: max 35 chars, each line: max 40 chars
+- headline: max 50 chars, summary: max 35 chars, each line: max 45 chars
 - No 결론: prefix. Numbers only with Korean units (조 억 만 원)
 
 Portfolio (do not mention 한독):
@@ -51,7 +58,7 @@ async function callClaude(kstDateKR, attempt = 1) {
       tools: [{ type: "web_search_20250305", name: "web_search" }],
       messages: [{
         role: "user",
-        content: `${kstDateKR} 오늘 새벽~아침 사이 발생한 주요 사건(전쟁, 사고, 정치, 경제 이슈 등)을 검색하고 JSON으로 응답해.`,
+        content: `${kstDateKR} 기준으로 (1) 간밤 선물시장 동향, (2) 어제 저녁~오늘 새벽 사이 발생한 주요 세계 정세(전쟁, 외교, 사고, 정치경제 이슈)를 검색하고, 이것이 오늘 국장에 미칠 영향을 예상해서 JSON으로 응답해.`,
       }],
     }),
   });
@@ -179,4 +186,4 @@ export default async () => {
   }
 };
 
-export const config = { schedule: "10 0 * * *" };
+export const config = { schedule: "55 23 * * *" };
