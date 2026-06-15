@@ -1208,10 +1208,10 @@ export default function Yamlog() {
       color:T.text,
     }}>
       <style>{`
-        @font-face{font-family:'KoPub Dotum';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2021@1.1/KoPubWorld-Dotum-Light.woff2') format('woff2');font-weight:300 400;}
-        @font-face{font-family:'KoPub Dotum';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2021@1.1/KoPubWorld-Dotum-Bold.woff2') format('woff2');font-weight:600 700 800;}
-        @font-face{font-family:'KoPub Batang';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2021@1.1/KoPubWorld-Batang-Light.woff2') format('woff2');font-weight:300 400;}
-        @font-face{font-family:'KoPub Batang';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2021@1.1/KoPubWorld-Batang-Bold.woff2') format('woff2');font-weight:600 700 800;}
+        @font-face{font-family:'KoPub Dotum';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2102@1.4/KoPubWorldDotum_Pro-Light.woff2') format('woff2');font-weight:300 400;}
+        @font-face{font-family:'KoPub Dotum';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2102@1.4/KoPubWorldDotum_Pro-Medium.woff2') format('woff2');font-weight:600 700 800;}
+        @font-face{font-family:'KoPub Batang';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2102@1.4/KoPubWorldBatang_Pro-Light.woff2') format('woff2');font-weight:300 400;}
+        @font-face{font-family:'KoPub Batang';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2102@1.4/KoPubWorldBatang_Pro-Medium.woff2') format('woff2');font-weight:600 700 800;}
         *{box-sizing:border-box;margin:0;padding:0;}
         body{background:#F7F4EF;}
         ::-webkit-scrollbar{width:4px;height:4px;}
