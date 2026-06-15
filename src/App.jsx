@@ -573,7 +573,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
                 <span style={{color:T.textMute,fontSize:10,minWidth:22}}>{label}</span><span>{f[k]}</span>
               </div>
             ))}
-            {(f.calories||f.carbs||f.protein||f.fat||f.sugar)&&(()=>{const calColor=f.calories>GOALS.calories?"#C0443A":T.text;const protColor=f.protein&&f.protein<GOALS.protein?"#2E6FA5":T.text;const carbsN=parseFloat(f.carbs)||0,protN=parseFloat(f.protein)||0,fatN=parseFloat(f.fat)||0;return(<div style={{marginTop:5,paddingTop:5,borderTop:`1px dashed ${T.border}`}}><div style={{fontSize:10.5,display:"flex",gap:8,flexWrap:"nowrap",overflow:"hidden",marginBottom:4}}>{f.calories&&<span style={{whiteSpace:"nowrap"}}>🔥 <span style={{color:calColor}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories} kcal</span></span>}{f.carbs&&<span style={{whiteSpace:"nowrap"}}>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs} g</span></span>}{f.protein&&<span style={{whiteSpace:"nowrap"}}>🍖 <span style={{color:protColor}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein} g</span></span>}{f.fat&&<span style={{whiteSpace:"nowrap"}}>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat} g</span></span>}{f.sugar&&<span style={{whiteSpace:"nowrap"}}>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar} g</span></span>}</div>{(carbsN||protN||fatN)&&<MacroBar carbs={carbsN} protein={protN} fat={fatN}/>}</div>);})()}
+            {(f.calories||f.carbs||f.protein||f.fat||f.sugar)&&(()=>{const calColor=f.calories>GOALS.calories?"#C0443A":T.text;const protColor=f.protein&&f.protein<GOALS.protein?"#2E6FA5":T.text;const carbsN=parseFloat(f.carbs)||0,protN=parseFloat(f.protein)||0,fatN=parseFloat(f.fat)||0;return(<div style={{marginTop:5,paddingTop:5,borderTop:`1px dashed ${T.border}`}}><div style={{fontSize:10.5,display:"flex",gap:8,flexWrap:"nowrap",overflow:"hidden",marginBottom:4}}>{f.calories&&<span style={{whiteSpace:"nowrap"}}>🔥 <span style={{color:calColor}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories} kcal</span></span>}{f.carbs&&<span style={{whiteSpace:"nowrap"}}>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs} g</span></span>}{f.protein&&<span style={{whiteSpace:"nowrap"}}>🍖 <span style={{color:protColor}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein} g</span></span>}{f.fat&&<span style={{whiteSpace:"nowrap"}}>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat} g</span></span>}{f.sugar&&<span style={{whiteSpace:"nowrap"}}>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar} g</span></span>}</div>{(carbsN||protN||fatN)&&<div style={{maxWidth:isMobile?undefined:320}}><MacroBar carbs={carbsN} protein={protN} fat={fatN}/></div>}</div>);})()}
             {ev.detail&&<div style={{fontSize:11,color:T.text,marginTop:5,whiteSpace:"pre-wrap",lineHeight:1.6}}>{ev.detail}</div>}
           </div>
         );
@@ -714,7 +714,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
 
 
 // 건강 섹션: 날짜별로 체중+식단을 하나의 카드로 통합 표시
-function HealthDayCards({ evs, accentColor, onOpen }) {
+function HealthDayCards({ evs, accentColor, onOpen, isMobile }) {
   // 날짜별 그룹핑
   const byDate = {};
   evs.forEach(e => {
@@ -779,13 +779,13 @@ function HealthDayCards({ evs, accentColor, onOpen }) {
                           </div>
                           {(f.checks?.length||f.checksEtc)&&(
                             <div style={{display:"flex",gap:3,alignItems:"center",flexShrink:0}}>
-                              {(f.checks||[]).map(e=><span key={e} style={{fontSize:13}}>{e}</span>)}
+                              {(()=>{const CHECK_ORDER=["🍾","💩","🩸","💙"];return CHECK_ORDER.filter(c=>(f.checks||[]).includes(c)).map(e=><span key={e} style={{fontSize:13}}>{e}</span>);})()}
                               {f.checksEtc&&<span style={{fontSize:10,color:T.textMute}}>{f.checksEtc}</span>}
                             </div>
                           )}
                         </div>
                         {/* 바 그래프 줄 */}
-                        {(carbsN||protN||fatN)&&<MacroBar carbs={carbsN} protein={protN} fat={fatN}/>}
+                        {(carbsN||protN||fatN)&&<div style={{maxWidth:isMobile?undefined:320}}><MacroBar carbs={carbsN} protein={protN} fat={fatN}/></div>}
                       </div>
                     );})()}
                   </div>
@@ -919,7 +919,7 @@ function ArchiveView({ events, onOpen, onAddFromArchive }) {
           </div>
         ) : activeSec === "health" ? (
           // 건강 섹션: 같은 날짜의 체중+식단 통합 카드
-          <HealthDayCards evs={filtered} accentColor={activeDef?.color||T.accent} onOpen={onOpen}/>
+          <HealthDayCards evs={filtered} accentColor={activeDef?.color||T.accent} onOpen={onOpen} isMobile={isMobile}/>
         ):(
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
             {filtered.map(e=>(
