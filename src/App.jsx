@@ -842,7 +842,7 @@ function HealthDayCards({ evs, accentColor, onOpen, isMobile }) {
 
 const ETC_TAGS = ["업무","지식","취미","요리","베이킹","참고"];
 
-function ArchiveView({ events, onOpen, onAddFromArchive }) {
+function ArchiveView({ events, onOpen, onAddFromArchive, isMobile }) {
   const [activeSec, setActiveSec] = useState("health");
   const [activeTag, setActiveTag] = useState(null);
   const archiveEvs = events.filter(e => e.category === "archive");
@@ -1148,7 +1148,7 @@ export default function Yamlog() {
       ) : isHabitView ? (
         <HabitView/>
       ) : isArchiveView ? (
-        <ArchiveView events={events} onOpen={setShowDetail} onAddFromArchive={handleAddFromArchive}/>
+        <ArchiveView events={events} onOpen={setShowDetail} onAddFromArchive={handleAddFromArchive} isMobile={isMobile}/>
       ) : (
         <>
           {/* 캘린더 헤더 (데스크탑만) */}
