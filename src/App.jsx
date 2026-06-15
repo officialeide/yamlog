@@ -287,7 +287,7 @@ function WeekView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
                         opacity:ev.done?0.55:1,
                         boxShadow:"0 1px 3px rgba(44,40,37,0.08)",
                       }}>
-                      <div style={{fontSize:isMobile?9:12.5,color:ev.done?T.textMute:cat.text,
+                      <div style={{fontSize:isMobile?9:12,color:ev.done?T.textMute:cat.text,
                         lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
                         fontWeight:500}}>
                         {ev.title}
