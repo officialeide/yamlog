@@ -1,46 +1,43 @@
-<!DOCTYPE html>
-<html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍀</text></svg>">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Yamlog</title>
-    <!-- KoPub 폰트 — 데스크탑 전용 -->
-    <style>
-      @media (min-width: 1024px) {
-        @font-face {
-          font-family: 'KoPub Dotum';
-          src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2102@1.4/KoPubWorldDotum_Pro-Light.woff2') format('woff2');
-          font-weight: 300;
-          font-style: normal;
-          font-display: swap;
-        }
-        @font-face {
-          font-family: 'KoPub Dotum';
-          src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2102@1.4/KoPubWorldDotum_Pro-Medium.woff2') format('woff2');
-          font-weight: 500 700;
-          font-style: normal;
-          font-display: swap;
-        }
-        @font-face {
-          font-family: 'KoPub Batang';
-          src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2102@1.4/KoPubWorldBatang_Pro-Light.woff2') format('woff2');
-          font-weight: 300;
-          font-style: normal;
-          font-display: swap;
-        }
-        @font-face {
-          font-family: 'KoPub Batang';
-          src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2102@1.4/KoPubWorldBatang_Pro-Medium.woff2') format('woff2');
-          font-weight: 500 700;
-          font-style: normal;
-          font-display: swap;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
-</html>
+@font-face {
+  font-family: 'KoPub Dotum';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2102@1.4/KoPubWorldDotum_Pro-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'KoPub Dotum';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2102@1.4/KoPubWorldDotum_Pro-Medium.woff2') format('woff2');
+  font-weight: 500 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'KoPub Batang';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2102@1.4/KoPubWorldBatang_Pro-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'KoPub Batang';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2102@1.4/KoPubWorldBatang_Pro-Medium.woff2') format('woff2');
+  font-weight: 500 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
