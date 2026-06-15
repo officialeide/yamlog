@@ -573,15 +573,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
                 <span style={{color:T.textMute,fontSize:10,minWidth:22}}>{label}</span><span>{f[k]}</span>
               </div>
             ))}
-            {(f.calories||f.carbs||f.protein||f.fat||f.sugar)&&(
-              <div style={{fontSize:11,marginTop:5,display:"flex",gap:12,flexWrap:"wrap",paddingTop:5,borderTop:`1px dashed ${T.border}`}}>
-                {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories} kcal</span></span>}
-                {f.carbs&&<span>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs} g</span></span>}
-                {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein} g</span></span>}
-                {f.fat&&<span>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat} g</span></span>}
-                {f.sugar&&<span>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar} g</span></span>}
-              </div>
-            )}
+            {(f.calories||f.carbs||f.protein||f.fat||f.sugar)&&(()=>{const calColor=f.calories>GOALS.calories?"#C0443A":T.text;const protColor=f.protein&&f.protein<GOALS.protein?"#2E6FA5":T.text;return(<div style={{fontSize:10.5,marginTop:5,display:"flex",gap:8,flexWrap:"nowrap",paddingTop:5,borderTop:`1px dashed ${T.border}`,overflow:"hidden"}}>{f.calories&&<span style={{whiteSpace:"nowrap"}}>🔥 <span style={{color:calColor}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories} kcal</span></span>}{f.carbs&&<span style={{whiteSpace:"nowrap"}}>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs} g</span></span>}{f.protein&&<span style={{whiteSpace:"nowrap"}}>🍖 <span style={{color:protColor}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein} g</span></span>}{f.fat&&<span style={{whiteSpace:"nowrap"}}>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat} g</span></span>}{f.sugar&&<span style={{whiteSpace:"nowrap"}}>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar} g</span></span>}</div>);})()}
             {ev.detail&&<div style={{fontSize:11,color:T.text,marginTop:5,whiteSpace:"pre-wrap",lineHeight:1.6}}>{ev.detail}</div>}
           </div>
         );
@@ -774,14 +766,14 @@ function HealthDayCards({ evs, accentColor, onOpen }) {
                         </div>
                       ))
                     }
-                    {(()=>{const f=dietEv.fields||{};return (f.calories||f.protein||f.sugar||f.checks?.length||f.checksEtc)&&(
+                    {(()=>{const f=dietEv.fields||{};const calColor=f.calories>GOALS.calories?"#C0443A":T.text;const protColor=f.protein&&f.protein<GOALS.protein?"#2E6FA5":T.text;return (f.calories||f.protein||f.sugar||f.checks?.length||f.checksEtc)&&(
                       <div style={{display:"flex",alignItems:"center",gap:10,fontSize:10,marginTop:4,paddingTop:4,borderTop:`1px dashed ${T.border}`}}>
-                        <div style={{display:"flex",gap:10,flex:1,flexWrap:"wrap",alignItems:"center"}}>
-                          {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}kcal</span></span>}
-                          {f.carbs&&<span>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs}g</span></span>}
-                          {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
-                          {f.fat&&<span>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat}g</span></span>}
-                          {f.sugar&&<span>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar}g</span></span>}
+                        <div style={{display:"flex",gap:8,flex:1,flexWrap:"nowrap",alignItems:"center",overflow:"hidden"}}>
+                          {f.calories&&<span style={{whiteSpace:"nowrap"}}>🔥 <span style={{color:calColor}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}kcal</span></span>}
+                          {f.carbs&&<span style={{whiteSpace:"nowrap"}}>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs}g</span></span>}
+                          {f.protein&&<span style={{whiteSpace:"nowrap"}}>🍖 <span style={{color:protColor}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
+                          {f.fat&&<span style={{whiteSpace:"nowrap"}}>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat}g</span></span>}
+                          {f.sugar&&<span style={{whiteSpace:"nowrap"}}>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar}g</span></span>}
                           <MacroBar inline carbs={parseFloat(f.carbs)||0} protein={parseFloat(f.protein)||0} fat={parseFloat(f.fat)||0}/>
                         </div>
                         {(f.checks?.length||f.checksEtc)&&(
@@ -954,12 +946,14 @@ export default function Yamlog() {
   const [showBriefing, setShowBriefing] = useState(false);
   const [showHabit,    setShowHabit]    = useState(false);
 
-  const [showDetail,    setShowDetail]    = useState(null);
-  const [showAdd,       setShowAdd]       = useState(false);
-  const [addPresetDate, setAddPresetDate] = useState(null);
-  const [addPresetHour, setAddPresetHour] = useState(null);
-  const [addPresetCat,  setAddPresetCat]  = useState(null);
-  const [addPresetSub,  setAddPresetSub]  = useState(null);
+  const [showDetail,     setShowDetail]     = useState(null);
+  const [showAdd,        setShowAdd]        = useState(false);
+  const [addPresetDate,  setAddPresetDate]  = useState(null);
+  const [addPresetHour,  setAddPresetHour]  = useState(null);
+  const [addPresetCat,   setAddPresetCat]   = useState(null);
+  const [addPresetSub,   setAddPresetSub]   = useState(null);
+  const [addPresetFields,setAddPresetFields]= useState(null);
+  const [addPresetTitle, setAddPresetTitle] = useState(null);
 
   const isArchiveView = filterCat === "archive" && !showBriefing && !showHabit;
   const isHabitView   = showHabit;
@@ -1053,7 +1047,10 @@ export default function Yamlog() {
     }}>
       {/* 로고 */}
       <div style={{padding:"20px 18px 14px",borderBottom:`1px solid ${T.border}`}}>
-        <div style={{fontFamily:"'KoPub Batang',Georgia,serif",fontSize:22,fontWeight:700,color:T.text,letterSpacing:-.5,lineHeight:1,marginBottom:10}}>Yamlog</div>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
+          <div style={{fontFamily:"'KoPub Batang',Georgia,serif",fontSize:22,fontWeight:700,color:T.text,letterSpacing:-.5,lineHeight:1,marginBottom:10}}>Yamlog</div>
+          <div style={{fontSize:28,lineHeight:1,userSelect:"none"}}>🌼</div>
+        </div>
         <div style={{display:"flex",alignItems:"center",gap:6,fontFamily:"'KoPub Dotum',sans-serif",fontSize:10}}>
           <span style={{color:T.accent,fontWeight:600}}>
             {today.toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"short"})}
@@ -1270,13 +1267,26 @@ export default function Yamlog() {
       )}
 
       {showDetail&&(
-        <DetailModal ev={showDetail} onClose={()=>setShowDetail(null)} onRefetch={refetch} onRefetchWeight={refetchWeight}/>
+        <DetailModal ev={showDetail} onClose={()=>setShowDetail(null)} onRefetch={refetch} onRefetchWeight={refetchWeight}
+          onCopy={(ev)=>{
+            setAddPresetCat(ev.category);
+            setAddPresetSub(ev.sub_category);
+            setAddPresetTitle(ev.title);
+            setAddPresetFields({...ev.fields});
+            setAddPresetDate(null);
+            setAddPresetHour(ev.hour!=null?String(ev.hour).padStart(2,'0'):null);
+            setShowDetail(null);
+            setShowAdd(true);
+          }}
+        />
       )}
       {showAdd&&(
         <AddModal
           presetDate={addPresetDate} presetHour={addPresetHour}
           presetCat={addPresetCat} presetSub={addPresetSub}
-          addEventFn={addEvent} onSaved={refetch} onClose={()=>setShowAdd(false)}
+          presetTitle={addPresetTitle} presetFields={addPresetFields}
+          addEventFn={addEvent} onSaved={refetch}
+          onClose={()=>{setShowAdd(false);setAddPresetFields(null);setAddPresetTitle(null);}}
         />
       )}
     </div>

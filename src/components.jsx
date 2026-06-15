@@ -45,7 +45,7 @@ export function LiveClock() {
 // ─────────────────────────────────────────────────────
 // DETAIL MODAL — 필드 내용 표시 + 삭제 버튼 + 수정 연동
 // ─────────────────────────────────────────────────────
-export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight }) {
+export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight, onCopy }) {
   const cat = catOf(ev.category||ev.cat, ev.sub_category||ev.sub);
   const [done,     setDone]     = useState(ev.done);
   const [showEdit, setShowEdit] = useState(false);
@@ -106,14 +106,16 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight }) {
         });
       if (f.calories||f.protein||f.sugar||f.carbs||f.fat) {
         const GOALS = { calories:1500, protein:90, sugar:25, carbs:160, fat:60 };
+        const calColor = f.calories > GOALS.calories ? "#C0443A" : T.text;
+        const protColor = f.protein && f.protein < GOALS.protein ? "#2E6FA5" : T.text;
         rows.push(
           <div key="stats-macro" style={{marginTop:6,paddingTop:6,borderTop:`1px dashed ${T.border}`}}>
-            <div style={{display:"flex",gap:10,fontSize:11,flexWrap:"wrap",alignItems:"center"}}>
-              {f.calories&&<span>🔥 <span style={{color:T.text}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}kcal</span></span>}
-              {f.carbs&&<span>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs}g</span></span>}
-              {f.protein&&<span>🍖 <span style={{color:T.text}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
-              {f.fat&&<span>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat}g</span></span>}
-              {f.sugar&&<span>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar}g</span></span>}
+            <div style={{display:"flex",gap:8,fontSize:10.5,flexWrap:"nowrap",alignItems:"center",overflow:"hidden"}}>
+              {f.calories&&<span style={{whiteSpace:"nowrap"}}>🔥 <span style={{color:calColor}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}kcal</span></span>}
+              {f.carbs&&<span style={{whiteSpace:"nowrap"}}>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs}g</span></span>}
+              {f.protein&&<span style={{whiteSpace:"nowrap"}}>🍖 <span style={{color:protColor}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
+              {f.fat&&<span style={{whiteSpace:"nowrap"}}>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat}g</span></span>}
+              {f.sugar&&<span style={{whiteSpace:"nowrap"}}>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar}g</span></span>}
             </div>
           </div>
         );
@@ -310,6 +312,12 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight }) {
                 padding:"7px 12px",borderRadius:9,cursor:"pointer",fontSize:12,
                 background:"transparent",border:`1px solid ${T.border}`,color:T.textSub,
               }}>취소</button>
+            )}
+            {onCopy&&ev.category!=="archive"&&(
+              <button onClick={()=>onCopy(ev)} style={{
+                padding:"7px 12px",borderRadius:9,cursor:"pointer",fontSize:12,
+                background:"transparent",border:`1px solid ${T.borderMid}`,color:T.textSub,
+              }}>일정 복사</button>
             )}
             <button onClick={()=>setShowEdit(true)} style={{
               padding:"7px 14px",borderRadius:9,cursor:"pointer",fontSize:12,
@@ -653,18 +661,21 @@ function EditModal({ ev, onClose, onSaved }) {
 // ─────────────────────────────────────────────────────
 // ADD MODAL
 // ─────────────────────────────────────────────────────
-export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, presetSub, addEventFn }) {
+export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, presetSub, presetTitle, presetFields, addEventFn }) {
   const [cat,        setCat]        = useState(presetCat || "schedule");
   const [archiveSub, setArchiveSub] = useState(presetSub || "health");
   const [healthSub,  setHealthSub]  = useState("weight");
   const [reviewSub,  setReviewSub]  = useState("book");
-  const [title,      setTitle]      = useState("");
+  const [title,      setTitle]      = useState(presetTitle || "");
   const [detail,     setDetail]     = useState("");
-  const [fields,     setFields]     = useState({});
+  const [fields,     setFields]     = useState(presetFields || {});
   const [date,       setDate]       = useState(presetDate || dateStr(new Date()));
   const [startTime,  setStartTime]  = useState(`${String(presetHour||9).padStart(2,'0')}:00`);
   const [endTime,    setEndTime]    = useState('');
   const [endDate,    setEndDate]    = useState('');
+  const [repeat,     setRepeat]     = useState('none'); // none | weekly | monthly | monthly_last
+  const [repeatDay,  setRepeatDay]  = useState('1');    // weekday 0-6 or day 1-31
+  const [repeatCount,setRepeatCount]= useState('4');    // 반복 횟수
   const [saving,     setSaving]     = useState(false);
 
   const setField = (k, v) => setFields(f => ({...f, [k]: v}));
@@ -719,12 +730,78 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
           endMinute: endParts[1]||0,
         }),
       };
-      await addEventFn({
+      const baseEvent = {
         category: cat, sub_category: sub, title: finalTitle,
-        date, hour: cat === "archive" ? null : sh,
+        hour: cat === "archive" ? null : sh,
         done: false, detail: detail || null,
         fields: { ...finalFields, ...(endDate && cat !== "archive" ? { endDate } : {}) },
-      });
+      };
+
+      if (repeat === 'none' || cat === 'archive') {
+        await addEventFn({ ...baseEvent, date });
+      } else {
+        // 반복 일정 생성
+        const count = parseInt(repeatCount) || 4;
+        const dates = [];
+        const baseD = new Date(date + 'T00:00:00');
+
+        if (repeat === 'weekly') {
+          // 매주 특정 요일
+          const targetDay = parseInt(repeatDay); // 0=일 ~ 6=토
+          let d = new Date(baseD);
+          while (dates.length < count) {
+            if (d.getDay() === targetDay) { dates.push(new Date(d)); }
+            d.setDate(d.getDate() + 1);
+            if (dates.length === 0 && d - baseD > 7 * 24 * 3600 * 1000) break;
+          }
+          // 시작일이 targetDay가 아니면 다음 해당 요일부터
+          if (dates.length === 0) {
+            let d2 = new Date(baseD);
+            for (let i = 0; dates.length < count; i++) {
+              if (d2.getDay() === targetDay) dates.push(new Date(d2));
+              d2.setDate(d2.getDate() + 1);
+              if (i > 365) break;
+            }
+          }
+          // 실제로는 baseD부터 매주 같은 요일
+          const weekDates = [];
+          let wd = new Date(baseD);
+          // 해당 요일로 이동
+          const diff = (targetDay - wd.getDay() + 7) % 7;
+          wd.setDate(wd.getDate() + diff);
+          for (let i = 0; i < count; i++) {
+            weekDates.push(new Date(wd));
+            wd.setDate(wd.getDate() + 7);
+          }
+          for (const d of weekDates) {
+            const ds = d.toISOString().slice(0,10);
+            await addEventFn({ ...baseEvent, date: ds });
+          }
+        } else if (repeat === 'monthly') {
+          // 매월 특정일
+          const day = parseInt(repeatDay);
+          let d = new Date(baseD);
+          for (let i = 0; i < count; i++) {
+            const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            await addEventFn({ ...baseEvent, date: ds });
+            d.setMonth(d.getMonth() + 1);
+          }
+        } else if (repeat === 'monthly_last') {
+          // 매월 마지막 주 특정 요일
+          const targetDay = parseInt(repeatDay);
+          let d = new Date(baseD);
+          for (let i = 0; i < count; i++) {
+            // 해당 월의 마지막 날
+            const lastDay = new Date(d.getFullYear(), d.getMonth()+1, 0);
+            // 마지막 주 특정 요일 찾기
+            let target = new Date(lastDay);
+            while (target.getDay() !== targetDay) target.setDate(target.getDate() - 1);
+            const ds = target.toISOString().slice(0,10);
+            await addEventFn({ ...baseEvent, date: ds });
+            d.setMonth(d.getMonth() + 1);
+          }
+        }
+      }
       onSaved?.();
       onClose();
     } catch(e) {
@@ -1030,6 +1107,56 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
             </div>
           )}
         </div>
+
+        {/* 반복 일정 (일정/이벤트만) */}
+        {(cat==="schedule"||cat==="event")&&(
+          <div style={{padding:"10px 20px",borderTop:`1px solid ${T.border}`}}>
+            <div style={{fontSize:10,color:T.textSub,marginBottom:6}}>반복</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {[["none","없음"],["weekly","매주"],["monthly","매월"],["monthly_last","매월 마지막 주"]].map(([v,l])=>(
+                <button key={v} onClick={()=>setRepeat(v)} style={{
+                  padding:"5px 10px",borderRadius:7,cursor:"pointer",fontSize:11,
+                  background:repeat===v?c.bg:"transparent",
+                  border:`1px solid ${repeat===v?c.color+"88":T.border}`,
+                  color:repeat===v?c.text:T.textSub,
+                }}>{l}</button>
+              ))}
+            </div>
+            {repeat!=="none"&&(
+              <div style={{display:"flex",gap:8,marginTop:8,alignItems:"flex-end"}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:10,color:T.textSub,marginBottom:3}}>
+                    {repeat==="weekly"?"요일":repeat==="monthly"?"날짜":"요일"}
+                  </div>
+                  {(repeat==="weekly"||repeat==="monthly_last")?(
+                    <select value={repeatDay} onChange={e=>setRepeatDay(e.target.value)}
+                      style={{...inp,padding:"8px 10px"}}>
+                      {["일","월","화","수","목","금","토"].map((d,i)=>(
+                        <option key={i} value={i}>{d}요일</option>
+                      ))}
+                    </select>
+                  ):(
+                    <select value={repeatDay} onChange={e=>setRepeatDay(e.target.value)}
+                      style={{...inp,padding:"8px 10px"}}>
+                      {Array.from({length:28},(_,i)=>i+1).map(d=>(
+                        <option key={d} value={d}>{d}일</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:10,color:T.textSub,marginBottom:3}}>반복 횟수</div>
+                  <select value={repeatCount} onChange={e=>setRepeatCount(e.target.value)}
+                    style={{...inp,padding:"8px 10px"}}>
+                    {[2,3,4,6,8,12,24,52].map(n=>(
+                      <option key={n} value={n}>{n}회</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{padding:"12px 20px",borderTop:`1px solid ${T.border}`,display:"flex",gap:8,flexShrink:0,background:T.bgSub}}>
           <button onClick={onClose} style={{flex:1,padding:"11px",borderRadius:9,cursor:"pointer",
@@ -1520,22 +1647,33 @@ export function BriefingView(){
   const [briefing,setBriefing]=useState(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState(null);
+
+  async function fetchBriefing(){
+    try{
+      const todayKST=new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});
+      const{data:todayData}=await supabase.from("briefings").select("*").eq("date",todayKST).maybeSingle();
+      if(todayData){setBriefing({...todayData,isToday:true});setLoading(false);return;}
+      const{data:latestData,error}=await supabase.from("briefings").select("*").order("date",{ascending:false}).limit(1).maybeSingle();
+      if(error) throw error;
+      const latestDate=new Date(latestData.date+"T00:00:00+09:00");
+      const todayDate=new Date(new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"}));
+      const diffDays=Math.round((todayDate-latestDate)/(1000*60*60*24));
+      setBriefing({...latestData,isToday:false,diffDays});
+    }catch(e){console.error("브리핑 로드 실패:",e);setError(e.message);}
+    finally{setLoading(false);}
+  }
+
   useEffect(()=>{
-    async function fetchBriefing(){
-      try{
-        const todayKST=new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});
-        const{data:todayData}=await supabase.from("briefings").select("*").eq("date",todayKST).maybeSingle();
-        if(todayData){setBriefing({...todayData,isToday:true});return;}
-        const{data:latestData,error}=await supabase.from("briefings").select("*").order("date",{ascending:false}).limit(1).maybeSingle();
-        if(error) throw error;
-        const latestDate=new Date(latestData.date+"T00:00:00+09:00");
-        const todayDate=new Date(new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"}));
-        const diffDays=Math.round((todayDate-latestDate)/(1000*60*60*24));
-        setBriefing({...latestData,isToday:false,diffDays});
-      }catch(e){console.error("브리핑 로드 실패:",e);setError(e.message);}
-      finally{setLoading(false);}
-    }
     fetchBriefing();
+    // KST 08:55 이후 오늘 브리핑 없으면 30분마다 재시도 polling
+    const interval = setInterval(()=>{
+      const kstHour=new Date().toLocaleTimeString("ko-KR",{timeZone:"Asia/Seoul",hour:"2-digit",hour12:false});
+      const h=parseInt(kstHour);
+      if(h>=8 && (!briefing || !briefing.isToday)){
+        fetchBriefing();
+      }
+    }, 30*60*1000); // 30분
+    return ()=>clearInterval(interval);
   },[]);
 
   if(loading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:200}}><div style={{fontSize:13,color:T.textMute}}>브리핑 불러오는 중...</div></div>;
