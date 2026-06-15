@@ -573,7 +573,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
                 <span style={{color:T.textMute,fontSize:10,minWidth:22}}>{label}</span><span>{f[k]}</span>
               </div>
             ))}
-            {(f.calories||f.carbs||f.protein||f.fat||f.sugar)&&(()=>{const calColor=f.calories>GOALS.calories?"#C0443A":T.text;const protColor=f.protein&&f.protein<GOALS.protein?"#2E6FA5":T.text;return(<div style={{fontSize:10.5,marginTop:5,display:"flex",gap:8,flexWrap:"nowrap",paddingTop:5,borderTop:`1px dashed ${T.border}`,overflow:"hidden"}}>{f.calories&&<span style={{whiteSpace:"nowrap"}}>🔥 <span style={{color:calColor}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories} kcal</span></span>}{f.carbs&&<span style={{whiteSpace:"nowrap"}}>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs} g</span></span>}{f.protein&&<span style={{whiteSpace:"nowrap"}}>🍖 <span style={{color:protColor}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein} g</span></span>}{f.fat&&<span style={{whiteSpace:"nowrap"}}>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat} g</span></span>}{f.sugar&&<span style={{whiteSpace:"nowrap"}}>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar} g</span></span>}</div>);})()}
+            {(f.calories||f.carbs||f.protein||f.fat||f.sugar)&&(()=>{const calColor=f.calories>GOALS.calories?"#C0443A":T.text;const protColor=f.protein&&f.protein<GOALS.protein?"#2E6FA5":T.text;const carbsN=parseFloat(f.carbs)||0,protN=parseFloat(f.protein)||0,fatN=parseFloat(f.fat)||0;return(<div style={{marginTop:5,paddingTop:5,borderTop:`1px dashed ${T.border}`}}><div style={{fontSize:10.5,display:"flex",gap:8,flexWrap:"nowrap",overflow:"hidden",marginBottom:4}}>{f.calories&&<span style={{whiteSpace:"nowrap"}}>🔥 <span style={{color:calColor}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories} kcal</span></span>}{f.carbs&&<span style={{whiteSpace:"nowrap"}}>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs} g</span></span>}{f.protein&&<span style={{whiteSpace:"nowrap"}}>🍖 <span style={{color:protColor}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein} g</span></span>}{f.fat&&<span style={{whiteSpace:"nowrap"}}>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat} g</span></span>}{f.sugar&&<span style={{whiteSpace:"nowrap"}}>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar} g</span></span>}</div>{(carbsN||protN||fatN)&&<MacroBar carbs={carbsN} protein={protN} fat={fatN}/>}</div>);})()}
             {ev.detail&&<div style={{fontSize:11,color:T.text,marginTop:5,whiteSpace:"pre-wrap",lineHeight:1.6}}>{ev.detail}</div>}
           </div>
         );
@@ -766,22 +766,26 @@ function HealthDayCards({ evs, accentColor, onOpen }) {
                         </div>
                       ))
                     }
-                    {(()=>{const f=dietEv.fields||{};const calColor=f.calories>GOALS.calories?"#C0443A":T.text;const protColor=f.protein&&f.protein<GOALS.protein?"#2E6FA5":T.text;return (f.calories||f.protein||f.sugar||f.checks?.length||f.checksEtc)&&(
-                      <div style={{display:"flex",alignItems:"center",gap:10,fontSize:10,marginTop:4,paddingTop:4,borderTop:`1px dashed ${T.border}`}}>
-                        <div style={{display:"flex",gap:8,flex:1,flexWrap:"nowrap",alignItems:"center",overflow:"hidden"}}>
-                          {f.calories&&<span style={{whiteSpace:"nowrap"}}>🔥 <span style={{color:calColor}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}kcal</span></span>}
-                          {f.carbs&&<span style={{whiteSpace:"nowrap"}}>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs}g</span></span>}
-                          {f.protein&&<span style={{whiteSpace:"nowrap"}}>🍖 <span style={{color:protColor}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
-                          {f.fat&&<span style={{whiteSpace:"nowrap"}}>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat}g</span></span>}
-                          {f.sugar&&<span style={{whiteSpace:"nowrap"}}>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar}g</span></span>}
-                          <MacroBar inline carbs={parseFloat(f.carbs)||0} protein={parseFloat(f.protein)||0} fat={parseFloat(f.fat)||0}/>
-                        </div>
-                        {(f.checks?.length||f.checksEtc)&&(
-                          <div style={{display:"flex",gap:3,alignItems:"center",flexShrink:0}}>
-                            {(f.checks||[]).map(e=><span key={e} style={{fontSize:13}}>{e}</span>)}
-                            {f.checksEtc&&<span style={{fontSize:10,color:T.textMute}}>{f.checksEtc}</span>}
+                    {(()=>{const f=dietEv.fields||{};const calColor=f.calories>GOALS.calories?"#C0443A":T.text;const protColor=f.protein&&f.protein<GOALS.protein?"#2E6FA5":T.text;const carbsN=parseFloat(f.carbs)||0,protN=parseFloat(f.protein)||0,fatN=parseFloat(f.fat)||0;return (f.calories||f.protein||f.sugar||f.checks?.length||f.checksEtc)&&(
+                      <div style={{marginTop:4,paddingTop:4,borderTop:`1px dashed ${T.border}`}}>
+                        {/* 숫자 줄 */}
+                        <div style={{display:"flex",alignItems:"center",gap:10,fontSize:10}}>
+                          <div style={{display:"flex",gap:8,flex:1,flexWrap:"nowrap",alignItems:"center",overflow:"hidden"}}>
+                            {f.calories&&<span style={{whiteSpace:"nowrap"}}>🔥 <span style={{color:calColor}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}kcal</span></span>}
+                            {f.carbs&&<span style={{whiteSpace:"nowrap"}}>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs}g</span></span>}
+                            {f.protein&&<span style={{whiteSpace:"nowrap"}}>🍖 <span style={{color:protColor}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
+                            {f.fat&&<span style={{whiteSpace:"nowrap"}}>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat}g</span></span>}
+                            {f.sugar&&<span style={{whiteSpace:"nowrap"}}>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar}g</span></span>}
                           </div>
-                        )}
+                          {(f.checks?.length||f.checksEtc)&&(
+                            <div style={{display:"flex",gap:3,alignItems:"center",flexShrink:0}}>
+                              {(f.checks||[]).map(e=><span key={e} style={{fontSize:13}}>{e}</span>)}
+                              {f.checksEtc&&<span style={{fontSize:10,color:T.textMute}}>{f.checksEtc}</span>}
+                            </div>
+                          )}
+                        </div>
+                        {/* 바 그래프 줄 */}
+                        {(carbsN||protN||fatN)&&<div style={{marginTop:4}}><MacroBar carbs={carbsN} protein={protN} fat={fatN}/></div>}
                       </div>
                     );})()}
                   </div>

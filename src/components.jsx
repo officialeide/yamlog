@@ -108,15 +108,19 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight, onCopy })
         const GOALS = { calories:1500, protein:90, sugar:25, carbs:160, fat:60 };
         const calColor = f.calories > GOALS.calories ? "#C0443A" : T.text;
         const protColor = f.protein && f.protein < GOALS.protein ? "#2E6FA5" : T.text;
+        const carbsN=parseFloat(f.carbs)||0, protN=parseFloat(f.protein)||0, fatN=parseFloat(f.fat)||0;
         rows.push(
           <div key="stats-macro" style={{marginTop:6,paddingTop:6,borderTop:`1px dashed ${T.border}`}}>
-            <div style={{display:"flex",gap:8,fontSize:10.5,flexWrap:"nowrap",alignItems:"center",overflow:"hidden"}}>
+            {/* 숫자 줄 */}
+            <div style={{display:"flex",gap:8,fontSize:10.5,flexWrap:"nowrap",alignItems:"center",overflow:"hidden",marginBottom:4}}>
               {f.calories&&<span style={{whiteSpace:"nowrap"}}>🔥 <span style={{color:calColor}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}kcal</span></span>}
               {f.carbs&&<span style={{whiteSpace:"nowrap"}}>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs}g</span></span>}
               {f.protein&&<span style={{whiteSpace:"nowrap"}}>🍖 <span style={{color:protColor}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
               {f.fat&&<span style={{whiteSpace:"nowrap"}}>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat}g</span></span>}
               {f.sugar&&<span style={{whiteSpace:"nowrap"}}>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar}g</span></span>}
             </div>
+            {/* 바 그래프 줄 */}
+            {(carbsN||protN||fatN)&&<MacroBar carbs={carbsN} protein={protN} fat={fatN}/>}
           </div>
         );
       }
