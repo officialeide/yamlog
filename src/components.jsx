@@ -49,6 +49,8 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight, onCopy })
   const cat = catOf(ev.category||ev.cat, ev.sub_category||ev.sub);
   const [done,     setDone]     = useState(ev.done);
   const [showEdit, setShowEdit] = useState(false);
+  const [showRepeatDialog, setShowRepeatDialog] = useState(false);
+  const hasRepeat = !!ev?.fields?.repeat_id;
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -112,7 +114,7 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight, onCopy })
         rows.push(
           <div key="stats-macro" style={{marginTop:6,paddingTop:6,borderTop:`1px dashed ${T.border}`}}>
             {/* 숫자 줄 */}
-            <div style={{display:"flex",gap:8,fontSize:10.5,flexWrap:"nowrap",alignItems:"center",overflow:"hidden",marginBottom:4}}>
+            <div style={{display:"flex",gap:8,fontSize:10.5,flexWrap:"wrap",alignItems:"center",marginBottom:4}}>
               {f.calories&&<span style={{whiteSpace:"nowrap"}}>🔥 <span style={{color:calColor}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}kcal</span></span>}
               {f.carbs&&<span style={{whiteSpace:"nowrap"}}>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs}g</span></span>}
               {f.protein&&<span style={{whiteSpace:"nowrap"}}>🍖 <span style={{color:protColor}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
@@ -322,10 +324,37 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight, onCopy })
                 background:"transparent",border:`1px solid ${T.borderMid}`,color:T.textSub,
               }}>일정 복사</button>
             )}
-            <button onClick={()=>setShowEdit(true)} style={{
+            <button onClick={()=>hasRepeat ? setShowRepeatDialog('edit') : setShowEdit(true)} style={{
               padding:"7px 14px",borderRadius:9,cursor:"pointer",fontSize:12,
               background:T.accent,border:"none",color:"white",fontWeight:600,
             }}>수정</button>
+            {showRepeatDialog&&(
+              <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}}
+                onClick={()=>setShowRepeatDialog(false)}>
+                <div style={{background:T.bgCard,borderRadius:14,padding:"20px 24px",minWidth:260,boxShadow:"0 8px 32px rgba(0,0,0,0.18)"}}
+                  onClick={e=>e.stopPropagation()}>
+                  <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:16}}>반복 일정 수정</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                    <button onClick={()=>{setShowRepeatDialog(false);setShowEdit(true);}} style={{
+                      padding:"10px 14px",borderRadius:9,cursor:"pointer",fontSize:13,
+                      background:T.bgSub,border:`1px solid ${T.border}`,color:T.text,textAlign:"left"
+                    }}>이 일정만 수정</button>
+                    <button onClick={async()=>{
+                      setShowRepeatDialog(false);
+                      // 같은 repeat_id 가진 모든 일정 수정은 EditModal에서 처리
+                      setShowEdit('all');
+                    }} style={{
+                      padding:"10px 14px",borderRadius:9,cursor:"pointer",fontSize:13,
+                      background:T.bgSub,border:`1px solid ${T.border}`,color:T.text,textAlign:"left"
+                    }}>모든 반복 일정 수정</button>
+                    <button onClick={()=>setShowRepeatDialog(false)} style={{
+                      padding:"8px 14px",borderRadius:9,cursor:"pointer",fontSize:12,
+                      background:"transparent",border:`1px solid ${T.border}`,color:T.textSub
+                    }}>취소</button>
+                  </div>
+                </div>
+              </div>
+            )}
             <button onClick={onClose} style={{
               padding:"7px 14px",borderRadius:9,cursor:"pointer",fontSize:12,
               background:"transparent",border:`1px solid ${T.border}`,color:T.textSub,
@@ -340,7 +369,7 @@ export function DetailModal({ ev, onClose, onRefetch, onRefetchWeight, onCopy })
 // ─────────────────────────────────────────────────────
 // EDIT MODAL
 // ─────────────────────────────────────────────────────
-function EditModal({ ev, onClose, onSaved }) {
+function EditModal({ ev, onClose, onSaved, editAll }) {
   const cat = catOf(ev.category, ev.sub_category);
   const sub = ev.sub_category || "";
 
@@ -733,11 +762,12 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
           endMinute: endParts[1]||0,
         }),
       };
+      const repeatId = (repeat !== 'none' && cat !== 'archive') ? crypto.randomUUID() : null;
       const baseEvent = {
         category: cat, sub_category: sub, title: finalTitle,
         hour: cat === "archive" ? null : sh,
         done: false, detail: detail || null,
-        fields: { ...finalFields, ...(endDate && cat !== "archive" ? { endDate } : {}) },
+        fields: { ...finalFields, ...(endDate && cat !== "archive" ? { endDate } : {}), ...(repeatId ? { repeat_id: repeatId } : {}) },
       };
 
       if (repeat === 'none' || cat === 'archive') {
@@ -745,63 +775,36 @@ export function AddModal({ onClose, onSaved, presetDate, presetHour, presetCat, 
       } else {
         // 반복 일정 생성
         const count = parseInt(repeatCount) || 4;
-        const dates = [];
-        const baseD = new Date(date + 'T00:00:00');
+        // KST timezone 보정: T12:00:00 사용으로 날짜 밀림 방지
+        const [y, m, d0] = date.split('-').map(Number);
+        const toDS = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
         if (repeat === 'weekly') {
           // 매주 특정 요일
           const targetDay = parseInt(repeatDay); // 0=일 ~ 6=토
-          let d = new Date(baseD);
-          while (dates.length < count) {
-            if (d.getDay() === targetDay) { dates.push(new Date(d)); }
-            d.setDate(d.getDate() + 1);
-            if (dates.length === 0 && d - baseD > 7 * 24 * 3600 * 1000) break;
-          }
-          // 시작일이 targetDay가 아니면 다음 해당 요일부터
-          if (dates.length === 0) {
-            let d2 = new Date(baseD);
-            for (let i = 0; dates.length < count; i++) {
-              if (d2.getDay() === targetDay) dates.push(new Date(d2));
-              d2.setDate(d2.getDate() + 1);
-              if (i > 365) break;
-            }
-          }
-          // 실제로는 baseD부터 매주 같은 요일
-          const weekDates = [];
-          let wd = new Date(baseD);
-          // 해당 요일로 이동
-          const diff = (targetDay - wd.getDay() + 7) % 7;
-          wd.setDate(wd.getDate() + diff);
+          // 시작일 기준 해당 요일로 이동
+          const baseD = new Date(y, m-1, d0, 12, 0, 0);
+          const diff = (targetDay - baseD.getDay() + 7) % 7;
+          baseD.setDate(baseD.getDate() + diff);
           for (let i = 0; i < count; i++) {
-            weekDates.push(new Date(wd));
-            wd.setDate(wd.getDate() + 7);
-          }
-          for (const d of weekDates) {
-            const ds = d.toISOString().slice(0,10);
-            await addEventFn({ ...baseEvent, date: ds });
+            const wd = new Date(baseD);
+            wd.setDate(baseD.getDate() + i * 7);
+            await addEventFn({ ...baseEvent, date: toDS(wd) });
           }
         } else if (repeat === 'monthly') {
           // 매월 특정일
           const day = parseInt(repeatDay);
-          let d = new Date(baseD);
           for (let i = 0; i < count; i++) {
-            const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-            await addEventFn({ ...baseEvent, date: ds });
-            d.setMonth(d.getMonth() + 1);
+            const md = new Date(y, m-1+i, day, 12, 0, 0);
+            await addEventFn({ ...baseEvent, date: toDS(md) });
           }
         } else if (repeat === 'monthly_last') {
           // 매월 마지막 주 특정 요일
           const targetDay = parseInt(repeatDay);
-          let d = new Date(baseD);
           for (let i = 0; i < count; i++) {
-            // 해당 월의 마지막 날
-            const lastDay = new Date(d.getFullYear(), d.getMonth()+1, 0);
-            // 마지막 주 특정 요일 찾기
-            let target = new Date(lastDay);
-            while (target.getDay() !== targetDay) target.setDate(target.getDate() - 1);
-            const ds = target.toISOString().slice(0,10);
-            await addEventFn({ ...baseEvent, date: ds });
-            d.setMonth(d.getMonth() + 1);
+            const lastDay = new Date(y, m+i, 0, 12, 0, 0); // 해당 월 마지막 날
+            while (lastDay.getDay() !== targetDay) lastDay.setDate(lastDay.getDate() - 1);
+            await addEventFn({ ...baseEvent, date: toDS(lastDay) });
           }
         }
       }

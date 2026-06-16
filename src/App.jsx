@@ -287,7 +287,7 @@ function WeekView({ curDate, events, onOpen, onAdd, isMobile, todayStr }) {
                         opacity:ev.done?0.55:1,
                         boxShadow:"0 1px 3px rgba(44,40,37,0.08)",
                       }}>
-                      <div style={{fontSize:isMobile?9:12,color:ev.done?T.textMute:cat.text,
+                      <div style={{fontSize:isMobile?9:12.5,color:ev.done?T.textMute:cat.text,
                         lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
                         fontWeight:500}}>
                         {ev.title}
@@ -573,7 +573,7 @@ function ArchiveEntryCard({ ev, accentColor, onOpen }) {
                 <span style={{color:T.textMute,fontSize:10,minWidth:22}}>{label}</span><span>{f[k]}</span>
               </div>
             ))}
-            {(f.calories||f.carbs||f.protein||f.fat||f.sugar)&&(()=>{const calColor=f.calories>GOALS.calories?"#C0443A":T.text;const protColor=f.protein&&f.protein<GOALS.protein?"#2E6FA5":T.text;const carbsN=parseFloat(f.carbs)||0,protN=parseFloat(f.protein)||0,fatN=parseFloat(f.fat)||0;return(<div style={{marginTop:5,paddingTop:5,borderTop:`1px dashed ${T.border}`}}><div style={{fontSize:10.5,display:"flex",gap:8,flexWrap:"nowrap",overflow:"hidden",marginBottom:4}}>{f.calories&&<span style={{whiteSpace:"nowrap"}}>🔥 <span style={{color:calColor}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories} kcal</span></span>}{f.carbs&&<span style={{whiteSpace:"nowrap"}}>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs} g</span></span>}{f.protein&&<span style={{whiteSpace:"nowrap"}}>🍖 <span style={{color:protColor}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein} g</span></span>}{f.fat&&<span style={{whiteSpace:"nowrap"}}>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat} g</span></span>}{f.sugar&&<span style={{whiteSpace:"nowrap"}}>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar} g</span></span>}</div>{(carbsN||protN||fatN)&&<div style={{maxWidth:isMobile?undefined:320}}><MacroBar carbs={carbsN} protein={protN} fat={fatN}/></div>}</div>);})()}
+            {(f.calories||f.carbs||f.protein||f.fat||f.sugar)&&(()=>{const calColor=f.calories>GOALS.calories?"#C0443A":T.text;const protColor=f.protein&&f.protein<GOALS.protein?"#2E6FA5":T.text;const carbsN=parseFloat(f.carbs)||0,protN=parseFloat(f.protein)||0,fatN=parseFloat(f.fat)||0;return(<div style={{marginTop:5,paddingTop:5,borderTop:`1px dashed ${T.border}`}}><div style={{fontSize:10.5,display:"flex",gap:8,flexWrap:"wrap",marginBottom:4}}>{f.calories&&<span style={{whiteSpace:"nowrap"}}>🔥 <span style={{color:calColor}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories} kcal</span></span>}{f.carbs&&<span style={{whiteSpace:"nowrap"}}>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs} g</span></span>}{f.protein&&<span style={{whiteSpace:"nowrap"}}>🍖 <span style={{color:protColor}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein} g</span></span>}{f.fat&&<span style={{whiteSpace:"nowrap"}}>🧀 <span style={{color:T.text}}>{f.fat}</span><span style={{color:T.textMute}}>/{GOALS.fat} g</span></span>}{f.sugar&&<span style={{whiteSpace:"nowrap"}}>🧁 <span style={{color:T.text}}>{f.sugar}</span><span style={{color:T.textMute}}>/{GOALS.sugar} g</span></span>}</div>{(carbsN||protN||fatN)&&<div style={{maxWidth:isMobile?undefined:320}}><MacroBar carbs={carbsN} protein={protN} fat={fatN}/></div>}</div>);})()}
             {ev.detail&&<div style={{fontSize:11,color:T.text,marginTop:5,whiteSpace:"pre-wrap",lineHeight:1.6}}>{ev.detail}</div>}
           </div>
         );
@@ -770,7 +770,7 @@ function HealthDayCards({ evs, accentColor, onOpen, isMobile }) {
                       <div style={{marginTop:4,paddingTop:4,borderTop:`1px dashed ${T.border}`}}>
                         {/* 숫자 줄 */}
                         <div style={{display:"flex",alignItems:"center",gap:10,fontSize:10}}>
-                          <div style={{display:"flex",gap:8,flex:1,flexWrap:"nowrap",alignItems:"center",overflow:"hidden"}}>
+                          <div style={{display:"flex",gap:8,flex:1,flexWrap:"wrap",alignItems:"center"}}>
                             {f.calories&&<span style={{whiteSpace:"nowrap"}}>🔥 <span style={{color:calColor}}>{f.calories}</span><span style={{color:T.textMute}}>/{GOALS.calories}kcal</span></span>}
                             {f.carbs&&<span style={{whiteSpace:"nowrap"}}>🥖 <span style={{color:T.text}}>{f.carbs}</span><span style={{color:T.textMute}}>/{GOALS.carbs}g</span></span>}
                             {f.protein&&<span style={{whiteSpace:"nowrap"}}>🍖 <span style={{color:protColor}}>{f.protein}</span><span style={{color:T.textMute}}>/{GOALS.protein}g</span></span>}
