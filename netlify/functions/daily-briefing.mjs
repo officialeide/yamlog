@@ -21,6 +21,8 @@ RULES FOR JSON STRINGS (violations will break parsing):
 - FORBIDDEN symbols: % · — $ + * [ ] { } | < > ^ ~
 - Safe alternatives: % -> 퍼센트, — -> 에서, · -> 와, / -> 대비, + -> 플러스
 - headline: max 50 chars, summary: max 35 chars, each line: max 45 chars
+- SPACING: Always put spaces between words. Never concatenate Korean words without spaces (e.g. "미국 이란 재공격" not "미국이란재공격", "중동 긴장 고조" not "중동긴장고조")
+- Each line must be a complete readable sentence with proper spacing
 - No 결론: prefix. Numbers only with Korean units (조 억 만 원)
 
 Portfolio (do not mention 한독):
