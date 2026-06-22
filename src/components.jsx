@@ -1483,7 +1483,7 @@ function BriefingSection({section}){
 
 
 // ─────────────────────────────────────────────────────
-// HABIT VIEW — 습관 체크박스 + 해빗트래커
+// HABIT VIEW — 세로 리스트 + 메모 + 월간 라인 그래프
 // ─────────────────────────────────────────────────────
 const DEFAULT_HABITS = [
   { id:"weight",    label:"무게 체크",  color:"#C0443A", bg:"#FDECEA", sort_order:0 },
@@ -1498,30 +1498,91 @@ const DEFAULT_HABITS = [
 const WEEKDAYS_KR = ["일","월","화","수","목","금","토"];
 const MONTHS_KR_H = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
 
+// 요일별 색상
+function dowColor(dow) {
+  if (dow === 0) return "#C0443A"; // 일
+  if (dow === 6) return "#2E6FA5"; // 토
+  return T.textMute;
+}
+
+// 메모 셀 — 미입력: input / 입력 후: 텍스트 고정, 클릭 시 수정 모드
+function MemoCell({ dateStr, memo, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(memo || "");
+  const inputRef = useRef(null);
+
+  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+
+  const commit = () => {
+    setEditing(false);
+    if (draft.trim() !== (memo || "")) onSave(dateStr, draft.trim());
+  };
+
+  const inputStyle = {
+    flex:1, minWidth:60, maxWidth:160, height:26, fontSize:12,
+    border:`1px solid ${T.border}`, borderRadius:6, padding:"0 8px",
+    background:T.bgSub, color:T.text, outline:"none",
+  };
+
+  if (!memo && !editing) {
+    return (
+      <input
+        placeholder="메모"
+        style={inputStyle}
+        onFocus={() => setEditing(true)}
+      />
+    );
+  }
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => e.key === "Enter" && commit()}
+        style={{...inputStyle, border:`1px solid ${T.accent}`}}
+      />
+    );
+  }
+
+  return (
+    <span
+      onClick={() => { setDraft(memo); setEditing(true); }}
+      title="클릭하여 수정"
+      style={{
+        flex:1, minWidth:60, maxWidth:160, fontSize:12, color:T.textSub,
+        cursor:"pointer", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
+      }}
+    >
+      {memo}
+    </span>
+  );
+}
+
 export function HabitView() {
-  const today    = new Date();
-  const todayStr = today.toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});
-  const year     = today.getFullYear();
-  const month    = today.getMonth();
+  const today     = new Date();
+  const todayStr  = today.toLocaleDateString("sv-SE", { timeZone:"Asia/Seoul" });
+  const year      = today.getFullYear();
+  const month     = today.getMonth();
   const yearMonth = `${year}-${String(month+1).padStart(2,"0")}`;
   const daysInMonth = new Date(year, month+1, 0).getDate();
-
   const todayDow  = today.getDay();
   const todayDate = today.getDate();
 
-  // Supabase 훅
   const { habits: dbHabits, loading: habitsLoading, refetch: refetchHabits } = useHabits();
-  const { logs: dbLogs,   loading: logsLoading,   refetch: refetchLogs   } = useHabitLogs(yearMonth);
+  const { logs: dbLogs, loading: logsLoading, refetch: refetchLogs } = useHabitLogs(yearMonth);
 
-  // DB에 기본 습관 없으면 초기화
   useEffect(() => {
     if (!habitsLoading && dbHabits.length === 0) {
       initDefaultHabits(DEFAULT_HABITS).then(refetchHabits).catch(console.error);
     }
   }, [habitsLoading, dbHabits.length]); // eslint-disable-line
 
-  // 로컬 낙관적 업데이트용 오버레이
   const [optimistic, setOptimistic] = useState({});
+  // 메모: { [dateStr]: string }
+  const [memos, setMemos] = useState({});
 
   const habits = dbHabits.length > 0 ? dbHabits : DEFAULT_HABITS;
 
@@ -1534,118 +1595,115 @@ export function HabitView() {
   const toggle = async (habitId, dayStr) => {
     const key = `${habitId}_${dayStr}`;
     const current = isChecked(habitId, dayStr);
-    // 낙관적 업데이트
     setOptimistic(p => ({...p, [key]: !current}));
     try {
       await toggleHabitLog(habitId, dayStr, current);
       await refetchLogs();
     } catch(e) {
       console.error("습관 토글 실패:", e);
-      setOptimistic(p => ({...p, [key]: current})); // 롤백
+      setOptimistic(p => ({...p, [key]: current}));
     } finally {
       setOptimistic(p => { const n={...p}; delete n[key]; return n; });
     }
   };
 
+  const saveMemo = (dateStr, text) => {
+    setMemos(p => ({...p, [dateStr]: text}));
+    // TODO: Supabase habit_logs memo 컬럼 upsert
+  };
+
   const loading = habitsLoading || logsLoading;
 
+  // 최근 7일 리스트 (오늘 ~ 6일 전)
+  const recentDays = Array.from({length:7}, (_, i) => {
+    const d = new Date(today);
+    d.setDate(todayDate - i);
+    const ds  = d.toLocaleDateString("sv-SE", { timeZone:"Asia/Seoul" });
+    const dow = d.getDay();
+    const m   = d.getMonth() + 1;
+    const dd  = d.getDate();
+    return { ds, dow, label:`${m}/${dd}` };
+  });
+
+  // 월간 라인 그래프 데이터
+  const chartData = Array.from({length: daysInMonth}, (_, i) => {
+    const d  = new Date(year, month, i+1);
+    const ds = d.toLocaleDateString("sv-SE", { timeZone:"Asia/Seoul" });
+    const count = habits.reduce((acc, h) => acc + (isChecked(h.id, ds) ? 1 : 0), 0);
+    return { day: `${i+1}일`, count };
+  });
+
   return (
-    <div style={{overflowY:"auto",height:"100%",paddingRight:4}}>
-      {/* 헤더: 날짜 브리핑 동일 서식 */}
+    <div style={{overflowY:"auto", height:"100%", paddingRight:4}}>
+      {/* 헤더 */}
       <div style={{marginBottom:16}}>
-        <div style={{fontFamily:"'Noto Serif KR',Georgia,serif",fontSize:17,fontWeight:700,color:T.text,letterSpacing:-.3}}>
+        <div style={{fontFamily:"'Noto Serif KR',Georgia,serif", fontSize:17, fontWeight:700, color:T.text, letterSpacing:-.3}}>
           {year}년 {MONTHS_KR_H[month]} {todayDate}일&nbsp;
-          <span style={{fontSize:13,fontWeight:400,color:T.textSub}}>{WEEKDAYS_KR[todayDow]}</span>
+          <span style={{fontSize:13, fontWeight:400, color:T.textSub}}>{WEEKDAYS_KR[todayDow]}</span>
         </div>
       </div>
 
       {loading ? (
-        <div style={{textAlign:"center",color:T.textMute,fontSize:13,padding:40}}>불러오는 중...</div>
+        <div style={{textAlign:"center", color:T.textMute, fontSize:13, padding:40}}>불러오는 중...</div>
       ) : (<>
-        {/* 오늘 체크박스 */}
-        <div style={{background:T.bgCard,borderRadius:14,padding:"14px 16px",marginBottom:16,border:`1px solid ${T.border}`}}>
-          <div style={{fontSize:11,color:T.textMute,fontWeight:600,letterSpacing:.5,marginBottom:10}}>오늘의 습관</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {habits.map(h => {
-              const checked = isChecked(h.id, todayStr);
-              return (
-                <div key={h.id} onClick={()=>toggle(h.id, todayStr)}
-                  style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",userSelect:"none"}}>
-                  <div style={{
-                    width:20,height:20,borderRadius:6,flexShrink:0,
-                    border:`1.5px solid ${checked?"transparent":T.border}`,
-                    background:checked?(h.bg||h.color+"22"):"transparent",
-                    display:"flex",alignItems:"center",justifyContent:"center",
-                    transition:"all .12s",
-                  }}>
-                    {checked&&<span style={{color:h.color,fontSize:12,lineHeight:1,fontWeight:700}}>✓</span>}
-                  </div>
-                  <span style={{fontSize:13,color:checked?T.text:T.textSub,fontWeight:checked?600:400,transition:"all .12s"}}>{h.label}</span>
-                </div>
-              );
-            })}
-          </div>
+        {/* 세로 리스트 */}
+        <div style={{background:T.bgCard, borderRadius:14, border:`1px solid ${T.border}`, overflow:"hidden", marginBottom:16}}>
+          {recentDays.map(({ ds, dow, label }, idx) => (
+            <div key={ds} style={{
+              display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
+              borderTop: idx === 0 ? "none" : `1px solid ${T.border}`,
+            }}>
+              {/* 날짜 */}
+              <div style={{minWidth:42}}>
+                <div style={{fontSize:13, fontWeight:500, color:T.text}}>{label}</div>
+                <div style={{fontSize:11, fontWeight:500, color:dowColor(dow)}}>{WEEKDAYS_KR[dow]}</div>
+              </div>
+
+              {/* 메모 */}
+              <MemoCell dateStr={ds} memo={memos[ds] || ""} onSave={saveMemo} />
+
+              {/* 체크박스들 */}
+              <div style={{display:"flex", gap:6}}>
+                {habits.map(h => {
+                  const checked = isChecked(h.id, ds);
+                  return (
+                    <div key={h.id} onClick={() => toggle(h.id, ds)}
+                      style={{display:"flex", flexDirection:"column", alignItems:"center", gap:2, minWidth:40, cursor:"pointer", userSelect:"none"}}>
+                      <div style={{fontSize:10, color:T.textMute, whiteSpace:"nowrap"}}>{h.label}</div>
+                      <div style={{
+                        width:18, height:18, borderRadius:4,
+                        background: checked ? (h.bg || h.color+"22") : "transparent",
+                        border: checked ? `1px solid ${h.color}` : `1px solid ${T.border}`,
+                        display:"flex", alignItems:"center", justifyContent:"center",
+                        transition:"all .1s",
+                      }}>
+                        {checked && <span style={{fontSize:11, color:h.color, fontWeight:700, lineHeight:1}}>✓</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
 
-        {/* 해빗트래커 */}
-        <div style={{background:T.bgCard,borderRadius:14,padding:"14px 16px",border:`1px solid ${T.border}`}}>
-          <div style={{fontSize:11,color:T.textMute,fontWeight:600,letterSpacing:.5,marginBottom:12}}>이번 달 트래커</div>
-          <div style={{overflowX:"auto"}}>
-            <table style={{borderCollapse:"collapse",minWidth:"100%"}}>
-              <thead>
-                <tr>
-                  <th style={{width:70,textAlign:"left",fontSize:10,color:T.textMute,fontWeight:400,paddingBottom:2,paddingRight:8}}></th>
-                  {Array.from({length:daysInMonth},(_,i)=>{
-                    const d   = new Date(year,month,i+1);
-                    const ds  = d.toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});
-                    const isToday = ds===todayStr;
-                    const dow = d.getDay();
-                    const isSun=dow===0, isSat=dow===6;
-                    return (
-                      <th key={i} style={{
-                        width:22,minWidth:22,textAlign:"center",paddingBottom:2,
-                      }}>
-                        <div style={{fontSize:8,color:isToday?T.accent:isSun?"#C0443A":isSat?"#2E6FA5":T.textMute,fontWeight:isToday?700:400}}>
-                          {WEEKDAYS_KR[dow]}
-                        </div>
-                        <div style={{fontSize:9,color:isToday?T.accent:isSun?"#C0443A":isSat?"#2E6FA5":T.textMute,fontWeight:isToday?700:400}}>
-                          {i+1}
-                        </div>
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {habits.map(h => (
-                  <tr key={h.id}>
-                    <td style={{fontSize:10,color:T.textSub,paddingRight:8,paddingTop:3,paddingBottom:3,whiteSpace:"nowrap"}}>{h.label}</td>
-                    {Array.from({length:daysInMonth},(_,i)=>{
-                      const d  = new Date(year,month,i+1);
-                      const ds = d.toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});
-                      const checked   = isChecked(h.id, ds);
-                      const isFuture  = ds > todayStr;
-                      return (
-                        <td key={i} onClick={()=>toggle(h.id,ds)}
-                          style={{textAlign:"center",padding:"2px 1px",cursor:"pointer"}}>
-                          <div style={{
-                            width:18,height:18,borderRadius:4,margin:"0 auto",
-                            background:checked?(h.bg||h.color+"22"):T.bgSub,
-                            border:"none",
-                            opacity:isFuture?0.35:1,
-                            transition:"all .1s",
-                            display:"flex",alignItems:"center",justifyContent:"center",
-                          }}>
-                            {checked&&<span style={{fontSize:10,color:h.color,fontWeight:700,lineHeight:1}}>✓</span>}
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {/* 월간 라인 그래프 */}
+        <div style={{background:T.bgCard, borderRadius:14, border:`1px solid ${T.border}`, padding:"14px 16px"}}>
+          <div style={{fontSize:11, color:T.textMute, fontWeight:600, letterSpacing:.5, marginBottom:12}}>월간 달성 추이</div>
+          <ResponsiveContainer width="100%" height={160}>
+            <LineChart data={chartData} margin={{top:4, right:8, bottom:0, left:-20}}>
+              <CartesianGrid strokeDasharray="3 3" stroke={T.border} />
+              <XAxis dataKey="day" tick={{fontSize:9, fill:T.textMute}} interval={4} />
+              <YAxis tick={{fontSize:9, fill:T.textMute}} allowDecimals={false} domain={[0, habits.length]} />
+              <Tooltip
+                contentStyle={{background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:8, fontSize:12}}
+                formatter={(v) => [`${v}개`, "달성"]}
+              />
+              <ReferenceLine x={`${todayDate}일`} stroke={T.accent} strokeDasharray="4 2" />
+              <Line type="monotone" dataKey="count" stroke="#2E6FA5" strokeWidth={2}
+                dot={false} activeDot={{r:4}} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </>)}
     </div>
