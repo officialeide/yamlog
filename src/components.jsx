@@ -1491,7 +1491,6 @@ const DEFAULT_HABITS = [
   { id:"ledger",    label:"가계부 기록", color:"#B09520", bg:"#FBF8E3", sort_order:2 },
   { id:"stretch",   label:"스트레칭",   color:"#4A8A5A", bg:"#EBF5EE", sort_order:3 },
   { id:"exercise",  label:"운동",       color:"#2E6FA5", bg:"#E8F2FA", sort_order:4 },
-  { id:"meditate",  label:"명상",       color:"#1A4080", bg:"#E6EBF5", sort_order:5 },
   { id:"review",    label:"리뷰",       color:"#7E4FA0", bg:"#F2EBF8", sort_order:6 },
 ];
 
@@ -1505,7 +1504,7 @@ function dowColor(dow) {
   return T.textMute;
 }
 
-// 메모 셀 — 미입력: input / 입력 후: 텍스트 고정, 클릭 시 수정 모드
+// 메모 셀 — 평소 빈 영역, 클릭 시 커서+input / 입력 후 텍스트 고정, 클릭 시 재수정
 function MemoCell({ dateStr, memo, onSave }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(memo || "");
@@ -1515,24 +1514,9 @@ function MemoCell({ dateStr, memo, onSave }) {
 
   const commit = () => {
     setEditing(false);
-    if (draft.trim() !== (memo || "")) onSave(dateStr, draft.trim());
+    const trimmed = draft.trim();
+    if (trimmed !== (memo || "")) onSave(dateStr, trimmed);
   };
-
-  const inputStyle = {
-    flex:1, minWidth:60, maxWidth:160, height:26, fontSize:12,
-    border:`1px solid ${T.border}`, borderRadius:6, padding:"0 8px",
-    background:T.bgSub, color:T.text, outline:"none",
-  };
-
-  if (!memo && !editing) {
-    return (
-      <input
-        placeholder="메모"
-        style={inputStyle}
-        onFocus={() => setEditing(true)}
-      />
-    );
-  }
 
   if (editing) {
     return (
@@ -1542,22 +1526,34 @@ function MemoCell({ dateStr, memo, onSave }) {
         onChange={e => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={e => e.key === "Enter" && commit()}
-        style={{...inputStyle, border:`1px solid ${T.accent}`}}
+        style={{
+          flex:1, minWidth:60, maxWidth:160, height:26, fontSize:12,
+          border:"none", outline:"none", background:"transparent", color:T.text, padding:0,
+        }}
+        placeholder="메모"
       />
     );
   }
 
+  if (memo) {
+    return (
+      <span
+        onClick={() => { setDraft(memo); setEditing(true); }}
+        style={{
+          flex:1, minWidth:60, maxWidth:160, fontSize:12, color:T.textSub,
+          cursor:"text", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
+        }}
+      >
+        {memo}
+      </span>
+    );
+  }
+
   return (
-    <span
-      onClick={() => { setDraft(memo); setEditing(true); }}
-      title="클릭하여 수정"
-      style={{
-        flex:1, minWidth:60, maxWidth:160, fontSize:12, color:T.textSub,
-        cursor:"pointer", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
-      }}
-    >
-      {memo}
-    </span>
+    <div
+      onClick={() => { setDraft(""); setEditing(true); }}
+      style={{ flex:1, minWidth:60, maxWidth:160, minHeight:26, cursor:"text" }}
+    />
   );
 }
 
@@ -1614,10 +1610,9 @@ export function HabitView() {
 
   const loading = habitsLoading || logsLoading;
 
-  // 최근 7일 리스트 (오늘 ~ 6일 전)
-  const recentDays = Array.from({length:7}, (_, i) => {
-    const d = new Date(today);
-    d.setDate(todayDate - i);
+  // 이번달 1일~오늘 전체 (오늘이 위)
+  const recentDays = Array.from({length: todayDate}, (_, i) => {
+    const d = new Date(year, month, todayDate - i);
     const ds  = d.toLocaleDateString("sv-SE", { timeZone:"Asia/Seoul" });
     const dow = d.getDay();
     const m   = d.getMonth() + 1;
@@ -1647,7 +1642,7 @@ export function HabitView() {
         <div style={{textAlign:"center", color:T.textMute, fontSize:13, padding:40}}>불러오는 중...</div>
       ) : (<>
         {/* 세로 리스트 */}
-        <div style={{background:T.bgCard, borderRadius:14, border:`1px solid ${T.border}`, overflow:"hidden", marginBottom:16}}>
+        <div style={{overflow:"hidden", marginBottom:8}}>
           {recentDays.map(({ ds, dow, label }, idx) => (
             <div key={ds} style={{
               display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
@@ -1688,20 +1683,20 @@ export function HabitView() {
         </div>
 
         {/* 월간 라인 그래프 */}
-        <div style={{background:T.bgCard, borderRadius:14, border:`1px solid ${T.border}`, padding:"14px 16px"}}>
+        <div style={{padding:"14px 0 0 0"}}>
           <div style={{fontSize:11, color:T.textMute, fontWeight:600, letterSpacing:.5, marginBottom:12}}>월간 달성 추이</div>
           <ResponsiveContainer width="100%" height={160}>
             <LineChart data={chartData} margin={{top:4, right:8, bottom:0, left:-20}}>
               <CartesianGrid strokeDasharray="3 3" stroke={T.border} />
               <XAxis dataKey="day" tick={{fontSize:9, fill:T.textMute}} interval={4} />
-              <YAxis tick={{fontSize:9, fill:T.textMute}} allowDecimals={false} domain={[0, habits.length]} />
+              <YAxis tick={{fontSize:9, fill:T.textMute}} allowDecimals={false} domain={[0, 6]} />
               <Tooltip
                 contentStyle={{background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:8, fontSize:12}}
                 formatter={(v) => [`${v}개`, "달성"]}
               />
               <ReferenceLine x={`${todayDate}일`} stroke={T.accent} strokeDasharray="4 2" />
               <Line type="monotone" dataKey="count" stroke="#2E6FA5" strokeWidth={2}
-                dot={false} activeDot={{r:4}} />
+                dot={{r:3, fill:"#2E6FA5"}} activeDot={{r:5}} />
             </LineChart>
           </ResponsiveContainer>
         </div>
