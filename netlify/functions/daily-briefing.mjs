@@ -85,14 +85,17 @@ async function callClaude(kstDateKR, attempt = 1) {
   return rawText;
 }
 
-// JSON 추출 및 파싱 (3단계)
+// JSON 추출 및 파싱 (4단계)
 function extractJSON(rawText) {
-  const jsonStart = rawText.indexOf("{");
-  const jsonEnd   = rawText.lastIndexOf("}");
+  // 0단계: 마크다운 코드블록 감싸기 제거 (```json ... ``` 또는 ``` ... ```)
+  let text = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+
+  const jsonStart = text.indexOf("{");
+  const jsonEnd   = text.lastIndexOf("}");
   if (jsonStart === -1 || jsonEnd === -1) {
-    throw new Error(`JSON 없음. 원문: ${rawText.slice(0, 100)}`);
+    throw new Error(`JSON 없음. 원문: ${text.slice(0, 100)}`);
   }
-  let clean = rawText.slice(jsonStart, jsonEnd + 1);
+  let clean = text.slice(jsonStart, jsonEnd + 1);
 
   // 1차: 기본 제어문자 제거
   try {
