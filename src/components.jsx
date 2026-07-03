@@ -1271,7 +1271,7 @@ export function WeightSection({ logs, onRefetch }) {
           <YAxis domain={[min,max]} tick={{fontSize:8,fill:T.textMute}}/>
           <Tooltip content={<CustomTip/>}/>
           <ReferenceLine y={avg} stroke={clr.color+"55"} strokeDasharray="3 3"/>
-          <Line type="monotone" dataKey="weight" stroke={clr.color} strokeWidth={1.5} dot={<CustomDot/>} activeDot={{r:4}}/>
+          <Line type="monotone" dataKey="weight" stroke={clr.color} strokeWidth={1.5} dot={false} activeDot={{r:4}}/>
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -1610,15 +1610,16 @@ export function HabitView() {
 
   const loading = habitsLoading || logsLoading;
 
-  // 이번달 1일~오늘 전체 (오늘이 위)
+  // 이번달 1일~오늘 전체 (오늘이 위, 주말 제외)
   const recentDays = Array.from({length: todayDate}, (_, i) => {
     const d = new Date(year, month, todayDate - i);
-    const ds  = d.toLocaleDateString("sv-SE", { timeZone:"Asia/Seoul" });
     const dow = d.getDay();
+    if (dow === 0 || dow === 6) return null;
+    const ds  = d.toLocaleDateString("sv-SE", { timeZone:"Asia/Seoul" });
     const m   = d.getMonth() + 1;
     const dd  = d.getDate();
     return { ds, dow, label:`${m}/${dd}` };
-  });
+  }).filter(Boolean);
 
   // 월간 라인 그래프 데이터
   const chartData = Array.from({length: daysInMonth}, (_, i) => {
@@ -1643,10 +1644,23 @@ export function HabitView() {
       ) : (<>
         {/* 세로 리스트 */}
         <div style={{overflow:"hidden", marginBottom:8}}>
+          {/* 헤더 고정 */}
+          <div style={{
+            display:"flex", alignItems:"center", gap:10, padding:"4px 14px 6px",
+            borderBottom:`1px solid ${T.border}`, position:"sticky", top:0, background:T.bg, zIndex:1,
+          }}>
+            <div style={{minWidth:42}} />
+            <div style={{flex:1, minWidth:60, maxWidth:160}} />
+            <div style={{display:"flex", gap:4}}>
+              {habits.map(h => (
+                <div key={h.id} style={{minWidth:30, textAlign:"center", fontSize:9, color:T.textMute, whiteSpace:"nowrap"}}>{h.label}</div>
+              ))}
+            </div>
+          </div>
           {recentDays.map(({ ds, dow, label }, idx) => (
             <div key={ds} style={{
-              display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
-              borderTop: idx === 0 ? "none" : `1px solid ${T.border}`,
+              display:"flex", alignItems:"center", gap:10, padding:"8px 14px",
+              borderTop: `1px solid ${T.border}`,
             }}>
               {/* 날짜 */}
               <div style={{minWidth:42}}>
@@ -1658,21 +1672,20 @@ export function HabitView() {
               <MemoCell dateStr={ds} memo={memos[ds] || ""} onSave={saveMemo} />
 
               {/* 체크박스들 */}
-              <div style={{display:"flex", gap:6}}>
+              <div style={{display:"flex", gap:4}}>
                 {habits.map(h => {
                   const checked = isChecked(h.id, ds);
                   return (
                     <div key={h.id} onClick={() => toggle(h.id, ds)}
-                      style={{display:"flex", flexDirection:"column", alignItems:"center", gap:2, minWidth:40, cursor:"pointer", userSelect:"none"}}>
-                      <div style={{fontSize:10, color:T.textMute, whiteSpace:"nowrap"}}>{h.label}</div>
+                      style={{minWidth:30, display:"flex", justifyContent:"center", cursor:"pointer", userSelect:"none"}}>
                       <div style={{
-                        width:18, height:18, borderRadius:4,
+                        width:15, height:15, borderRadius:3,
                         background: checked ? (h.bg || h.color+"22") : "transparent",
                         border: checked ? `1px solid ${h.color}` : `1px solid ${T.border}`,
                         display:"flex", alignItems:"center", justifyContent:"center",
                         transition:"all .1s",
                       }}>
-                        {checked && <span style={{fontSize:11, color:h.color, fontWeight:700, lineHeight:1}}>✓</span>}
+                        {checked && <span style={{fontSize:9, color:h.color, fontWeight:700, lineHeight:1}}>✓</span>}
                       </div>
                     </div>
                   );
@@ -1695,8 +1708,8 @@ export function HabitView() {
                 formatter={(v) => [`${v}개`, "달성"]}
               />
               <ReferenceLine x={`${todayDate}일`} stroke={T.accent} strokeDasharray="4 2" />
-              <Line type="monotone" dataKey="count" stroke="#2E6FA5" strokeWidth={2}
-                dot={{r:3, fill:"#2E6FA5"}} activeDot={{r:5}} />
+              <Line type="monotone" dataKey="count" stroke="#8B6347" strokeWidth={2}
+                dot={{r:3, fill:"#8B6347"}} activeDot={{r:5}} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -1752,6 +1765,7 @@ export function BriefingView(){
     "선물 파생":{color:"#4A8A5A",bg:"#EBF5EE"},"금리환율유가":{color:"#2E6FA5",bg:"#E8F2FA"},
     "금리 환율 유가":{color:"#2E6FA5",bg:"#E8F2FA"},"포트폴리오":{color:"#3A52A0",bg:"#EAECF8"},
     "포트폴리오 영향":{color:"#3A52A0",bg:"#EAECF8"},
+    "[요약]":{color:"#7A7570",bg:"#F0EFEE"},
   };
   return(
     <div style={{paddingRight:4}}>
