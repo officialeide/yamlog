@@ -10,7 +10,7 @@ import {
   T, CATS, ARCHIVE_SECTS, HEALTH_SUBS, REVIEW_SUBS,
   TOEIC_WORDS, catOf, dateStr, KNOWN_SUBS, TAB_ITEMS,
 } from "./constants.js";
-import { supabase, updateEvent, upsertWeight, deleteEvent, deleteWeight, useHabits, useHabitLogs, toggleHabitLog, initDefaultHabits } from "./api.js";
+import { supabase, updateEvent, upsertWeight, deleteEvent, deleteWeight, useHabits, useHabitLogs, toggleHabitLog, initDefaultHabits, useHabitMemos, upsertHabitMemo } from "./api.js";
 
 // ─────────────────────────────────────────────────────
 // LIVE CLOCK
@@ -1238,14 +1238,6 @@ export function WeightSection({ logs, onRefetch }) {
   const min = Math.min(...weights)-.8, max = Math.max(...weights)+.5;
   const avg = +(weights.reduce((a,w)=>a+w,0)/weights.length).toFixed(1);
 
-  // 실측 점: 진한 원 / 보간 점: 속 빈 작은 원
-  const CustomDot=(props)=>{
-    const { cx, cy, payload } = props;
-    if (payload.interpolated) {
-      return <circle cx={cx} cy={cy} r={2.5} fill={T.bgCard} stroke={clr.color} strokeWidth={1.5} strokeOpacity={0.5}/>;
-    }
-    return <circle cx={cx} cy={cy} r={4} fill={clr.color} stroke={T.bgCard} strokeWidth={2}/>;
-  };
   const CustomTip=({active,payload})=>{
     if(!active||!payload?.length) return null;
     const d=payload[0].payload;
@@ -1450,6 +1442,16 @@ export function MacroBar({ carbs, protein, fat, inline=false }) {
   );
 }
 
+// ▲(상승)=빨강, ▼(하락)=파랑 색상 강조 렌더
+function renderDirLine(text){
+  const parts = String(text).split(/([▲▼])/);
+  return parts.map((p,i)=>{
+    if(p==="▲") return <span key={i} style={{color:"#C0443A",fontWeight:700}}>▲</span>;
+    if(p==="▼") return <span key={i} style={{color:"#2E6FA5",fontWeight:700}}>▼</span>;
+    return <span key={i}>{p}</span>;
+  });
+}
+
 function BriefingSection({section}){
   const [open,setOpen]=useState(true);
   const items=Array.isArray(section.content)&&section.content.length>0
@@ -1471,7 +1473,7 @@ function BriefingSection({section}){
           <div style={{padding:"8px 14px 12px"}}>
             {rest.map((line,i)=>(
               <div key={i} style={{marginTop:i===0?0:4,paddingLeft:10,borderLeft:`2px solid ${section.color}55`}}>
-                <span style={{fontSize:12,color:T.text,lineHeight:1.5,fontWeight:400,fontFamily:"'Noto Sans KR',sans-serif"}}>{fmtNums(line)}</span>
+                <span style={{fontSize:12,color:T.text,lineHeight:1.5,fontWeight:400,fontFamily:"'Noto Sans KR',sans-serif"}}>{renderDirLine(fmtNums(line))}</span>
               </div>
             ))}
           </div>
@@ -1559,16 +1561,23 @@ function MemoCell({ dateStr, memo, onSave }) {
 
 export function HabitView() {
   const today     = new Date();
-  const todayStr  = today.toLocaleDateString("sv-SE", { timeZone:"Asia/Seoul" });
-  const year      = today.getFullYear();
-  const month     = today.getMonth();
-  const yearMonth = `${year}-${String(month+1).padStart(2,"0")}`;
-  const daysInMonth = new Date(year, month+1, 0).getDate();
   const todayDow  = today.getDay();
   const todayDate = today.getDate();
 
+  // 월 이동: 0=이번달, -1=지난달 ...
+  const [monthOffset, setMonthOffset] = useState(0);
+  const viewBase   = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
+  const year       = viewBase.getFullYear();
+  const month      = viewBase.getMonth();
+  const yearMonth  = `${year}-${String(month+1).padStart(2,"0")}`;
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const isCurrentMonth = monthOffset === 0;
+  // 표시할 마지막 날: 이번달이면 오늘, 과거 달이면 말일
+  const lastDay = isCurrentMonth ? todayDate : daysInMonth;
+
   const { habits: dbHabits, loading: habitsLoading, refetch: refetchHabits } = useHabits();
   const { logs: dbLogs, loading: logsLoading, refetch: refetchLogs } = useHabitLogs(yearMonth);
+  const { memos: dbMemos, refetch: refetchMemos } = useHabitMemos(yearMonth);
 
   useEffect(() => {
     if (!habitsLoading && dbHabits.length === 0) {
@@ -1577,8 +1586,7 @@ export function HabitView() {
   }, [habitsLoading, dbHabits.length]); // eslint-disable-line
 
   const [optimistic, setOptimistic] = useState({});
-  // 메모: { [dateStr]: string }
-  const [memos, setMemos] = useState({});
+  const [memoOptimistic, setMemoOptimistic] = useState({});
 
   const habits = dbHabits.length > 0 ? dbHabits : DEFAULT_HABITS;
 
@@ -1603,16 +1611,26 @@ export function HabitView() {
     }
   };
 
-  const saveMemo = (dateStr, text) => {
-    setMemos(p => ({...p, [dateStr]: text}));
-    // TODO: Supabase habit_logs memo 컬럼 upsert
+  const getMemo = (dateStr) =>
+    memoOptimistic[dateStr] !== undefined ? memoOptimistic[dateStr] : (dbMemos[dateStr] || "");
+
+  const saveMemo = async (dateStr, text) => {
+    setMemoOptimistic(p => ({...p, [dateStr]: text}));
+    try {
+      await upsertHabitMemo(dateStr, text);
+      await refetchMemos();
+    } catch(e) {
+      console.error("메모 저장 실패:", e);
+    } finally {
+      setMemoOptimistic(p => { const n={...p}; delete n[dateStr]; return n; });
+    }
   };
 
   const loading = habitsLoading || logsLoading;
 
-  // 이번달 1일~오늘 전체 (오늘이 위, 주말 제외)
-  const recentDays = Array.from({length: todayDate}, (_, i) => {
-    const d = new Date(year, month, todayDate - i);
+  // 해당 월 1일~lastDay (최신이 위, 주말 제외)
+  const recentDays = Array.from({length: lastDay}, (_, i) => {
+    const d = new Date(year, month, lastDay - i);
     const dow = d.getDay();
     if (dow === 0 || dow === 6) return null;
     const ds  = d.toLocaleDateString("sv-SE", { timeZone:"Asia/Seoul" });
@@ -1629,13 +1647,29 @@ export function HabitView() {
     return { day: `${i+1}일`, count };
   });
 
+  // 헤더/체크박스 공통 열 너비 (데탑·모바일 정렬 일치)
+  const COL_W = 40;
+
+  const navBtn = {
+    border:"none", background:"transparent", cursor:"pointer",
+    fontSize:15, color:T.textSub, padding:"2px 8px", lineHeight:1,
+  };
+
   return (
     <div style={{overflowY:"auto", height:"100%", paddingRight:4}}>
-      {/* 헤더 */}
-      <div style={{marginBottom:16}}>
+      {/* 헤더 + 월 이동 */}
+      <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16}}>
         <div style={{fontFamily:"'Noto Serif KR',Georgia,serif", fontSize:17, fontWeight:700, color:T.text, letterSpacing:-.3}}>
-          {year}년 {MONTHS_KR_H[month]} {todayDate}일&nbsp;
-          <span style={{fontSize:13, fontWeight:400, color:T.textSub}}>{WEEKDAYS_KR[todayDow]}</span>
+          {isCurrentMonth
+            ? <>{year}년 {MONTHS_KR_H[month]} {todayDate}일&nbsp;<span style={{fontSize:13, fontWeight:400, color:T.textSub}}>{WEEKDAYS_KR[todayDow]}</span></>
+            : <>{year}년 {MONTHS_KR_H[month]}</>}
+        </div>
+        <div style={{display:"flex", alignItems:"center", gap:2}}>
+          <button style={navBtn} onClick={() => setMonthOffset(o => o - 1)}>←</button>
+          <button
+            style={{...navBtn, opacity: isCurrentMonth ? 0.25 : 1, cursor: isCurrentMonth ? "default" : "pointer"}}
+            onClick={() => !isCurrentMonth && setMonthOffset(o => o + 1)}
+          >→</button>
         </div>
       </div>
 
@@ -1646,18 +1680,18 @@ export function HabitView() {
         <div style={{overflow:"hidden", marginBottom:8}}>
           {/* 헤더 고정 */}
           <div style={{
-            display:"flex", alignItems:"center", gap:10, padding:"4px 14px 6px",
+            display:"flex", alignItems:"flex-end", gap:10, padding:"4px 14px 6px",
             borderBottom:`1px solid ${T.border}`, position:"sticky", top:0, background:T.bg, zIndex:1,
           }}>
             <div style={{minWidth:42}} />
             <div style={{flex:1, minWidth:60, maxWidth:160}} />
-            <div style={{display:"flex", gap:4}}>
+            <div style={{display:"flex", gap:2}}>
               {habits.map(h => (
-                <div key={h.id} style={{minWidth:30, textAlign:"center", fontSize:9, color:T.textMute, whiteSpace:"nowrap"}}>{h.label}</div>
+                <div key={h.id} style={{width:COL_W, textAlign:"center", fontSize:8.5, color:T.textMute, lineHeight:1.15, wordBreak:"keep-all"}}>{h.label}</div>
               ))}
             </div>
           </div>
-          {recentDays.map(({ ds, dow, label }, idx) => (
+          {recentDays.map(({ ds, dow, label }) => (
             <div key={ds} style={{
               display:"flex", alignItems:"center", gap:10, padding:"8px 14px",
               borderTop: `1px solid ${T.border}`,
@@ -1669,15 +1703,15 @@ export function HabitView() {
               </div>
 
               {/* 메모 */}
-              <MemoCell dateStr={ds} memo={memos[ds] || ""} onSave={saveMemo} />
+              <MemoCell dateStr={ds} memo={getMemo(ds)} onSave={saveMemo} />
 
               {/* 체크박스들 */}
-              <div style={{display:"flex", gap:4}}>
+              <div style={{display:"flex", gap:2}}>
                 {habits.map(h => {
                   const checked = isChecked(h.id, ds);
                   return (
                     <div key={h.id} onClick={() => toggle(h.id, ds)}
-                      style={{minWidth:30, display:"flex", justifyContent:"center", cursor:"pointer", userSelect:"none"}}>
+                      style={{width:COL_W, display:"flex", justifyContent:"center", cursor:"pointer", userSelect:"none"}}>
                       <div style={{
                         width:15, height:15, borderRadius:3,
                         background: checked ? (h.bg || h.color+"22") : "transparent",
@@ -1707,7 +1741,7 @@ export function HabitView() {
                 contentStyle={{background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:8, fontSize:12}}
                 formatter={(v) => [`${v}개`, "달성"]}
               />
-              <ReferenceLine x={`${todayDate}일`} stroke={T.accent} strokeDasharray="4 2" />
+              {isCurrentMonth && <ReferenceLine x={`${todayDate}일`} stroke={T.accent} strokeDasharray="4 2" />}
               <Line type="monotone" dataKey="count" stroke="#8B6347" strokeWidth={2}
                 dot={{r:3, fill:"#8B6347"}} activeDot={{r:5}} />
             </LineChart>
@@ -1765,7 +1799,7 @@ export function BriefingView(){
     "선물 파생":{color:"#4A8A5A",bg:"#EBF5EE"},"금리환율유가":{color:"#2E6FA5",bg:"#E8F2FA"},
     "금리 환율 유가":{color:"#2E6FA5",bg:"#E8F2FA"},"포트폴리오":{color:"#3A52A0",bg:"#EAECF8"},
     "포트폴리오 영향":{color:"#3A52A0",bg:"#EAECF8"},
-    "[요약]":{color:"#7A7570",bg:"#F0EFEE"},
+    "요약":{color:"#7A7570",bg:"#F0EFEE"},"[요약]":{color:"#7A7570",bg:"#F0EFEE"},
   };
   return(
     <div style={{paddingRight:4}}>

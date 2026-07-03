@@ -181,3 +181,49 @@ export async function initDefaultHabits(defaults) {
   if (error) throw error;
 }
 
+
+// ── 습관 메모 훅 (해당 월) ──────────────────────────
+export function useHabitMemos(yearMonth) {
+  const [memos, setMemos] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  const fetchMemos = useCallback(async () => {
+    if (!yearMonth) return;
+    try {
+      const from = `${yearMonth}-01`;
+      const to   = `${yearMonth}-31`;
+      const { data, error } = await supabase
+        .from("habit_memos")
+        .select("*")
+        .gte("date", from)
+        .lte("date", to);
+      if (error) throw error;
+      const map = {};
+      (data || []).forEach(r => { map[r.date] = r.memo; });
+      setMemos(map);
+    } catch (e) {
+      console.error("habit_memos 로드 실패:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [yearMonth]);
+
+  useEffect(() => { fetchMemos(); }, [fetchMemos]);
+  return { memos, loading, refetch: fetchMemos };
+}
+
+// ── 습관 메모 upsert (빈 문자열이면 삭제) ────────────
+export async function upsertHabitMemo(date, memo) {
+  if (!memo) {
+    const { error } = await supabase
+      .from("habit_memos")
+      .delete()
+      .eq("date", date);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from("habit_memos")
+      .upsert([{ date, memo }], { onConflict: "date" });
+    if (error) throw error;
+  }
+}
