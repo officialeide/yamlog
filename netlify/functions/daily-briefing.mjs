@@ -24,6 +24,7 @@ RULES FOR JSON STRINGS (violations will break parsing):
 - Safe alternatives: % -> 퍼센트, — -> 에서, · -> 와, / -> 대비, + -> 플러스
 - EXCEPTION: ▲ and ▼ are ALLOWED only in the 요약 section lines for direction marks
 - headline: max 50 chars, summary: max 35 chars, each line: max 45 chars
+- THESE LIMITS ARE HARD LIMITS. Count characters before finishing each string. If a sentence would exceed the limit, shorten it — do NOT let any string exceed the limit under any circumstance
 - SPACING: Always put spaces between words. Never concatenate Korean words without spaces (e.g. "미국 이란 재공격" not "미국이란재공격", "중동 긴장 고조" not "중동긴장고조")
 - Each line must be a complete readable sentence with proper spacing
 - No 결론: prefix. Numbers only with Korean units (조 억 만 원)
@@ -34,6 +35,21 @@ Portfolio (do not mention 한독):
 SOL원자력SMR10주 TIGER원자력40주(신중) 버크셔B 0.3956주 예수금133만원
 
 Search today's data then respond with ONLY the JSON object. No markdown, no explanation.`;
+
+// 글자수 하드 리밋 강제 (모델이 규칙을 어겨도 서버에서 반드시 잘라냄)
+const LIMITS = { headline: 50, summary: 35, line: 45 };
+function clip(str, max) {
+  if (typeof str !== "string") return str;
+  return str.length > max ? str.slice(0, max - 1).trim() + "…" : str;
+}
+function enforceCharLimits(briefing) {
+  briefing.headline = clip(briefing.headline, LIMITS.headline);
+  (briefing.sections || []).forEach(s => {
+    s.summary = clip(s.summary, LIMITS.summary);
+    s.lines = (s.lines || []).map(l => clip(l, LIMITS.line));
+  });
+  return briefing;
+}
 
 // JSON 문자열 값 내부 위험 문자 정리
 function sanitizeJsonStrings(raw) {
@@ -46,27 +62,44 @@ function sanitizeJsonStrings(raw) {
   });
 }
 
+// Claude 호출 1건당 최대 대기 시간 (ms) — 이 시간을 넘기면 즉시 포기하고 재시도로 넘어감
+const CALL_TIMEOUT_MS = 25000;
+
 // Claude API 호출 (재시도 포함)
 async function callClaude(kstDateKR, attempt = 1) {
   console.log(`Claude 호출 시도 ${attempt}회`);
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": process.env.ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1500,
-      system: SYSTEM_PROMPT,
-      tools: [{ type: "web_search_20250305", name: "web_search" }],
-      messages: [{
-        role: "user",
-        content: `${kstDateKR} 기준으로 (1) 간밤 선물시장 동향, (2) 어제 저녁~오늘 새벽 사이 발생한 주요 세계 정세(전쟁, 외교, 사고, 정치경제 이슈)를 검색하고, 이것이 오늘 국장에 미칠 영향을 예상해서 JSON으로 응답해.`,
-      }],
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
+
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 4096,
+        system: SYSTEM_PROMPT,
+        tools: [{ type: "web_search_20250305", name: "web_search" }],
+        messages: [{
+          role: "user",
+          content: `${kstDateKR} 기준으로 (1) 간밤 선물시장 동향, (2) 어제 저녁~오늘 새벽 사이 발생한 주요 세계 정세(전쟁, 외교, 사고, 정치경제 이슈)를 검색하고, 이것이 오늘 국장에 미칠 영향을 예상해서 JSON으로 응답해.`,
+        }],
+      }),
+    });
+  } catch (e) {
+    if (e.name === "AbortError") {
+      throw new Error(`Claude 호출 타임아웃 (${CALL_TIMEOUT_MS}ms 초과)`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!res.ok) {
     const e = await res.text();
@@ -143,11 +176,15 @@ async function saveBriefing(kstDate, briefing) {
 
   if (!res.ok) {
     const e = await res.text();
-    throw new Error(`Supabase ${res.status}: ${e}`);
+    const hint = res.status === 401
+      ? " (SUPABASE_SERVICE_KEY가 anon key로 잘못 설정됐거나 RLS 정책에 service_role bypass가 없을 가능성 — Netlify 환경변수와 Supabase RLS 정책 확인 필요)"
+      : "";
+    throw new Error(`Supabase ${res.status}: ${e}${hint}`);
   }
 }
 
 export default async () => {
+  const t0 = Date.now();
   try {
     const kstDate   = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
     const kstDateKR = new Date().toLocaleDateString("ko-KR", {
@@ -155,22 +192,32 @@ export default async () => {
     });
     console.log(`브리핑 생성 시작: ${kstDate}`);
 
-    // Claude 호출 — 실패 시 1회 자동 재시도
+    // Claude 호출 — 최대 3회 시도 (호출당 타임아웃 있어 전체 지연 방지)
+    const MAX_ATTEMPTS = 3;
     let rawText;
-    try {
-      rawText = await callClaude(kstDateKR, 1);
-    } catch (e1) {
-      console.warn(`1차 실패: ${e1.message} — 재시도`);
-      rawText = await callClaude(kstDateKR, 2);
+    let lastErr;
+    for (let i = 1; i <= MAX_ATTEMPTS; i++) {
+      try {
+        rawText = await callClaude(kstDateKR, i);
+        lastErr = null;
+        break;
+      } catch (e) {
+        lastErr = e;
+        console.warn(`${i}차 실패: ${e.message}${i < MAX_ATTEMPTS ? " — 재시도" : ""}`);
+      }
     }
+    if (lastErr) throw lastErr;
 
     // JSON 파싱
-    const briefing = extractJSON(rawText);
+    let briefing = extractJSON(rawText);
 
     // 검증
     if (!briefing.headline || !Array.isArray(briefing.sections) || briefing.sections.length < 3) {
       throw new Error(`구조 오류: headline=${!!briefing.headline}, sections=${briefing.sections?.length}`);
     }
+
+    // 글자수 하드 리밋 강제 적용 (모델 응답과 무관하게 서버에서 보장)
+    briefing = enforceCharLimits(briefing);
 
     const chars = (briefing.headline?.length || 0) +
       (briefing.sections || []).flatMap(s => [s.summary||"", ...(s.lines||[])]).join("").length;
@@ -178,7 +225,7 @@ export default async () => {
 
     // 저장 (중복 시 덮어쓰기)
     await saveBriefing(kstDate, briefing);
-    console.log(`브리핑 저장 완료: ${kstDate}`);
+    console.log(`브리핑 저장 완료: ${kstDate}, 총 소요: ${Date.now() - t0}ms`);
 
     return new Response(
       JSON.stringify({ ok: true, date: kstDate, chars }),
@@ -186,7 +233,7 @@ export default async () => {
     );
 
   } catch (err) {
-    console.error("브리핑 생성 실패:", err.message);
+    console.error(`브리핑 생성 실패 (총 소요: ${Date.now() - t0}ms):`, err.message);
     return new Response(
       JSON.stringify({ ok: false, error: err.message }),
       { status: 500, headers: { "Content-Type": "application/json" } }
